@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="ResearchGap — Patent &amp; Literature White-Space Analysis Platform prototype" />
+  <title>ResearchGap | Patent &amp; Literature White-Space Analysis Platform</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main>
+    <!-- HERO / EXPLORE -->
+    <section class="hero" id="explore">
+      <div class="orb orb-a"></div>
+      <div class="orb orb-b"></div>
+      <div class="orb orb-c"></div>
+
+      <header class="topbar">
+        <a class="logo" href="#explore" aria-label="ResearchGap home">
+          <img src="logo.png" alt="ResearchGap" />
+        </a>
+
+        <nav class="nav" aria-label="Main navigation">
+          <a class="active" href="#explore">EXPLORE</a>
+          <a href="#white-space">WHITE SPACE</a>
+          <a href="#trends">TRENDS</a>
+          <a href="#assistant">AI ASSISTANT</a>
+          <a href="#about">ABOUT</a>
+        </nav>
+
+        <button class="menu-btn" id="menuBtn" aria-label="Open navigation" aria-expanded="false">☰</button>
+      </header>
+
+      <div class="hero-content">
+        <h1>ResearchGap</h1>
+        <h2>Patent &amp; Literature White-Space Analysis Platform</h2>
+        <p class="zh hero-zh">專利文獻白地分析平台</p>
+        <p class="hero-copy">
+          Cross-analyze patents and academic literature to discover research gaps and emerging opportunities.<br />
+          <span class="zh">交叉分析專利與學術文獻，快速辨識研究密集區、潛在白地與新興技術機會。</span>
+        </p>
+
+        <form class="search-panel" id="searchForm">
+          <div class="searchbar">
+            <input
+              id="keyword"
+              type="search"
+              placeholder="Enter technology, field, or keyword / 請輸入技術、研究領域或關鍵字"
+              autocomplete="off"
+            />
+            <button type="submit" aria-label="Search">⌕</button>
+          </div>
+
+          <div class="try-row">
+            <span>You can try:</span>
+            <button type="button" class="tag">SDN</button>
+            <button type="button" class="tag">NFV</button>
+            <button type="button" class="tag">Network Slicing</button>
+            <button type="button" class="tag">Edge Computing</button>
+          </div>
+
+          <div class="filters">
+            <label>
+              <span>Year Start <span class="zh">起始年份</span></span>
+              <input id="yearStart" type="number" min="1900" max="2100" placeholder="YYYY" />
+            </label>
+
+            <div class="dash">–</div>
+
+            <label>
+              <span>Year End <span class="zh">結束年份</span></span>
+              <input id="yearEnd" type="number" min="1900" max="2100" placeholder="YYYY" />
+            </label>
+
+            <label class="country-field">
+              <span>Country <span class="zh">國家</span></span>
+              <select id="country">
+                <option value="All">All / 全部</option>
+                <option>Taiwan</option>
+                <option>United States</option>
+                <option>Japan</option>
+                <option>South Korea</option>
+                <option>China</option>
+                <option>Germany</option>
+              </select>
+            </label>
+
+            <fieldset class="type-field">
+              <legend>Type <span class="zh">類型</span></legend>
+              <label class="check">
+                <input id="patent" type="checkbox" checked />
+                <span>Patent <span class="zh">專利</span></span>
+              </label>
+              <label class="check">
+                <input id="paper" type="checkbox" checked />
+                <span>Academic Paper <span class="zh">學術文獻</span></span>
+              </label>
+            </fieldset>
+          </div>
+        </form>
+
+        <div class="scroll-cue">
+          <span>SCROLL TO ANALYSIS</span>
+          <span>↓</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- OVERVIEW -->
+    <section class="section cream" id="overview">
+      <div class="section-head">
+        <p class="eyebrow">ANALYSIS DASHBOARD</p>
+        <h3>Research Topic Overview <span>/ 研究主題概覽</span></h3>
+        <p id="analysisSummary">Enter a keyword to start the analysis. <span class="zh">輸入關鍵字後開始分析。</span></p>
+      </div>
+
+      <div class="metric-grid">
+        <article class="metric">
+          <span>Academic Publications</span><small>學術文獻</small>
+          <strong id="metricPapers">2,416</strong>
+        </article>
+        <article class="metric">
+          <span>Patents</span><small>專利</small>
+          <strong id="metricPatents">1,083</strong>
+        </article>
+        <article class="metric">
+          <span>Institutions</span><small>研究機構</small>
+          <strong id="metricInstitutions">326</strong>
+        </article>
+        <article class="metric">
+          <span>Emerging Topics</span><small>新興主題</small>
+          <strong id="metricTopics">12</strong>
+        </article>
+        <article class="metric accent">
+          <span>Potential Gaps</span><small>潛在白地</small>
+          <strong id="metricGaps">8</strong>
+        </article>
+      </div>
+    </section>
+
+    <!-- WHITE SPACE -->
+    <section class="section white-space" id="white-space">
+      <div class="section-head light">
+        <p class="eyebrow">WHITE SPACE ANALYSIS</p>
+        <h3>Technology White-Space Matrix <span>/ 技術白地矩陣</span></h3>
+        <p>Compare research and patent density across technology combinations. <span class="zh">比較研究與專利密度，找出尚未被充分探索的技術組合。</span></p>
+      </div>
+
+      <div class="matrix-wrap">
+        <table class="matrix">
+          <thead>
+            <tr>
+              <th></th>
+              <th>AI</th>
+              <th>IoT</th>
+              <th>Edge</th>
+              <th>Digital Twin</th>
+              <th>Blockchain</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th>SDN</th>
+              <td class="dense">531</td>
+              <td class="dense">426</td>
+              <td class="medium">177</td>
+              <td class="gap" data-gap="SDN × Digital Twin">21</td>
+              <td class="medium">102</td>
+            </tr>
+            <tr>
+              <th>NFV</th>
+              <td class="dense">388</td>
+              <td class="medium">203</td>
+              <td class="medium">155</td>
+              <td class="gap" data-gap="NFV × Digital Twin">12</td>
+              <td class="gap" data-gap="NFV × Blockchain">48</td>
+            </tr>
+            <tr>
+              <th>6G</th>
+              <td class="dense">490</td>
+              <td class="medium">121</td>
+              <td class="dense">310</td>
+              <td class="medium">91</td>
+              <td class="gap" data-gap="6G × Blockchain">27</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="legend">
+          <span><i class="dot dense-dot"></i>Crowded <span class="zh">高密度</span></span>
+          <span><i class="dot medium-dot"></i>Developing <span class="zh">發展中</span></span>
+          <span><i class="dot gap-dot"></i>Potential White Space <span class="zh">潛在白地</span></span>
+        </div>
+      </div>
+
+      <div class="gap-cards">
+        <article class="gap-card featured">
+          <div class="score">87<small>/100</small></div>
+          <div>
+            <p class="card-kicker">POTENTIAL GAP</p>
+            <h4 id="gapTitle">SDN × Digital Twin</h4>
+            <p id="gapDescription">Research volume remains low while recent interest is rising, suggesting an underexplored opportunity worth validating.</p>
+            <p class="zh" id="gapDescriptionZh">目前相關研究量仍低，但近年關注度快速上升，可能形成值得進一步驗證的研究白地。</p>
+            <button class="pill-btn" id="evidenceBtn">View Evidence <span class="zh">查看證據</span> →</button>
+          </div>
+        </article>
+
+        <article class="gap-card">
+          <p class="card-kicker">AI SUGGESTED QUESTION</p>
+          <h4>Suggested Research Question <span class="zh">建議研究問題</span></h4>
+          <p>How can Digital Twins improve real-time SDN network optimization?</p>
+          <p class="zh">如何利用數位孿生提升 SDN 即時網路最佳化？</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- TRENDS -->
+    <section class="section trends" id="trends">
+      <div class="section-head">
+        <p class="eyebrow">TECHNOLOGY TRENDS</p>
+        <h3>Research Activity Over Time <span>/ 研究活動趨勢</span></h3>
+        <p>Compare annual changes in publications and patent activity. <span class="zh">比較學術文獻與專利活動的年度變化。</span></p>
+      </div>
+
+      <div class="trend-layout">
+        <article class="chart-card">
+          <div class="chart-title">
+            <strong>SDN + Digital Twin</strong>
+            <span>2019—2026</span>
+          </div>
+          <svg viewBox="0 0 760 300" role="img" aria-label="Trend chart">
+            <g class="gridlines">
+              <line x1="55" y1="40" x2="730" y2="40"></line>
+              <line x1="55" y1="95" x2="730" y2="95"></line>
+              <line x1="55" y1="150" x2="730" y2="150"></line>
+              <line x1="55" y1="205" x2="730" y2="205"></line>
+              <line x1="55" y1="260" x2="730" y2="260"></line>
+            </g>
+            <polyline class="line papers" points="60,242 150,231 240,216 330,192 420,168 510,132 600,92 720,54"></polyline>
+            <polyline class="line patents" points="60,252 150,248 240,242 330,232 420,219 510,204 600,184 720,156"></polyline>
+            <g class="xlabels">
+              <text x="55" y="286">2019</text><text x="145" y="286">2020</text>
+              <text x="235" y="286">2021</text><text x="325" y="286">2022</text>
+              <text x="415" y="286">2023</text><text x="505" y="286">2024</text>
+              <text x="595" y="286">2025</text><text x="700" y="286">2026</text>
+            </g>
+          </svg>
+          <div class="chart-legend">
+            <span><i class="line-key papers-key"></i>Academic Publications</span>
+            <span><i class="line-key patents-key"></i>Patents</span>
+          </div>
+        </article>
+
+        <div class="emerging-list">
+          <article>
+            <span class="rank">01</span>
+            <div><strong>AI-driven SDN</strong><small>Fast-growing / 快速成長</small></div>
+            <b>+78%</b>
+          </article>
+          <article>
+            <span class="rank">02</span>
+            <div><strong>Digital Twin Networking</strong><small>Emerging / 新興</small></div>
+            <b>+64%</b>
+          </article>
+          <article>
+            <span class="rank">03</span>
+            <div><strong>Intent-based Networking</strong><small>Developing / 發展中</small></div>
+            <b>+51%</b>
+          </article>
+          <article>
+            <span class="rank">04</span>
+            <div><strong>Green Networking</strong><small>Developing / 發展中</small></div>
+            <b>+47%</b>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- AI ASSISTANT -->
+    <section class="section assistant" id="assistant">
+      <div class="assistant-shell">
+        <div class="assistant-intro">
+          <p class="eyebrow">AI RESEARCH GAP ASSISTANT</p>
+          <h3>AI Research Gap Assistant <span>/ AI 研究白地助手</span></h3>
+          <p>Ask about research gaps, relevant patents, or possible research questions in natural language.</p>
+          <p class="zh">用自然語言詢問研究缺口、相關專利與可能的研究問題。</p>
+          <p class="status-pill">
+            <span class="status-dot"></span>Demo now · Azure AI Agent coming soon
+          </p>
+          <p class="status-pill zh">示範版本 · Azure AI Agent 即將上線</p>
+        </div>
+
+        <div class="chat">
+          <div class="chat-messages" id="chatMessages">
+            <div class="bubble bot">
+              <span>RG</span>
+              <p>Hi! What research direction would you like to explore?<br><small>嗨！你想探索哪個研究方向？</small></p>
+            </div>
+            <div class="bubble bot sample">
+              <span>RG</span>
+              <p id="aiResponse">Try one of the prompts below, or type your own question — for example: “Find research gaps between SDN and NFV.”</p>
+            </div>
+          </div>
+
+          <div class="chat-suggestions">
+            <span class="chat-suggestions__label">Try asking:</span>
+            <button type="button" class="tag chat-suggestion">Find gaps between SDN and NFV</button>
+            <button type="button" class="tag chat-suggestion">Suggest research questions for 6G</button>
+            <button type="button" class="tag chat-suggestion">Where is the white space in Edge Computing?</button>
+          </div>
+
+          <form class="chat-input" id="chatForm">
+            <input id="chatText" placeholder="Ask about a research gap... / 輸入問題" />
+            <button type="submit" aria-label="Send">→</button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="section about" id="about">
+      <div class="section-head">
+        <p class="eyebrow">ABOUT THE PROJECT</p>
+        <h3>About ResearchGap <span>/ 關於本專案</span></h3>
+      </div>
+
+      <div class="about-copy">
+        <p>
+          ResearchGap cross-analyzes patents and academic literature so researchers can quickly gauge how crowded a technology area is and spot underexplored "white-space" opportunities before committing to a research direction or patent filing.
+          <span class="zh">ResearchGap 是一套專利與學術文獻白地分析平台，協助研發人員在投入研究或申請專利前，快速掌握技術主題目前的競爭與研究密度，找出尚未被充分探索的「白地」方向。</span>
+        </p>
+        <p>
+          Traditional searches rely on manually combing databases and journals — slow and easy to miss things. An interactive white-space matrix and trend charts make crowded, developing, and gap areas visible at a glance.
+          <span class="zh">現行做法多仰賴人工逐篇檢索專利庫與期刊論文，憑經驗判斷哪些交叉領域仍有機會，過程耗時且易遺漏。ResearchGap 將專利與文獻數據交叉比對，以互動式白地矩陣呈現各技術組合的研究與專利密度，讓使用者一眼看出高密度區、發展中區與潛在白地，並提供趨勢圖表追蹤成長速度。</span>
+        </p>
+        <p>
+          An AI research assistant answers natural-language questions about gaps, patents, and possible research questions. Numbers always come from real backend computation — the AI only explains and suggests, never fabricates figures.
+          <span class="zh">系統另搭載 AI 研究助手，可用自然語言詢問特定組合是否存在白地、相關專利或研究問題。平台採「數據與判讀分離」設計：白地分數與統計數字皆由後端程式計算得出，AI 僅負責解釋與提出建議問題，不自行生成或臆測數量指標，避免生成式 AI 的幻覺風險。</span>
+        </p>
+        <p>
+          The prototype validates this approach on SDN/NFV networking, cross-analyzing over two thousand patents and papers, with a bilingual, fully responsive interface.
+          <span class="zh">原型以 SDN／NFV 網路技術為案例，交叉比對逾兩千筆專利與文獻，驗證白地矩陣在真實資料上的可用性，介面採中英雙語，並完成響應式排版。</span>
+        </p>
+        <p>
+          The goal: turn finding research gaps from a task that depends on senior researchers' experience into a self-service, data-driven tool for anyone — speeding up technology selection and patent strategy.
+          <span class="zh">ResearchGap 的目標，是把「找研究缺口」從仰賴資深研究者經驗與大量人工檢索，轉變為任何研究者都能自助使用的資料驅動工具，加速技術選題與專利佈局決策效率。</span>
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      <a class="logo footer-logo" href="#explore">
+        <img src="logo.png" alt="ResearchGap" />
+      </a>
+      <p>Patent &amp; Literature White-Space Analysis Platform <span class="zh">· 專利文獻白地分析平台</span></p>
+      <p class="muted">UI prototype — sample data for demonstration.</p>
+    </footer>
+
+    <button class="back-to-top" id="backToTop" aria-label="Back to top / 回到頂端">↑</button>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

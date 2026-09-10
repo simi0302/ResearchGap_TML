@@ -1,0 +1,2383 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDN/NFV 專利分析報告</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ── reset & base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f5; --bg2:#ffffff; --bg3:#f5f7fa;
+  --card:#ffffff; --card2:#f0f4ff;
+  --border:#e0e6ef; --border2:#c8d6e8;
+  --text:#1a2333; --text2:#4a6080; --text3:#8098b8;
+  --blue:#1a73e8; --blue2:#1558c0; --blue3:#d8e8ff;
+  --green:#1a9e5c; --red:#d32f2f; --orange:#e65100; --purple:#6a1b9a;
+  --tw:#c2185b; --cn:#bf360c; --us:#1565c0; --se:#f57f17; --kr:#6a1b9a;
+  --accent:#1a73e8;
+  --radius:12px; --radius-sm:8px;
+  --shadow:0 2px 12px rgba(0,0,0,.08);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;line-height:1.6}
+
+/* ── layout ── */
+.layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+
+/* ── sidebar ── */
+.sidebar{background:var(--bg2);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0}
+.sidebar-logo{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.sidebar-logo h2{font-size:15px;font-weight:700;color:var(--accent);line-height:1.3}
+.sidebar-logo p{font-size:11px;color:var(--text3);margin-top:4px}
+.nav-section{padding:6px 20px;font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-top:8px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 20px;font-size:13px;color:var(--text2);cursor:pointer;transition:all .15s;border-left:3px solid transparent;text-decoration:none}
+.nav-item:hover{background:var(--bg3);color:var(--text);border-left-color:var(--blue)}
+.nav-item.active{background:var(--blue3);color:var(--blue);border-left-color:var(--blue);font-weight:600}
+.nav-item .icon{font-size:16px;width:20px;text-align:center}
+.nav-badge{margin-left:auto;background:var(--blue3);color:var(--blue);font-size:10px;padding:2px 7px;border-radius:99px}
+
+/* ── main ── */
+.main{padding:32px 36px;max-width:1400px}
+.page-section{display:none}
+.page-section.active{display:block}
+.page-header{margin-bottom:28px}
+.page-header h1{font-size:24px;font-weight:700;color:var(--text)}
+.page-header p{color:var(--text2);font-size:13px;margin-top:6px}
+
+/* ── kpi cards ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;margin-bottom:28px}
+.kpi{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 18px;position:relative;overflow:hidden}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--accent-c,var(--blue))}
+.kpi .label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;font-weight:600}
+.kpi .value{font-size:28px;font-weight:800;color:var(--text);margin-top:6px;line-height:1}
+.kpi .sub{font-size:11px;color:var(--text2);margin-top:4px}
+.kpi.blue{--accent-c:var(--blue)} .kpi.green{--accent-c:var(--green)}
+.kpi.orange{--accent-c:var(--orange)} .kpi.red{--accent-c:var(--red)} .kpi.purple{--accent-c:var(--purple)}
+
+/* ── chart grid ── */
+.chart-grid{display:grid;gap:20px;margin-bottom:20px}
+.chart-grid.col2{grid-template-columns:1fr 1fr}
+.chart-grid.col3{grid-template-columns:1fr 1fr 1fr}
+.chart-grid.col12{grid-template-columns:1.2fr 1fr}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.chart-card h3{font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px}
+.chart-card .desc{font-size:11px;color:var(--text3);margin-bottom:16px}
+.chart-wrap{position:relative}
+.chart-wrap canvas{max-height:320px}
+
+/* ── tabs ── */
+.tabs{display:flex;gap:4px;margin-bottom:20px;flex-wrap:wrap}
+.tab{padding:7px 16px;font-size:12px;font-weight:600;border-radius:var(--radius-sm);background:var(--bg3);color:var(--text2);cursor:pointer;border:1px solid var(--border);transition:all .15s}
+.tab:hover{background:var(--card2);color:var(--text)}
+.tab.active{background:var(--blue2);color:#fff;border-color:var(--blue)}
+.tab-content{display:none}.tab-content.active{display:block}
+
+/* ── table ── */
+.tbl-wrap{overflow-x:auto;border-radius:var(--radius-sm);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{background:var(--bg3);padding:10px 12px;text-align:left;color:var(--text2);font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;position:sticky;top:0;border-bottom:2px solid var(--border2)}
+tbody tr{border-top:1px solid var(--border);transition:background .1s}
+tbody tr:hover{background:var(--bg3)}
+tbody td{padding:9px 12px;color:var(--text);vertical-align:middle}
+.rank{color:var(--text3);font-weight:700;width:32px;text-align:center}
+.bar-cell{display:flex;align-items:center;gap:8px}
+.bar-mini{height:6px;border-radius:3px;background:var(--blue);opacity:.8;min-width:2px;transition:width .3s}
+.tag{display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700}
+.tag-us{background:#dbeafe;color:#1565c0} .tag-tw{background:#fce7f3;color:#c2185b}
+.tag-cn{background:#fde8e4;color:#bf360c} .tag-se{background:#fef9c3;color:#b45309}
+.tag-kr{background:#f3e8ff;color:#6a1b9a} .tag-jp{background:#dcfce7;color:#15803d}
+.tag-fi{background:#e0f2fe;color:#0369a1} .tag-gb{background:#fee2e2;color:#b91c1c}
+.tag-de{background:#f3f4f6;color:#374151} .tag-l3{background:#fee2e2;color:#b91c1c}
+.tag-l2{background:#fef3c7;color:#b45309} .tag-l1{background:#dcfce7;color:#15803d}
+
+/* ── flag badges ── */
+.flag{width:22px;height:16px;border-radius:3px;display:inline-block;margin-right:6px;vertical-align:middle;font-size:16px}
+
+/* ── progress bars ── */
+.prog-row{display:flex;align-items:center;gap:10px;margin:6px 0}
+.prog-label{font-size:12px;color:var(--text2);width:80px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog-bar-wrap{flex:1;height:18px;background:var(--bg3);border-radius:4px;overflow:hidden;cursor:pointer;position:relative}
+.prog-bar{height:100%;border-radius:4px;transition:width .4s cubic-bezier(.4,0,.2,1);position:relative}
+.prog-val{position:absolute;right:6px;top:50%;transform:translateY(-50%);font-size:10px;color:#fff;font-weight:700;white-space:nowrap}
+
+/* ── section divider ── */
+.section-title{font-size:15px;font-weight:700;color:var(--text);margin:24px 0 12px;display:flex;align-items:center;gap:10px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ── jur detail panel ── */
+.jur-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px}
+.jur-panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.jur-badge{font-size:22px;font-weight:900;padding:6px 16px;border-radius:var(--radius-sm);background:var(--bg3)}
+
+/* ── tooltip ── */
+.tooltip{position:relative}
+.tooltip:hover::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#0f1724;border:1px solid var(--border);color:var(--text);font-size:11px;padding:5px 10px;border-radius:6px;white-space:nowrap;z-index:99;margin-bottom:6px;pointer-events:none}
+
+/* ── scrollbar ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* ── responsive ── */
+@media(max-width:900px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{display:none}
+  .main{padding:20px}
+  .chart-grid.col2,.chart-grid.col3,.chart-grid.col12{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ── Sidebar ── -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h2>SDN/NFV<br>專利分析報告</h2>
+    <p>TML InnoPatent 2026</p>
+  </div>
+  <div class="nav-section">總覽</div>
+  <a class="nav-item active" onclick="showPage('overview',this)">
+    <span class="icon">📊</span> 儀表板總覽
+  </a>
+  <div class="nav-section">核心分析</div>
+  <a class="nav-item" onclick="showPage('jurisdiction',this)">
+    <span class="icon">🌐</span> 管轄局分析
+    <span class="nav-badge" id="nb-jur"></span>
+  </a>
+  <a class="nav-item" onclick="showPage('tw-deep',this)">
+    <span class="icon">🇹🇼</span> TW 管轄局深度
+  </a>
+  <a class="nav-item" onclick="showPage('assignee',this)">
+    <span class="icon">🏢</span> 申請人排行
+  </a>
+  <a class="nav-item" onclick="showPage('region',this)">
+    <span class="icon">🌏</span> 來源國分析
+  </a>
+  <div class="nav-section">趨勢 & AI</div>
+  <a class="nav-item" onclick="showPage('trend',this)">
+    <span class="icon">📈</span> 年度趨勢
+  </a>
+  <a class="nav-item" onclick="showPage('agentic',this)">
+    <span class="icon">🤖</span> Agentic AI 分類
+  </a>
+</nav>
+
+<!-- ── Main ── -->
+<main class="main">
+
+<!-- ══════════════════════════════════════════════════════
+     頁面 1：總覽
+════════════════════════════════════════════════════════ -->
+<section id="page-overview" class="page-section active">
+  <div class="page-header">
+    <h1>📊 SDN / NFV 專利情報儀表板</h1>
+    <p>資料來源：sdn_network_slice.db · 共 <strong id="total-num"></strong> 筆有效專利 · 產生：<span id="gen-time"></span></p>
+  </div>
+
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <div class="chart-grid col2">
+    <div class="chart-card">
+      <h3>管轄局分佈</h3>
+      <div class="desc">各專利局收案比例</div>
+      <div class="chart-wrap"><canvas id="ch-jur-pie"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>申請人來源國 Top 10</h3>
+      <div class="desc">以 parent_region_label 統計</div>
+      <div class="chart-wrap"><canvas id="ch-region-bar"></canvas></div>
+    </div>
+  </div>
+
+  <div class="chart-grid col2">
+    <div class="chart-card">
+      <h3>年度公告趨勢</h3>
+      <div class="desc">按管轄局拆分</div>
+      <div class="chart-wrap"><canvas id="ch-year-line"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Agentic AI 層級分佈</h3>
+      <div class="desc">原始資料庫分類</div>
+      <div class="chart-wrap"><canvas id="ch-agentic-donut"></canvas></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     頁面 2：管轄局分析
+════════════════════════════════════════════════════════ -->
+<section id="page-jurisdiction" class="page-section">
+  <div class="page-header">
+    <h1>🌐 管轄局分析</h1>
+    <p>各專利局（US / EP / JP / TW / SG / MY）底下的來源國與申請人組成</p>
+  </div>
+  <div class="tabs" id="jur-tabs"></div>
+  <div id="jur-panels"></div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     頁面 3：TW 管轄局深度分析
+════════════════════════════════════════════════════════ -->
+<section id="page-tw-deep" class="page-section">
+  <div class="page-header">
+    <h1>🇹🇼 TW 管轄局深度分析</h1>
+    <p>在台灣（TIPO）申請的 128 筆專利，細看哪些國家的企業在台灣布局</p>
+  </div>
+  <div class="chart-grid col12">
+    <div class="chart-card">
+      <h3>TW管轄局：申請人來源國分佈</h3>
+      <div class="desc">台灣大部分是本國企業，但也有外國企業來台布局</div>
+      <div class="chart-wrap"><canvas id="ch-tw-region"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>TW vs US vs EP 來源國比較</h3>
+      <div class="desc">各局的來源國組成是否不同</div>
+      <div class="chart-wrap"><canvas id="ch-jur-compare"></canvas></div>
+    </div>
+  </div>
+  <div class="section-title">TW 管轄局申請人詳細清單</div>
+  <div class="chart-card">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>#</th><th>來源國</th><th>企業/集團</th><th>筆數</th><th>比例</th></tr></thead>
+        <tbody id="tw-detail-tbl"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     頁面 4：申請人排行
+════════════════════════════════════════════════════════ -->
+<section id="page-assignee" class="page-section">
+  <div class="page-header">
+    <h1>🏢 Top 申請人排行</h1>
+    <p>全球前 30 大 SDN/NFV 申請人，附各管轄局布局分佈</p>
+  </div>
+  <div class="chart-grid col2">
+    <div class="chart-card">
+      <h3>Top 20 申請人</h3>
+      <div class="desc">按總筆數排序（不含個人/不明）</div>
+      <div class="chart-wrap"><canvas id="ch-assignee-bar"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Top 15 申請人管轄局分佈</h3>
+      <div class="desc">堆疊顯示各申請人在不同局的布局</div>
+      <div class="chart-wrap"><canvas id="ch-assignee-stack"></canvas></div>
+    </div>
+  </div>
+  <div class="section-title">Top 30 申請人完整清單</div>
+  <div class="chart-card">
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>#</th><th>企業/集團</th><th>母國</th><th>筆數</th><th>佔比</th><th>分佈</th></tr></thead>
+        <tbody id="assignee-tbl"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     頁面 5：來源國分析
+════════════════════════════════════════════════════════ -->
+<section id="page-region" class="page-section">
+  <div class="page-header">
+    <h1>🌏 來源國分析</h1>
+    <p>各國企業在 SDN/NFV 領域的專利版圖與管轄局選擇策略</p>
+  </div>
+  <div class="chart-grid col2">
+    <div class="chart-card">
+      <h3>來源國總量排行</h3>
+      <div class="desc">parent_region_label 統計</div>
+      <div class="chart-wrap"><canvas id="ch-region-full"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>主要來源國管轄局策略</h3>
+      <div class="desc">各國偏好在哪些局申請</div>
+      <div class="chart-wrap"><canvas id="ch-region-jur"></canvas></div>
+    </div>
+  </div>
+  <div class="section-title">來源國 × 管轄局 詳細比較</div>
+  <div class="chart-card">
+    <div id="region-prog"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     頁面 6：年度趨勢
+════════════════════════════════════════════════════════ -->
+<section id="page-trend" class="page-section">
+  <div class="page-header">
+    <h1>📈 年度趨勢分析</h1>
+    <p>2016–2026 年專利公告量趨勢，各管轄局與主要來源國變化</p>
+  </div>
+  <div class="chart-card" style="margin-bottom:20px">
+    <h3>年度公告總量 + 各管轄局拆分</h3>
+    <div class="desc">2020 年為高峰（5G商用 + COVID數位化），2024起因AI融合趨勢再起</div>
+    <div class="chart-wrap"><canvas id="ch-trend-full" style="max-height:360px"></canvas></div>
+  </div>
+  <div class="chart-card">
+    <h3>主要來源國年度趨勢</h3>
+    <div class="desc">美國/中國/瑞典/台灣/韓國/芬蘭/日本 歷年變化</div>
+    <div class="chart-wrap"><canvas id="ch-trend-region" style="max-height:340px"></canvas></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════
+     頁面 7：Agentic AI
+════════════════════════════════════════════════════════ -->
+<section id="page-agentic" class="page-section">
+  <div class="page-header">
+    <h1>🤖 Agentic AI 分類分析</h1>
+    <p>按原始 agentic_ai_category 分類，各管轄局與申請人的 AI 技術層次</p>
+  </div>
+  <div class="chart-grid col2">
+    <div class="chart-card">
+      <h3>Agentic AI 類別分佈</h3>
+      <div class="desc">全庫 4 個分類佔比</div>
+      <div class="chart-wrap"><canvas id="ch-ag-pie"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>各管轄局 Agentic AI 組成</h3>
+      <div class="desc">哪個局的 AI 相關專利比例較高</div>
+      <div class="chart-wrap"><canvas id="ch-ag-jur"></canvas></div>
+    </div>
+  </div>
+  <div class="section-title">Agentic AI 分類說明</div>
+  <div class="chart-card">
+    <div class="kpi-grid">
+      <div class="kpi red">
+        <div class="label">core_agentic_ai</div>
+        <div class="value" id="ag-core"></div>
+        <div class="sub">自主代理 · 閉環控制 · Intent-Based</div>
+      </div>
+      <div class="kpi orange">
+        <div class="label">ai_related_orchestration</div>
+        <div class="value" id="ag-orch"></div>
+        <div class="sub">AI輔助編排 · ML預測調度</div>
+      </div>
+      <div class="kpi blue">
+        <div class="label">network_slicing_baseline</div>
+        <div class="value" id="ag-base"></div>
+        <div class="sub">純SDN/切片基礎技術</div>
+      </div>
+      <div class="kpi" style="--accent-c:#555">
+        <div class="label">exclude_or_low_weight</div>
+        <div class="value" id="ag-excl"></div>
+        <div class="sub">低相關 · 排除</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+// ── 資料注入 ──────────────────────────────────────────────────────────────
+const DATA = {
+  "total": 2799,
+  "generated": "2026-06-03 21:13",
+  "jur_dist": [
+    {
+      "jur": "US",
+      "count": 1836
+    },
+    {
+      "jur": "EP",
+      "count": 690
+    },
+    {
+      "jur": "JP",
+      "count": 135
+    },
+    {
+      "jur": "TW",
+      "count": 128
+    },
+    {
+      "jur": "SG",
+      "count": 7
+    },
+    {
+      "jur": "MY",
+      "count": 3
+    }
+  ],
+  "jur_region": {
+    "EP": [
+      {
+        "region": "中國",
+        "count": 272
+      },
+      {
+        "region": "美國",
+        "count": 119
+      },
+      {
+        "region": "瑞典",
+        "count": 116
+      },
+      {
+        "region": "芬蘭",
+        "count": 40
+      },
+      {
+        "region": "韓國",
+        "count": 34
+      },
+      {
+        "region": "日本",
+        "count": 29
+      },
+      {
+        "region": "法國",
+        "count": 22
+      },
+      {
+        "region": "英國",
+        "count": 16
+      },
+      {
+        "region": "德國",
+        "count": 11
+      },
+      {
+        "region": "台灣",
+        "count": 7
+      },
+      {
+        "region": "印度",
+        "count": 5
+      },
+      {
+        "region": "西班牙",
+        "count": 4
+      },
+      {
+        "region": "荷蘭",
+        "count": 4
+      },
+      {
+        "region": "以色列",
+        "count": 4
+      },
+      {
+        "region": "瑞士",
+        "count": 2
+      },
+      {
+        "region": "加拿大",
+        "count": 2
+      },
+      {
+        "region": "俄羅斯",
+        "count": 2
+      },
+      {
+        "region": "新加坡",
+        "count": 1
+      }
+    ],
+    "JP": [
+      {
+        "region": "中國",
+        "count": 65
+      },
+      {
+        "region": "日本",
+        "count": 34
+      },
+      {
+        "region": "美國",
+        "count": 16
+      },
+      {
+        "region": "韓國",
+        "count": 4
+      },
+      {
+        "region": "瑞典",
+        "count": 4
+      },
+      {
+        "region": "法國",
+        "count": 4
+      },
+      {
+        "region": "台灣",
+        "count": 4
+      },
+      {
+        "region": "芬蘭",
+        "count": 3
+      },
+      {
+        "region": "英國",
+        "count": 1
+      }
+    ],
+    "MY": [
+      {
+        "region": "中國",
+        "count": 2
+      },
+      {
+        "region": "美國",
+        "count": 1
+      }
+    ],
+    "SG": [
+      {
+        "region": "中國",
+        "count": 5
+      },
+      {
+        "region": "美國",
+        "count": 2
+      }
+    ],
+    "TW": [
+      {
+        "region": "台灣",
+        "count": 108
+      },
+      {
+        "region": "美國",
+        "count": 10
+      },
+      {
+        "region": "中國",
+        "count": 6
+      },
+      {
+        "region": "瑞典",
+        "count": 2
+      },
+      {
+        "region": "日本",
+        "count": 2
+      }
+    ],
+    "US": [
+      {
+        "region": "美國",
+        "count": 907
+      },
+      {
+        "region": "中國",
+        "count": 354
+      },
+      {
+        "region": "瑞典",
+        "count": 155
+      },
+      {
+        "region": "韓國",
+        "count": 113
+      },
+      {
+        "region": "未明",
+        "count": 73
+      },
+      {
+        "region": "芬蘭",
+        "count": 64
+      },
+      {
+        "region": "日本",
+        "count": 64
+      },
+      {
+        "region": "法國",
+        "count": 23
+      },
+      {
+        "region": "土耳其",
+        "count": 11
+      },
+      {
+        "region": "印度",
+        "count": 11
+      },
+      {
+        "region": "沙烏地阿拉伯",
+        "count": 10
+      },
+      {
+        "region": "以色列",
+        "count": 9
+      },
+      {
+        "region": "英國",
+        "count": 8
+      },
+      {
+        "region": "台灣",
+        "count": 7
+      },
+      {
+        "region": "荷蘭",
+        "count": 6
+      },
+      {
+        "region": "德國",
+        "count": 6
+      },
+      {
+        "region": "西班牙",
+        "count": 4
+      },
+      {
+        "region": "愛爾蘭",
+        "count": 4
+      },
+      {
+        "region": "加拿大",
+        "count": 4
+      },
+      {
+        "region": "俄羅斯",
+        "count": 2
+      },
+      {
+        "region": "新加坡",
+        "count": 1
+      }
+    ]
+  },
+  "jur_company": {
+    "EP": [
+      {
+        "company": "Huawei",
+        "count": 206
+      },
+      {
+        "company": "Ericsson",
+        "count": 116
+      },
+      {
+        "company": "ZTE",
+        "count": 45
+      },
+      {
+        "company": "Nokia",
+        "count": 37
+      },
+      {
+        "company": "Samsung",
+        "count": 31
+      },
+      {
+        "company": "NEC",
+        "count": 20
+      },
+      {
+        "company": "Intel",
+        "count": 19
+      },
+      {
+        "company": "T-Mobile / Sprint",
+        "count": 15
+      },
+      {
+        "company": "Orange",
+        "count": 11
+      },
+      {
+        "company": "Cisco",
+        "count": 11
+      }
+    ],
+    "JP": [
+      {
+        "company": "Huawei",
+        "count": 47
+      },
+      {
+        "company": "ZTE",
+        "count": 12
+      },
+      {
+        "company": "NEC",
+        "count": 10
+      },
+      {
+        "company": "Oracle",
+        "count": 9
+      },
+      {
+        "company": "Rakuten",
+        "count": 5
+      },
+      {
+        "company": "NTT",
+        "count": 5
+      },
+      {
+        "company": "Ericsson",
+        "count": 4
+      },
+      {
+        "company": "Alcatel-Lucent",
+        "count": 4
+      },
+      {
+        "company": "Toyota",
+        "count": 3
+      },
+      {
+        "company": "Nokia",
+        "count": 3
+      }
+    ],
+    "MY": [
+      {
+        "company": "Microsoft",
+        "count": 1
+      },
+      {
+        "company": "Huawei",
+        "count": 1
+      },
+      {
+        "company": "FIBERHOME TELECOMMUNICATION TECHNOLOGIES Co.",
+        "count": 1
+      }
+    ],
+    "SG": [
+      {
+        "company": "Huawei",
+        "count": 4
+      },
+      {
+        "company": "Affirmed Networks",
+        "count": 2
+      },
+      {
+        "company": "FIBERHOME TELECOMMUNICATION TECHNOLOGIES Co.",
+        "count": 1
+      }
+    ],
+    "TW": [
+      {
+        "company": "Chunghwa Telecom",
+        "count": 55
+      },
+      {
+        "company": "ITRI",
+        "count": 20
+      },
+      {
+        "company": "Foxconn / Hon Hai",
+        "count": 15
+      },
+      {
+        "company": "China UnionPay",
+        "count": 6
+      },
+      {
+        "company": "Intel",
+        "count": 5
+      },
+      {
+        "company": "WISTRON Corp.",
+        "count": 2
+      },
+      {
+        "company": "Rakuten",
+        "count": 2
+      },
+      {
+        "company": "Qualcomm",
+        "count": 2
+      },
+      {
+        "company": "NATIONAL YUNLIN UNIVERSITY OF SCIENCE AND TECHNOLOGY",
+        "count": 2
+      },
+      {
+        "company": "NATIONAL TSING HUA UNIVERSITY",
+        "count": 2
+      }
+    ],
+    "US": [
+      {
+        "company": "Huawei",
+        "count": 258
+      },
+      {
+        "company": "Ericsson",
+        "count": 153
+      },
+      {
+        "company": "AT&T",
+        "count": 120
+      },
+      {
+        "company": "T-Mobile / Sprint",
+        "count": 93
+      },
+      {
+        "company": "Cisco",
+        "count": 68
+      },
+      {
+        "company": "Verizon",
+        "count": 63
+      },
+      {
+        "company": "Nokia",
+        "count": 60
+      },
+      {
+        "company": "Samsung",
+        "count": 58
+      },
+      {
+        "company": "IBM",
+        "count": 54
+      },
+      {
+        "company": "VMware",
+        "count": 51
+      }
+    ]
+  },
+  "jur_agentic": {
+    "EP": {
+      "network_slicing_baseline": 649,
+      "ai_related_orchestration": 23,
+      "core_agentic_ai": 15,
+      "exclude_or_low_weight": 3
+    },
+    "JP": {
+      "network_slicing_baseline": 103,
+      "exclude_or_low_weight": 27,
+      "ai_related_orchestration": 5
+    },
+    "MY": {
+      "network_slicing_baseline": 3
+    },
+    "SG": {
+      "network_slicing_baseline": 7
+    },
+    "TW": {
+      "network_slicing_baseline": 113,
+      "ai_related_orchestration": 14,
+      "core_agentic_ai": 1
+    },
+    "US": {
+      "network_slicing_baseline": 1674,
+      "ai_related_orchestration": 81,
+      "core_agentic_ai": 74,
+      "exclude_or_low_weight": 7
+    }
+  },
+  "top_assignees": [
+    {
+      "company": "Huawei",
+      "region": "中國",
+      "count": 516
+    },
+    {
+      "company": "Ericsson",
+      "region": "瑞典",
+      "count": 275
+    },
+    {
+      "company": "AT&T",
+      "region": "美國",
+      "count": 120
+    },
+    {
+      "company": "T-Mobile / Sprint",
+      "region": "美國",
+      "count": 108
+    },
+    {
+      "company": "Nokia",
+      "region": "芬蘭",
+      "count": 100
+    },
+    {
+      "company": "ZTE",
+      "region": "中國",
+      "count": 91
+    },
+    {
+      "company": "Samsung",
+      "region": "韓國",
+      "count": 91
+    },
+    {
+      "company": "Cisco",
+      "region": "美國",
+      "count": 79
+    },
+    {
+      "company": "NEC",
+      "region": "日本",
+      "count": 70
+    },
+    {
+      "company": "Verizon",
+      "region": "美國",
+      "count": 63
+    },
+    {
+      "company": "Intel",
+      "region": "美國",
+      "count": 63
+    },
+    {
+      "company": "Chunghwa Telecom",
+      "region": "台灣",
+      "count": 57
+    },
+    {
+      "company": "IBM",
+      "region": "美國",
+      "count": 54
+    },
+    {
+      "company": "VMware",
+      "region": "美國",
+      "count": 51
+    },
+    {
+      "company": "Apple Inc.",
+      "region": "美國",
+      "count": 36
+    },
+    {
+      "company": "Amdocs",
+      "region": "美國",
+      "count": 36
+    },
+    {
+      "company": "Oracle",
+      "region": "美國",
+      "count": 34
+    },
+    {
+      "company": "Microsoft",
+      "region": "美國",
+      "count": 31
+    },
+    {
+      "company": "ITRI",
+      "region": "台灣",
+      "count": 29
+    },
+    {
+      "company": "Dell",
+      "region": "美國",
+      "count": 29
+    },
+    {
+      "company": "Juniper Networks",
+      "region": "美國",
+      "count": 25
+    },
+    {
+      "company": "Rakuten",
+      "region": "日本",
+      "count": 23
+    },
+    {
+      "company": "Alcatel-Lucent",
+      "region": "法國",
+      "count": 23
+    },
+    {
+      "company": "Qualcomm",
+      "region": "美國",
+      "count": 22
+    },
+    {
+      "company": "Orange",
+      "region": "法國",
+      "count": 22
+    },
+    {
+      "company": "Nicira",
+      "region": "美國",
+      "count": 20
+    },
+    {
+      "company": "Fortinet",
+      "region": "美國",
+      "count": 19
+    },
+    {
+      "company": "DISH Wireless LLC",
+      "region": "美國",
+      "count": 17
+    },
+    {
+      "company": "Palo Alto Networks",
+      "region": "美國",
+      "count": 16
+    },
+    {
+      "company": "Hewlett Packard Enterprise",
+      "region": "美國",
+      "count": 16
+    }
+  ],
+  "region_dist": [
+    {
+      "region": "美國",
+      "count": 1055
+    },
+    {
+      "region": "中國",
+      "count": 704
+    },
+    {
+      "region": "瑞典",
+      "count": 277
+    },
+    {
+      "region": "韓國",
+      "count": 151
+    },
+    {
+      "region": "日本",
+      "count": 129
+    },
+    {
+      "region": "台灣",
+      "count": 126
+    },
+    {
+      "region": "芬蘭",
+      "count": 107
+    },
+    {
+      "region": "未明",
+      "count": 73
+    },
+    {
+      "region": "法國",
+      "count": 49
+    },
+    {
+      "region": "英國",
+      "count": 25
+    },
+    {
+      "region": "德國",
+      "count": 17
+    },
+    {
+      "region": "印度",
+      "count": 16
+    },
+    {
+      "region": "以色列",
+      "count": 13
+    },
+    {
+      "region": "土耳其",
+      "count": 11
+    },
+    {
+      "region": "荷蘭",
+      "count": 10
+    },
+    {
+      "region": "沙烏地阿拉伯",
+      "count": 10
+    },
+    {
+      "region": "西班牙",
+      "count": 8
+    },
+    {
+      "region": "加拿大",
+      "count": 6
+    },
+    {
+      "region": "愛爾蘭",
+      "count": 4
+    },
+    {
+      "region": "俄羅斯",
+      "count": 4
+    },
+    {
+      "region": "瑞士",
+      "count": 2
+    },
+    {
+      "region": "新加坡",
+      "count": 2
+    }
+  ],
+  "region_jur": {
+    "中國": [
+      {
+        "jur": "US",
+        "count": 354
+      },
+      {
+        "jur": "EP",
+        "count": 272
+      },
+      {
+        "jur": "JP",
+        "count": 65
+      },
+      {
+        "jur": "TW",
+        "count": 6
+      },
+      {
+        "jur": "SG",
+        "count": 5
+      },
+      {
+        "jur": "MY",
+        "count": 2
+      }
+    ],
+    "以色列": [
+      {
+        "jur": "US",
+        "count": 9
+      },
+      {
+        "jur": "EP",
+        "count": 4
+      }
+    ],
+    "俄羅斯": [
+      {
+        "jur": "US",
+        "count": 2
+      },
+      {
+        "jur": "EP",
+        "count": 2
+      }
+    ],
+    "加拿大": [
+      {
+        "jur": "US",
+        "count": 4
+      },
+      {
+        "jur": "EP",
+        "count": 2
+      }
+    ],
+    "印度": [
+      {
+        "jur": "US",
+        "count": 11
+      },
+      {
+        "jur": "EP",
+        "count": 5
+      }
+    ],
+    "台灣": [
+      {
+        "jur": "TW",
+        "count": 108
+      },
+      {
+        "jur": "US",
+        "count": 7
+      },
+      {
+        "jur": "EP",
+        "count": 7
+      },
+      {
+        "jur": "JP",
+        "count": 4
+      }
+    ],
+    "土耳其": [
+      {
+        "jur": "US",
+        "count": 11
+      }
+    ],
+    "德國": [
+      {
+        "jur": "EP",
+        "count": 11
+      },
+      {
+        "jur": "US",
+        "count": 6
+      }
+    ],
+    "愛爾蘭": [
+      {
+        "jur": "US",
+        "count": 4
+      }
+    ],
+    "新加坡": [
+      {
+        "jur": "US",
+        "count": 1
+      },
+      {
+        "jur": "EP",
+        "count": 1
+      }
+    ],
+    "日本": [
+      {
+        "jur": "US",
+        "count": 64
+      },
+      {
+        "jur": "JP",
+        "count": 34
+      },
+      {
+        "jur": "EP",
+        "count": 29
+      },
+      {
+        "jur": "TW",
+        "count": 2
+      }
+    ],
+    "未明": [
+      {
+        "jur": "US",
+        "count": 73
+      }
+    ],
+    "沙烏地阿拉伯": [
+      {
+        "jur": "US",
+        "count": 10
+      }
+    ],
+    "法國": [
+      {
+        "jur": "US",
+        "count": 23
+      },
+      {
+        "jur": "EP",
+        "count": 22
+      },
+      {
+        "jur": "JP",
+        "count": 4
+      }
+    ],
+    "瑞典": [
+      {
+        "jur": "US",
+        "count": 155
+      },
+      {
+        "jur": "EP",
+        "count": 116
+      },
+      {
+        "jur": "JP",
+        "count": 4
+      },
+      {
+        "jur": "TW",
+        "count": 2
+      }
+    ],
+    "瑞士": [
+      {
+        "jur": "EP",
+        "count": 2
+      }
+    ],
+    "美國": [
+      {
+        "jur": "US",
+        "count": 907
+      },
+      {
+        "jur": "EP",
+        "count": 119
+      },
+      {
+        "jur": "JP",
+        "count": 16
+      },
+      {
+        "jur": "TW",
+        "count": 10
+      },
+      {
+        "jur": "SG",
+        "count": 2
+      },
+      {
+        "jur": "MY",
+        "count": 1
+      }
+    ],
+    "芬蘭": [
+      {
+        "jur": "US",
+        "count": 64
+      },
+      {
+        "jur": "EP",
+        "count": 40
+      },
+      {
+        "jur": "JP",
+        "count": 3
+      }
+    ],
+    "英國": [
+      {
+        "jur": "EP",
+        "count": 16
+      },
+      {
+        "jur": "US",
+        "count": 8
+      },
+      {
+        "jur": "JP",
+        "count": 1
+      }
+    ],
+    "荷蘭": [
+      {
+        "jur": "US",
+        "count": 6
+      },
+      {
+        "jur": "EP",
+        "count": 4
+      }
+    ],
+    "西班牙": [
+      {
+        "jur": "US",
+        "count": 4
+      },
+      {
+        "jur": "EP",
+        "count": 4
+      }
+    ],
+    "韓國": [
+      {
+        "jur": "US",
+        "count": 113
+      },
+      {
+        "jur": "EP",
+        "count": 34
+      },
+      {
+        "jur": "JP",
+        "count": 4
+      }
+    ]
+  },
+  "year_trend": [
+    {
+      "year": "2016",
+      "total": 156,
+      "us": 119,
+      "ep": 22,
+      "jp": 1,
+      "tw": 14
+    },
+    {
+      "year": "2017",
+      "total": 239,
+      "us": 167,
+      "ep": 43,
+      "jp": 13,
+      "tw": 15
+    },
+    {
+      "year": "2018",
+      "total": 305,
+      "us": 184,
+      "ep": 68,
+      "jp": 16,
+      "tw": 33
+    },
+    {
+      "year": "2019",
+      "total": 341,
+      "us": 214,
+      "ep": 95,
+      "jp": 20,
+      "tw": 12
+    },
+    {
+      "year": "2020",
+      "total": 403,
+      "us": 259,
+      "ep": 113,
+      "jp": 16,
+      "tw": 14
+    },
+    {
+      "year": "2021",
+      "total": 349,
+      "us": 233,
+      "ep": 83,
+      "jp": 20,
+      "tw": 12
+    },
+    {
+      "year": "2022",
+      "total": 240,
+      "us": 175,
+      "ep": 49,
+      "jp": 9,
+      "tw": 7
+    },
+    {
+      "year": "2023",
+      "total": 247,
+      "us": 165,
+      "ep": 62,
+      "jp": 14,
+      "tw": 5
+    },
+    {
+      "year": "2024",
+      "total": 256,
+      "us": 165,
+      "ep": 71,
+      "jp": 11,
+      "tw": 7
+    },
+    {
+      "year": "2025",
+      "total": 208,
+      "us": 121,
+      "ep": 68,
+      "jp": 10,
+      "tw": 9
+    },
+    {
+      "year": "2026",
+      "total": 55,
+      "us": 34,
+      "ep": 16,
+      "jp": 5,
+      "tw": 0
+    }
+  ],
+  "tw_detail": [
+    {
+      "region": "台灣",
+      "company": "Chunghwa Telecom",
+      "count": 55
+    },
+    {
+      "region": "台灣",
+      "company": "ITRI",
+      "count": 20
+    },
+    {
+      "region": "台灣",
+      "company": "Foxconn / Hon Hai",
+      "count": 15
+    },
+    {
+      "region": "中國",
+      "company": "China UnionPay",
+      "count": 6
+    },
+    {
+      "region": "美國",
+      "company": "Intel",
+      "count": 5
+    },
+    {
+      "region": "台灣",
+      "company": "CHUNG YUAN CHRISTIAN UNIVERSITY",
+      "count": 2
+    },
+    {
+      "region": "台灣",
+      "company": "HTC Corp.",
+      "count": 2
+    },
+    {
+      "region": "台灣",
+      "company": "NATIONAL CHIAO TUNG UNIVERSITY",
+      "count": 2
+    },
+    {
+      "region": "台灣",
+      "company": "NATIONAL TSING HUA UNIVERSITY",
+      "count": 2
+    },
+    {
+      "region": "台灣",
+      "company": "NATIONAL YUNLIN UNIVERSITY OF SCIENCE AND TECHNOLOGY",
+      "count": 2
+    },
+    {
+      "region": "台灣",
+      "company": "WISTRON Corp.",
+      "count": 2
+    },
+    {
+      "region": "日本",
+      "company": "Rakuten",
+      "count": 2
+    },
+    {
+      "region": "瑞典",
+      "company": "Ericsson",
+      "count": 2
+    },
+    {
+      "region": "美國",
+      "company": "Apple Inc.",
+      "count": 2
+    },
+    {
+      "region": "美國",
+      "company": "Qualcomm",
+      "count": 2
+    },
+    {
+      "region": "台灣",
+      "company": "INSTITUTE FOR INFORMATION INDUSTRY",
+      "count": 1
+    },
+    {
+      "region": "台灣",
+      "company": "INVENTEC Corp.",
+      "count": 1
+    },
+    {
+      "region": "台灣",
+      "company": "NATIONAL TAIWAN UNIVERSITY",
+      "count": 1
+    },
+    {
+      "region": "台灣",
+      "company": "PROPHETSTOR DATA SERVICES",
+      "count": 1
+    },
+    {
+      "region": "台灣",
+      "company": "凌群電腦股份有限公司",
+      "count": 1
+    },
+    {
+      "region": "台灣",
+      "company": "財團法人國家實驗研究院",
+      "count": 1
+    },
+    {
+      "region": "美國",
+      "company": "Marvell / Cavium",
+      "count": 1
+    }
+  ],
+  "tw_region": [
+    {
+      "region": "台灣",
+      "count": 108
+    },
+    {
+      "region": "美國",
+      "count": 10
+    },
+    {
+      "region": "中國",
+      "count": 6
+    },
+    {
+      "region": "瑞典",
+      "count": 2
+    },
+    {
+      "region": "日本",
+      "count": 2
+    }
+  ],
+  "us_region": [
+    {
+      "region": "美國",
+      "count": 907
+    },
+    {
+      "region": "中國",
+      "count": 354
+    },
+    {
+      "region": "瑞典",
+      "count": 155
+    },
+    {
+      "region": "韓國",
+      "count": 113
+    },
+    {
+      "region": "未明",
+      "count": 73
+    },
+    {
+      "region": "芬蘭",
+      "count": 64
+    },
+    {
+      "region": "日本",
+      "count": 64
+    },
+    {
+      "region": "法國",
+      "count": 23
+    },
+    {
+      "region": "土耳其",
+      "count": 11
+    },
+    {
+      "region": "印度",
+      "count": 11
+    },
+    {
+      "region": "沙烏地阿拉伯",
+      "count": 10
+    },
+    {
+      "region": "以色列",
+      "count": 9
+    },
+    {
+      "region": "英國",
+      "count": 8
+    },
+    {
+      "region": "台灣",
+      "count": 7
+    },
+    {
+      "region": "荷蘭",
+      "count": 6
+    }
+  ],
+  "ep_region": [
+    {
+      "region": "中國",
+      "count": 272
+    },
+    {
+      "region": "美國",
+      "count": 119
+    },
+    {
+      "region": "瑞典",
+      "count": 116
+    },
+    {
+      "region": "芬蘭",
+      "count": 40
+    },
+    {
+      "region": "韓國",
+      "count": 34
+    },
+    {
+      "region": "日本",
+      "count": 29
+    },
+    {
+      "region": "法國",
+      "count": 22
+    },
+    {
+      "region": "英國",
+      "count": 16
+    },
+    {
+      "region": "德國",
+      "count": 11
+    },
+    {
+      "region": "台灣",
+      "count": 7
+    },
+    {
+      "region": "印度",
+      "count": 5
+    },
+    {
+      "region": "西班牙",
+      "count": 4
+    },
+    {
+      "region": "荷蘭",
+      "count": 4
+    },
+    {
+      "region": "以色列",
+      "count": 4
+    },
+    {
+      "region": "瑞士",
+      "count": 2
+    }
+  ],
+  "agentic_dist": [
+    {
+      "cat": "network_slicing_baseline",
+      "count": 2549
+    },
+    {
+      "cat": "ai_related_orchestration",
+      "count": 123
+    },
+    {
+      "cat": "core_agentic_ai",
+      "count": 90
+    },
+    {
+      "cat": "exclude_or_low_weight",
+      "count": 37
+    }
+  ],
+  "year_region": {
+    "2016": {
+      "美國": 53,
+      "中國": 37,
+      "瑞典": 21,
+      "台灣": 15,
+      "韓國": 9,
+      "日本": 2,
+      "芬蘭": 1
+    },
+    "2017": {
+      "美國": 89,
+      "中國": 59,
+      "瑞典": 30,
+      "台灣": 14,
+      "日本": 11,
+      "韓國": 8,
+      "芬蘭": 2
+    },
+    "2018": {
+      "美國": 119,
+      "中國": 86,
+      "台灣": 33,
+      "瑞典": 23,
+      "韓國": 5,
+      "芬蘭": 5,
+      "日本": 4
+    },
+    "2019": {
+      "美國": 121,
+      "中國": 114,
+      "日本": 23,
+      "瑞典": 20,
+      "韓國": 11,
+      "芬蘭": 11,
+      "台灣": 10
+    },
+    "2020": {
+      "美國": 135,
+      "中國": 120,
+      "瑞典": 38,
+      "芬蘭": 27,
+      "台灣": 14,
+      "韓國": 13,
+      "日本": 12
+    },
+    "2021": {
+      "美國": 128,
+      "中國": 90,
+      "瑞典": 46,
+      "日本": 15,
+      "韓國": 14,
+      "芬蘭": 14,
+      "台灣": 9
+    },
+    "2022": {
+      "美國": 88,
+      "中國": 62,
+      "瑞典": 23,
+      "芬蘭": 15,
+      "日本": 15,
+      "韓國": 10,
+      "台灣": 10
+    },
+    "2023": {
+      "美國": 100,
+      "中國": 52,
+      "瑞典": 30,
+      "韓國": 25,
+      "芬蘭": 9,
+      "日本": 8,
+      "台灣": 5
+    },
+    "2024": {
+      "美國": 104,
+      "中國": 39,
+      "瑞典": 33,
+      "韓國": 23,
+      "日本": 18,
+      "芬蘭": 14,
+      "台灣": 7
+    },
+    "2025": {
+      "美國": 88,
+      "中國": 38,
+      "韓國": 27,
+      "日本": 15,
+      "瑞典": 13,
+      "台灣": 9,
+      "芬蘭": 8
+    },
+    "2026": {
+      "美國": 30,
+      "中國": 7,
+      "韓國": 6,
+      "日本": 6,
+      "芬蘭": 1
+    }
+  },
+  "assignee_jur": {
+    "AT&T": {
+      "US": 120
+    },
+    "Apple Inc.": {
+      "US": 28,
+      "EP": 5,
+      "TW": 2,
+      "JP": 1
+    },
+    "Chunghwa Telecom": {
+      "TW": 55,
+      "JP": 2
+    },
+    "Cisco": {
+      "US": 68,
+      "EP": 11
+    },
+    "Ericsson": {
+      "US": 153,
+      "EP": 116,
+      "JP": 4,
+      "TW": 2
+    },
+    "Huawei": {
+      "US": 258,
+      "EP": 206,
+      "JP": 47,
+      "SG": 4,
+      "MY": 1
+    },
+    "IBM": {
+      "US": 54
+    },
+    "Intel": {
+      "US": 39,
+      "EP": 19,
+      "TW": 5
+    },
+    "NEC": {
+      "US": 40,
+      "EP": 20,
+      "JP": 10
+    },
+    "Nokia": {
+      "US": 60,
+      "EP": 37,
+      "JP": 3
+    },
+    "Samsung": {
+      "US": 58,
+      "EP": 31,
+      "JP": 2
+    },
+    "T-Mobile / Sprint": {
+      "US": 93,
+      "EP": 15
+    },
+    "VMware": {
+      "US": 51
+    },
+    "Verizon": {
+      "US": 63
+    },
+    "ZTE": {
+      "EP": 45,
+      "US": 34,
+      "JP": 12
+    }
+  }
+};
+
+// ── 工具函式 ──────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const JUR_COLORS = {US:'#42a5f5',EP:'#66bb6a',JP:'#ffa726',TW:'#ef5350',SG:'#ab47bc',MY:'#26c6da'};
+const REGION_COLORS = {
+  '美國':'#42a5f5','中國':'#ff7043','瑞典':'#ffca28','台灣':'#ff6b9d',
+  '韓國':'#ab47bc','芬蘭':'#4fc3f7','日本':'#81c784','英國':'#ef9a9a',
+  '德國':'#e0e0e0','法國':'#fff176','以色列':'#80cbc4','印度':'#ffcc80',
+  '未明':'#546e7a','其他':'#78909c'
+};
+const AG_COLORS = {
+  'core_agentic_ai':'#ef5350',
+  'ai_related_orchestration':'#ffa726',
+  'network_slicing_baseline':'#42a5f5',
+  'exclude_or_low_weight':'#546e7a'
+};
+const AG_LABELS = {
+  'core_agentic_ai':'Core Agentic AI',
+  'ai_related_orchestration':'AI Orchestration',
+  'network_slicing_baseline':'Net Slicing Baseline',
+  'exclude_or_low_weight':'Exclude / Low'
+};
+
+function regionTag(r){
+  const map={'美國':'us','中國':'cn','瑞典':'se','台灣':'tw','韓國':'kr','芬蘭':'fi','日本':'jp','英國':'gb','德國':'de'};
+  const cls=map[r]||'';
+  return cls?`<span class="tag tag-${cls}">${r}</span>`:r;
+}
+function flagEmoji(r){
+  const m={'美國':'🇺🇸','中國':'🇨🇳','瑞典':'🇸🇪','台灣':'🇹🇼','韓國':'🇰🇷','芬蘭':'🇫🇮','日本':'🇯🇵','英國':'🇬🇧','德國':'🇩🇪','法國':'🇫🇷','以色列':'🇮🇱','印度':'🇮🇳','新加坡':'🇸🇬'};
+  return m[r]||'🏳️';
+}
+function mini(val,max,color='var(--blue)'){
+  const w=Math.max(4,Math.round(val/max*180));
+  return `<div class="bar-cell"><div class="bar-mini" style="width:${w}px;background:${color}"></div><span>${val}</span></div>`;
+}
+
+// Chart.js 預設
+Chart.defaults.color='#4a6080';
+Chart.defaults.borderColor='#e0e6ef';
+Chart.defaults.font.family="'Segoe UI',system-ui,sans-serif";
+Chart.defaults.plugins.legend.labels.boxWidth=12;
+Chart.defaults.plugins.legend.labels.padding=16;
+
+function mkChart(id,type,data,opts={}){
+  const ctx=$( id );
+  if(!ctx)return;
+  return new Chart(ctx,{type,data,options:{responsive:true,maintainAspectRatio:true,...opts}});
+}
+
+// ── 頁面切換 ──────────────────────────────────────────────────────────────
+function showPage(name,el){
+  document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  $(`page-${name}`).classList.add('active');
+  if(el) el.classList.add('active');
+}
+
+// ── 初始化 ────────────────────────────────────────────────────────────────
+function init(){
+  // KPI 總覽
+  $('total-num').textContent = DATA.total.toLocaleString();
+  $('gen-time').textContent  = DATA.generated;
+  $('nb-jur').textContent    = DATA.jur_dist.length;
+
+  const jurTotal = DATA.jur_dist.reduce((a,b)=>a+b.count,0);
+  const agCore   = DATA.agentic_dist.find(d=>d.cat==='core_agentic_ai')?.count||0;
+  const agOrch   = DATA.agentic_dist.find(d=>d.cat==='ai_related_orchestration')?.count||0;
+  const twCount  = DATA.jur_dist.find(d=>d.jur==='TW')?.count||0;
+
+  $('kpi-grid').innerHTML = [
+    {label:'有效專利總數',value:DATA.total.toLocaleString(),sub:'筆',cls:'blue'},
+    {label:'管轄局數',value:DATA.jur_dist.length,sub:'個局別',cls:'green'},
+    {label:'Core Agentic AI',value:agCore,sub:`佔 ${(agCore/DATA.total*100).toFixed(1)}%`,cls:'red'},
+    {label:'AI Orchestration',value:agOrch,sub:`佔 ${(agOrch/DATA.total*100).toFixed(1)}%`,cls:'orange'},
+    {label:'TW 管轄局',value:twCount,sub:'台灣TIPO申請',cls:'purple'},
+    {label:'來源國數',value:DATA.region_dist.length,sub:'個國家/地區',cls:'blue'},
+  ].map(k=>`
+    <div class="kpi ${k.cls}">
+      <div class="label">${k.label}</div>
+      <div class="value">${k.value}</div>
+      <div class="sub">${k.sub}</div>
+    </div>`).join('');
+
+  // ── 圖 1：管轄局餅圖 ──
+  mkChart('ch-jur-pie','doughnut',{
+    labels: DATA.jur_dist.map(d=>d.jur),
+    datasets:[{
+      data: DATA.jur_dist.map(d=>d.count),
+      backgroundColor: DATA.jur_dist.map(d=>JUR_COLORS[d.jur]||'#78909c'),
+      borderWidth:2, borderColor:'#ffffff', hoverOffset:8
+    }]
+  },{plugins:{legend:{position:'right'}}});
+
+  // ── 圖 2：來源國長條圖（Top 10）──
+  const top10r = DATA.region_dist.slice(0,10);
+  mkChart('ch-region-bar','bar',{
+    labels: top10r.map(d=>d.region),
+    datasets:[{
+      label:'專利數',
+      data: top10r.map(d=>d.count),
+      backgroundColor: top10r.map(d=>REGION_COLORS[d.region]||'#546e7a'),
+      borderRadius:6,
+    }]
+  },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true},x:{ticks:{maxRotation:30}}}});
+
+  // ── 圖 3：年度趨勢折線圖 ──
+  const yrs = DATA.year_trend;
+  mkChart('ch-year-line','line',{
+    labels: yrs.map(d=>d.year),
+    datasets:[
+      {label:'US',data:yrs.map(d=>d.us),borderColor:JUR_COLORS.US,backgroundColor:'transparent',tension:.3,pointRadius:3},
+      {label:'EP',data:yrs.map(d=>d.ep),borderColor:JUR_COLORS.EP,backgroundColor:'transparent',tension:.3,pointRadius:3},
+      {label:'JP',data:yrs.map(d=>d.jp),borderColor:JUR_COLORS.JP,backgroundColor:'transparent',tension:.3,pointRadius:3},
+      {label:'TW',data:yrs.map(d=>d.tw),borderColor:JUR_COLORS.TW,backgroundColor:'transparent',tension:.3,pointRadius:3},
+    ]
+  },{scales:{y:{beginAtZero:true}}});
+
+  // ── 圖 4：Agentic AI 甜甜圈 ──
+  mkChart('ch-agentic-donut','doughnut',{
+    labels: DATA.agentic_dist.map(d=>AG_LABELS[d.cat]||d.cat),
+    datasets:[{
+      data: DATA.agentic_dist.map(d=>d.count),
+      backgroundColor: DATA.agentic_dist.map(d=>AG_COLORS[d.cat]||'#78909c'),
+      borderWidth:2, borderColor:'#ffffff', hoverOffset:8
+    }]
+  },{plugins:{legend:{position:'right'}}});
+
+  // ── 管轄局分頁 ──
+  buildJurTabs();
+
+  // ── TW 深度 ──
+  buildTWDeep();
+
+  // ── 申請人頁 ──
+  buildAssigneePage();
+
+  // ── 來源國頁 ──
+  buildRegionPage();
+
+  // ── 年度趨勢頁 ──
+  buildTrendPage();
+
+  // ── Agentic AI 頁 ──
+  buildAgenticPage();
+}
+
+// ── 管轄局分頁 ────────────────────────────────────────────────────────────
+function buildJurTabs(){
+  const jurs = DATA.jur_dist.map(d=>d.jur);
+  const tabsEl = $('jur-tabs');
+  const panelsEl = $('jur-panels');
+  const names = {US:'🇺🇸 美國 USPTO',EP:'🇪🇺 歐洲 EPO',JP:'🇯🇵 日本 JPO',TW:'🇹🇼 台灣 TIPO',SG:'🇸🇬 新加坡',MY:'🇲🇾 馬來西亞'};
+
+  jurs.forEach((jur,i)=>{
+    const tab = document.createElement('div');
+    tab.className='tab'+(i===0?' active':'');
+    const cnt = DATA.jur_dist.find(d=>d.jur===jur)?.count||0;
+    tab.innerHTML=`${names[jur]||jur} <span style="color:var(--text3);font-weight:400">(${cnt})</span>`;
+    tab.onclick=()=>{
+      document.querySelectorAll('#jur-tabs .tab').forEach(t=>t.classList.remove('active'));
+      document.querySelectorAll('#jur-panels .tab-content').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      $(`jur-panel-${jur}`).classList.add('active');
+    };
+    tabsEl.appendChild(tab);
+
+    const panel = document.createElement('div');
+    panel.id=`jur-panel-${jur}`;
+    panel.className='tab-content'+(i===0?' active':'');
+
+    const regions = (DATA.jur_region[jur]||[]).slice(0,12);
+    const companies = (DATA.jur_company[jur]||[]).slice(0,8);
+    const maxR = regions[0]?.count||1;
+    const agMap = DATA.jur_agentic[jur]||{};
+
+    panel.innerHTML=`
+      <div class="chart-grid col2">
+        <div class="chart-card">
+          <h3>${jur} 管轄局：申請人來源國</h3>
+          <div class="desc">在 ${jur} 申請的專利，按母國統計</div>
+          <div class="chart-wrap"><canvas id="ch-jur-r-${jur}"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <h3>${jur} 管轄局：Top 申請人</h3>
+          <div class="desc">最多在此局申請的企業</div>
+          <div class="chart-wrap"><canvas id="ch-jur-c-${jur}"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-grid col2">
+        <div class="chart-card">
+          <h3>來源國比例條</h3>
+          <div id="jur-rprog-${jur}">
+            ${regions.map(r=>`
+              <div class="prog-row">
+                <div class="prog-label">${flagEmoji(r.region)} ${r.region}</div>
+                <div class="prog-bar-wrap">
+                  <div class="prog-bar" style="width:${r.count/maxR*100}%;background:${REGION_COLORS[r.region]||'#546e7a'}">
+                    <span class="prog-val">${r.count}</span>
+                  </div>
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>Agentic AI 組成</h3>
+          <div class="chart-wrap"><canvas id="ch-jur-ag-${jur}"></canvas></div>
+        </div>
+      </div>`;
+
+    panelsEl.appendChild(panel);
+
+    // 延遲到 DOM 插入後再畫圖
+    requestAnimationFrame(()=>{
+      if(regions.length){
+        mkChart(`ch-jur-r-${jur}`,'bar',{
+          labels:regions.map(d=>d.region),
+          datasets:[{label:'專利數',data:regions.map(d=>d.count),
+            backgroundColor:regions.map(d=>REGION_COLORS[d.region]||'#546e7a'),borderRadius:5}]
+        },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true},x:{ticks:{maxRotation:35}}}});
+      }
+      if(companies.length){
+        mkChart(`ch-jur-c-${jur}`,'bar',{
+          labels:companies.map(d=>d.company.length>18?d.company.slice(0,18)+'…':d.company),
+          datasets:[{label:'專利數',data:companies.map(d=>d.count),
+            backgroundColor:'#2979c8',borderRadius:5}]
+        },{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}});
+      }
+      const agData = DATA.agentic_dist.map(a=>({cat:a.cat,count:agMap[a.cat]||0}));
+      mkChart(`ch-jur-ag-${jur}`,'doughnut',{
+        labels:agData.map(d=>AG_LABELS[d.cat]||d.cat),
+        datasets:[{data:agData.map(d=>d.count),
+          backgroundColor:agData.map(d=>AG_COLORS[d.cat]||'#546e7a'),
+          borderWidth:2,borderColor:'#1a2b3f',hoverOffset:6}]
+      },{plugins:{legend:{position:'right'}}});
+    });
+  });
+}
+
+// ── TW 深度 ───────────────────────────────────────────────────────────────
+function buildTWDeep(){
+  const twTotal = DATA.jur_dist.find(d=>d.jur==='TW')?.count||1;
+  const twRegions = DATA.tw_region;
+
+  requestAnimationFrame(()=>{
+    // TW 來源國圓餅
+    mkChart('ch-tw-region','doughnut',{
+      labels:twRegions.map(d=>d.region),
+      datasets:[{data:twRegions.map(d=>d.count),
+        backgroundColor:twRegions.map(d=>REGION_COLORS[d.region]||'#546e7a'),
+        borderWidth:2,borderColor:'#ffffff',hoverOffset:8}]
+    },{plugins:{legend:{position:'right'}}});
+
+    // TW vs US vs EP 比較
+    const top6regions = DATA.region_dist.slice(0,6).map(d=>d.region);
+    const getShare = (jurData, regions) => regions.map(r=>{
+      const found = (jurData||[]).find(d=>d.region===r);
+      return found?found.count:0;
+    });
+    mkChart('ch-jur-compare','bar',{
+      labels:top6regions,
+      datasets:[
+        {label:'TW',data:getShare(DATA.jur_region['TW'],top6regions),backgroundColor:JUR_COLORS.TW+'cc',borderRadius:4},
+        {label:'US',data:getShare(DATA.jur_region['US'],top6regions),backgroundColor:JUR_COLORS.US+'cc',borderRadius:4},
+        {label:'EP',data:getShare(DATA.jur_region['EP'],top6regions),backgroundColor:JUR_COLORS.EP+'cc',borderRadius:4},
+      ]
+    },{scales:{y:{beginAtZero:true},x:{ticks:{maxRotation:20}}}});
+  });
+
+  // TW 詳細表格
+  const tbody = $('tw-detail-tbl');
+  DATA.tw_detail.forEach((d,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td class="rank">${i+1}</td>
+      <td>${regionTag(d.region)}</td>
+      <td>${d.company}</td>
+      <td>${mini(d.count,DATA.tw_detail[0].count,REGION_COLORS[d.region]||'#42a5f5')}</td>
+      <td>${(d.count/twTotal*100).toFixed(1)}%</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── 申請人頁 ──────────────────────────────────────────────────────────────
+function buildAssigneePage(){
+  const top20 = DATA.top_assignees.slice(0,20);
+  const top15 = DATA.top_assignees.slice(0,15);
+  const total = DATA.total;
+  const jurs = ['US','EP','JP','TW'];
+
+  requestAnimationFrame(()=>{
+    // 橫向長條圖
+    mkChart('ch-assignee-bar','bar',{
+      labels:top20.map(d=>d.company.length>20?d.company.slice(0,20)+'…':d.company),
+      datasets:[{label:'專利數',data:top20.map(d=>d.count),
+        backgroundColor:top20.map(d=>REGION_COLORS[d.region]||'#2979c8'),borderRadius:5}]
+    },{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true}}});
+
+    // 堆疊管轄局
+    const ajMap = DATA.assignee_jur;
+    const stColors = [JUR_COLORS.US,JUR_COLORS.EP,JUR_COLORS.JP,JUR_COLORS.TW];
+    mkChart('ch-assignee-stack','bar',{
+      labels:top15.map(d=>d.company.length>14?d.company.slice(0,14)+'…':d.company),
+      datasets:jurs.map((jur,i)=>({
+        label:jur,
+        data:top15.map(d=>(ajMap[d.company]||{})[jur]||0),
+        backgroundColor:stColors[i]+'cc',
+        borderRadius:3,
+      }))
+    },{scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}},
+       plugins:{legend:{position:'top'}}});
+  });
+
+  // 完整表格
+  const tbody = $('assignee-tbl');
+  const maxCnt = DATA.top_assignees[0]?.count||1;
+  DATA.top_assignees.forEach((d,i)=>{
+    const ajJurs = DATA.assignee_jur[d.company]||{};
+    const jurBadges = Object.entries(ajJurs).sort((a,b)=>b[1]-a[1])
+      .map(([j,c])=>`<span class="tag" style="background:${JUR_COLORS[j]}22;color:${JUR_COLORS[j]}">${j}:${c}</span>`).join(' ');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td class="rank">${i+1}</td>
+      <td style="font-weight:600">${d.company}</td>
+      <td>${regionTag(d.region)}</td>
+      <td>${mini(d.count,maxCnt,REGION_COLORS[d.region]||'#42a5f5')}</td>
+      <td>${(d.count/total*100).toFixed(1)}%</td>
+      <td style="white-space:nowrap">${jurBadges}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+// ── 來源國頁 ──────────────────────────────────────────────────────────────
+function buildRegionPage(){
+  const top12 = DATA.region_dist.slice(0,12);
+  const focus = ['美國','中國','瑞典','台灣','韓國','芬蘭','日本','英國','法國','德國'];
+  const jurs = ['US','EP','JP','TW'];
+
+  requestAnimationFrame(()=>{
+    mkChart('ch-region-full','bar',{
+      labels:top12.map(d=>d.region),
+      datasets:[{label:'專利數',data:top12.map(d=>d.count),
+        backgroundColor:top12.map(d=>REGION_COLORS[d.region]||'#546e7a'),borderRadius:6}]
+    },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true},x:{ticks:{maxRotation:25}}}});
+
+    const rjMap = DATA.region_jur;
+    mkChart('ch-region-jur','bar',{
+      labels:focus.filter(r=>rjMap[r]),
+      datasets:jurs.map((jur,i)=>({
+        label:jur,
+        data:focus.filter(r=>rjMap[r]).map(r=>(rjMap[r]||[]).find(d=>d.jur===jur)?.count||0),
+        backgroundColor:[JUR_COLORS.US,JUR_COLORS.EP,JUR_COLORS.JP,JUR_COLORS.TW][i]+'cc',
+        borderRadius:3,
+      }))
+    },{scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}},
+       plugins:{legend:{position:'top'}}});
+  });
+
+  // 橫向進度條
+  const prog = $('region-prog');
+  const rjMap = DATA.region_jur;
+  focus.filter(r=>DATA.region_dist.find(d=>d.region===r)).forEach(r=>{
+    const total = DATA.region_dist.find(d=>d.region===r)?.count||0;
+    const jData = rjMap[r]||[];
+    prog.innerHTML+=`
+      <div style="margin-bottom:18px">
+        <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px">
+          ${flagEmoji(r)} ${r} — 共 ${total} 筆
+        </div>
+        ${jData.map(d=>`
+          <div class="prog-row">
+            <div class="prog-label">${d.jur}</div>
+            <div class="prog-bar-wrap">
+              <div class="prog-bar" style="width:${d.count/total*100}%;background:${JUR_COLORS[d.jur]||'#546e7a'}">
+                <span class="prog-val">${d.count} (${(d.count/total*100).toFixed(0)}%)</span>
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>`;
+  });
+}
+
+// ── 年度趨勢 ──────────────────────────────────────────────────────────────
+function buildTrendPage(){
+  const yrs = DATA.year_trend;
+  const yrLabels = yrs.map(d=>d.year);
+
+  requestAnimationFrame(()=>{
+    mkChart('ch-trend-full','bar',{
+      labels:yrLabels,
+      datasets:[
+        {type:'line',label:'Total',data:yrs.map(d=>d.total),borderColor:'#fff',backgroundColor:'transparent',tension:.3,pointRadius:4,borderWidth:2,order:0},
+        {label:'US',data:yrs.map(d=>d.us),backgroundColor:JUR_COLORS.US+'bb',borderRadius:3,stack:'s'},
+        {label:'EP',data:yrs.map(d=>d.ep),backgroundColor:JUR_COLORS.EP+'bb',borderRadius:3,stack:'s'},
+        {label:'JP',data:yrs.map(d=>d.jp),backgroundColor:JUR_COLORS.JP+'bb',borderRadius:3,stack:'s'},
+        {label:'TW',data:yrs.map(d=>d.tw),backgroundColor:JUR_COLORS.TW+'bb',borderRadius:3,stack:'s'},
+      ]
+    },{scales:{y:{beginAtZero:true}},plugins:{legend:{position:'top'}}});
+
+    // 來源國趨勢
+    const yrMap = DATA.year_region;
+    const regions7 = ['美國','中國','瑞典','台灣','韓國','芬蘭','日本'];
+    const rColors7 = regions7.map(r=>REGION_COLORS[r]);
+    mkChart('ch-trend-region','line',{
+      labels:yrLabels,
+      datasets:regions7.map((r,i)=>({
+        label:r,
+        data:yrLabels.map(y=>(yrMap[y]||{})[r]||0),
+        borderColor:rColors7[i],backgroundColor:'transparent',tension:.3,pointRadius:3,borderWidth:2
+      }))
+    },{scales:{y:{beginAtZero:true}},plugins:{legend:{position:'top'}}});
+  });
+}
+
+// ── Agentic AI ────────────────────────────────────────────────────────────
+function buildAgenticPage(){
+  const cats = ['core_agentic_ai','ai_related_orchestration','network_slicing_baseline','exclude_or_low_weight'];
+  const idMap = {core_agentic_ai:'ag-core','ai_related_orchestration':'ag-orch','network_slicing_baseline':'ag-base','exclude_or_low_weight':'ag-excl'};
+  DATA.agentic_dist.forEach(d=>{
+    const el = $(idMap[d.cat]);
+    if(el) el.textContent = d.count;
+  });
+
+  const jurs = Object.keys(DATA.jur_agentic);
+  requestAnimationFrame(()=>{
+    mkChart('ch-ag-pie','doughnut',{
+      labels:DATA.agentic_dist.map(d=>AG_LABELS[d.cat]||d.cat),
+      datasets:[{data:DATA.agentic_dist.map(d=>d.count),
+        backgroundColor:DATA.agentic_dist.map(d=>AG_COLORS[d.cat]||'#546e7a'),
+        borderWidth:2,borderColor:'#ffffff',hoverOffset:8}]
+    },{plugins:{legend:{position:'right'}}});
+
+    mkChart('ch-ag-jur','bar',{
+      labels:jurs,
+      datasets:cats.map(cat=>({
+        label:AG_LABELS[cat],
+        data:jurs.map(j=>(DATA.jur_agentic[j]||{})[cat]||0),
+        backgroundColor:AG_COLORS[cat]+'cc',
+        borderRadius:4,
+        stack:'s',
+      }))
+    },{scales:{x:{stacked:true},y:{stacked:true,beginAtZero:true}},
+       plugins:{legend:{position:'top'}}});
+  });
+}
+
+// ── 執行 ──────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
