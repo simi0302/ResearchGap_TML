@@ -188,7 +188,7 @@
     <section class="section white-space" id="white-space">
       <div class="section-head light">
         <p class="eyebrow">WHITE SPACE ANALYSIS</p>
-        <h3>Technology White-Space Matrix <span>/ 技術白地矩陣</span></h3>
+        <h3>Technology White-Space Table <span>/ 技術白地表格</span></h3>
         <p>Compare research and patent density across technology combinations. <span class="zh">比較研究與專利密度，找出尚未被充分探索的技術組合。</span></p>
         <p class="section-note">
           <i class="static-dot" aria-hidden="true"></i>
@@ -200,41 +200,105 @@
       </div>
 
       <div class="matrix-wrap">
-        <table class="matrix">
+        <table class="matrix-table">
           <thead>
             <tr>
-              <th></th>
-              <th>AI</th>
-              <th>IoT</th>
-              <th>Edge</th>
-              <th>Digital Twin</th>
-              <th>Blockchain</th>
+              <th>Technology Combination <span class="zh">技術組合</span></th>
+              <th>Patents <span class="zh">專利數</span></th>
+              <th>Status <span class="zh">狀態</span></th>
+              <th>Evidence <span class="zh">證據</span></th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <th>SDN</th>
-              <td class="dense">531</td>
-              <td class="dense">426</td>
-              <td class="medium">177</td>
-              <td class="gap" data-gap="SDN × Digital Twin" tabindex="0" role="button" aria-label="View evidence for SDN × Digital Twin white space">21</td>
-              <td class="medium">102</td>
+              <td>SDN × AI</td>
+              <td>531</td>
+              <td><span class="status-badge dense">Crowded <span class="zh">高密度</span></span></td>
+              <td>—</td>
             </tr>
             <tr>
-              <th>NFV</th>
-              <td class="dense">388</td>
-              <td class="medium">203</td>
-              <td class="medium">155</td>
-              <td class="gap" data-gap="NFV × Digital Twin" tabindex="0" role="button" aria-label="View evidence for NFV × Digital Twin white space">12</td>
-              <td class="gap" data-gap="NFV × Blockchain" tabindex="0" role="button" aria-label="View evidence for NFV × Blockchain white space">48</td>
+              <td>SDN × IoT</td>
+              <td>426</td>
+              <td><span class="status-badge dense">Crowded <span class="zh">高密度</span></span></td>
+              <td>—</td>
             </tr>
             <tr>
-              <th>6G</th>
-              <td class="dense">490</td>
-              <td class="medium">121</td>
-              <td class="dense">310</td>
-              <td class="medium">91</td>
-              <td class="gap" data-gap="6G × Blockchain" tabindex="0" role="button" aria-label="View evidence for 6G × Blockchain white space">27</td>
+              <td>SDN × Edge</td>
+              <td>177</td>
+              <td><span class="status-badge medium">Developing <span class="zh">發展中</span></span></td>
+              <td>—</td>
+            </tr>
+            <tr class="gap-row">
+              <td>SDN × Digital Twin</td>
+              <td>21</td>
+              <td><span class="status-badge gap">Potential White Space <span class="zh">潛在白地</span></span></td>
+              <td><button class="pill-btn small" data-gap="SDN × Digital Twin" aria-label="View evidence for SDN × Digital Twin white space">View Evidence <span class="zh">查看證據</span> →</button></td>
+            </tr>
+            <tr>
+              <td>SDN × Blockchain</td>
+              <td>102</td>
+              <td><span class="status-badge medium">Developing <span class="zh">發展中</span></span></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>NFV × AI</td>
+              <td>388</td>
+              <td><span class="status-badge dense">Crowded <span class="zh">高密度</span></span></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>NFV × IoT</td>
+              <td>203</td>
+              <td><span class="status-badge medium">Developing <span class="zh">發展中</span></span></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>NFV × Edge</td>
+              <td>155</td>
+              <td><span class="status-badge medium">Developing <span class="zh">發展中</span></span></td>
+              <td>—</td>
+            </tr>
+            <tr class="gap-row">
+              <td>NFV × Digital Twin</td>
+              <td>12</td>
+              <td><span class="status-badge gap">Potential White Space <span class="zh">潛在白地</span></span></td>
+              <td><button class="pill-btn small" data-gap="NFV × Digital Twin" aria-label="View evidence for NFV × Digital Twin white space">View Evidence <span class="zh">查看證據</span> →</button></td>
+            </tr>
+            <tr class="gap-row">
+              <td>NFV × Blockchain</td>
+              <td>48</td>
+              <td><span class="status-badge gap">Potential White Space <span class="zh">潛在白地</span></span></td>
+              <td><button class="pill-btn small" data-gap="NFV × Blockchain" aria-label="View evidence for NFV × Blockchain white space">View Evidence <span class="zh">查看證據</span> →</button></td>
+            </tr>
+            <tr>
+              <td>6G × AI</td>
+              <td>490</td>
+              <td><span class="status-badge dense">Crowded <span class="zh">高密度</span></span></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>6G × IoT</td>
+              <td>121</td>
+              <td><span class="status-badge medium">Developing <span class="zh">發展中</span></span></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>6G × Edge</td>
+              <td>310</td>
+              <td><span class="status-badge dense">Crowded <span class="zh">高密度</span></span></td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td>6G × Digital Twin</td>
+              <td>91</td>
+              <td><span class="status-badge medium">Developing <span class="zh">發展中</span></span></td>
+              <td>—</td>
+            </tr>
+            <tr class="gap-row">
+              <td>6G × Blockchain</td>
+              <td>27</td>
+              <td><span class="status-badge gap">Potential White Space <span class="zh">潛在白地</span></span></td>
+              <td><button class="pill-btn small" data-gap="6G × Blockchain" aria-label="View evidence for 6G × Blockchain white space">View Evidence <span class="zh">查看證據</span> →</button></td>
             </tr>
           </tbody>
         </table>
@@ -404,8 +468,8 @@
           <span class="zh">ResearchGap 是一套專利與學術文獻白地分析平台，協助研發人員在投入研究或申請專利前，快速掌握技術主題目前的競爭與研究密度，找出尚未被充分探索的「白地」方向。</span>
         </p>
         <p>
-          Traditional searches rely on manually combing databases and journals — slow and easy to miss things. An interactive white-space matrix and trend charts make crowded, developing, and gap areas visible at a glance.
-          <span class="zh">現行做法多仰賴人工逐篇檢索專利庫與期刊論文，憑經驗判斷哪些交叉領域仍有機會，過程耗時且易遺漏。ResearchGap 將專利與文獻數據交叉比對，以互動式白地矩陣呈現各技術組合的研究與專利密度，讓使用者一眼看出高密度區、發展中區與潛在白地，並提供趨勢圖表追蹤成長速度。</span>
+          Traditional searches rely on manually combing databases and journals — slow and easy to miss things. A white-space table and trend charts make crowded, developing, and gap areas visible at a glance.
+          <span class="zh">現行做法多仰賴人工逐篇檢索專利庫與期刊論文，憑經驗判斷哪些交叉領域仍有機會，過程耗時且易遺漏。ResearchGap 將專利與文獻數據交叉比對，以表格呈現各技術組合的研究與專利密度，讓使用者一眼看出高密度區、發展中區與潛在白地，並提供趨勢圖表追蹤成長速度。</span>
         </p>
         <p>
           An AI research assistant answers natural-language questions about gaps, patents, and possible research questions. Numbers always come from real backend computation — the AI only explains and suggests, never fabricates figures.
