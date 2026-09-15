@@ -7,7 +7,11 @@
 const fs = require("fs");
 const path = require("path");
 
-const CORPUS_PATH = path.join(__dirname, "..", "frontend", "public", "data", "patents.json");
+// A copy of frontend/public/data/patents.json lives at backend/data/patents.json so the
+// backend deploys as a self-contained unit (az webapp up only zips this directory — a sibling
+// ../frontend/ is not included, which silently made every /api/patentability call 500 on Azure
+// until this was caught 2026-09-16). Keep both copies in sync if the corpus is ever regenerated.
+const CORPUS_PATH = path.join(__dirname, "data", "patents.json");
 const SUBTECH_COUNT = 12; // matches the "12 子技術" language in the spec; see deriveSubtechGroups()
 
 let _cache = null;
