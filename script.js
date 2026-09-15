@@ -428,7 +428,7 @@ document.getElementById("evidenceBtn").addEventListener("click", () => {
  * here once it exists. Left empty, the chat below keeps using the local canned demo replies
  * exactly as before — nothing about the current demo behavior changes until this is set.
  */
-const AGENT_API_URL = "";
+const AGENT_API_URL = "https://researchgap-agent-api.azurewebsites.net/api/chat";
 let chatHistory = [];
 
 async function sendMessageToAgent(message, history) {
