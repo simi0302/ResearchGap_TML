@@ -99,6 +99,24 @@ function priorArtDensityFactor(cutoffPatents, subtechLabel) {
   };
 }
 
+// Raw same-subtech patent count within the cutoff-filtered corpus — used by the POS
+// Crowding factor (references/pos-scoring.md: "同 CPC×場景檢索命中數 ÷ 200").
+function subtechCount(cutoffPatents, subtechLabel) {
+  let n = 0;
+  for (const p of cutoffPatents) if (subtechOf(p) === subtechLabel) n++;
+  return n;
+}
+
+// Same-subtech, same-jurisdiction patent count — used to approximate the POS Regional
+// factor's family-gap term. Note: this is jurisdiction presence, not true patent-family
+// linkage (patents.json has no family id), so it is an honest approximation, not exact —
+// see the note text returned alongside it in regionalFactor().
+function subtechJurisdictionCount(cutoffPatents, subtechLabel, jurisdiction) {
+  let n = 0;
+  for (const p of cutoffPatents) if (subtechOf(p) === subtechLabel && p.jurisdiction === jurisdiction) n++;
+  return n;
+}
+
 // Factor: applicant_concentration = 1 − HHI/10000, computed within the subtech + cutoff-filtered set.
 function applicantConcentrationFactor(cutoffPatents, subtechLabel) {
   const inGroup = cutoffPatents.filter((p) => subtechOf(p) === subtechLabel);
@@ -166,6 +184,8 @@ module.exports = {
   allSubtechLabels,
   filterByCutoff,
   priorArtDensityFactor,
+  subtechCount,
+  subtechJurisdictionCount,
   applicantConcentrationFactor,
   whitespaceSignal,
   corpusMeta,

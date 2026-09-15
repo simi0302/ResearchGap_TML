@@ -472,6 +472,81 @@ function escapeHtml(text) {
     .replace(/'/g, "&#39;");
 }
 
+// Minimal, safe Markdown-ish renderer for AI replies. The system prompt (backend/systemPrompt.js)
+// instructs the model to always answer with GFM-style pipe tables, numbered lists and "---"
+// section breaks — without this, that structure collapsed into one unreadable run-on paragraph
+// (chat bubbles are a single <p>, and HTML collapses newlines). Every text fragment is escaped
+// with escapeHtml() before any markup is added, so this never trusts the model's text as HTML.
+function isTableRow(line) {
+  return /^\s*\|.*\|\s*$/.test(line);
+}
+function isTableSeparator(line) {
+  return /^\s*\|?[\s:|-]+\|?\s*$/.test(line) && line.includes("-");
+}
+function splitTableCells(line) {
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return trimmed.split("|").map((c) => c.trim());
+}
+function inlineFormat(escapedText) {
+  // Operates on already-escaped text, so this only ever adds our own tags — never
+  // interprets characters the model produced as HTML.
+  return escapedText.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
+function renderBotMarkdown(raw) {
+  const lines = raw.replace(/\r\n/g, "\n").split("\n");
+  const html = [];
+  let i = 0;
+  let paragraphBuf = [];
+
+  function flushParagraph() {
+    if (paragraphBuf.length) {
+      html.push(`<p>${paragraphBuf.map((l) => inlineFormat(escapeHtml(l))).join("<br>")}</p>`);
+      paragraphBuf = [];
+    }
+  }
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    if (isTableRow(line) && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+      flushParagraph();
+      const headerCells = splitTableCells(line);
+      i += 2;
+      const bodyRows = [];
+      while (i < lines.length && isTableRow(lines[i])) {
+        bodyRows.push(splitTableCells(lines[i]));
+        i += 1;
+      }
+      html.push(
+        `<div class="chat-table-wrap"><table class="chat-table"><thead><tr>${headerCells
+          .map((c) => `<th>${inlineFormat(escapeHtml(c))}</th>`)
+          .join("")}</tr></thead><tbody>${bodyRows
+          .map((row) => `<tr>${row.map((c) => `<td>${inlineFormat(escapeHtml(c))}</td>`).join("")}</tr>`)
+          .join("")}</tbody></table></div>`
+      );
+      continue;
+    }
+
+    if (/^\s*(-{3,}|—{3,})\s*$/.test(line)) {
+      flushParagraph();
+      html.push(`<hr class="chat-divider">`);
+      i += 1;
+      continue;
+    }
+
+    if (line.trim() === "") {
+      flushParagraph();
+      i += 1;
+      continue;
+    }
+
+    paragraphBuf.push(line);
+    i += 1;
+  }
+  flushParagraph();
+  return html.join("");
+}
+
 function addUserBubble(text) {
   const bubble = document.createElement("div");
   bubble.className = "bubble user";
@@ -482,7 +557,8 @@ function addUserBubble(text) {
 function addBotBubble(en, zh) {
   const bubble = document.createElement("div");
   bubble.className = "bubble bot";
-  bubble.innerHTML = `<span>RG</span><p>${escapeHtml(en)}${zh ? `<br><small>${escapeHtml(zh)}</small>` : ""}</p>`;
+  const zhBlock = zh ? `<p class="bubble-zh"><small>${escapeHtml(zh)}</small></p>` : "";
+  bubble.innerHTML = `<span>RG</span><div class="bubble-content">${renderBotMarkdown(en)}${zhBlock}</div>`;
   chatMessages.appendChild(bubble);
 }
 

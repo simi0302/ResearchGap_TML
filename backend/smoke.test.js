@@ -21,7 +21,7 @@ test("upload mode with a year but no features asks for feature confirmation befo
   assert.equal(r.score, undefined);
 });
 
-test("upload mode with confirmed features returns a real score with all five factors", () => {
+test("upload mode with confirmed features returns a real POS score with all four factors", () => {
   const r = handlePatentabilityRequest({
     mode: "upload",
     publication_year: 2022,
@@ -31,19 +31,13 @@ test("upload mode with confirmed features returns a real score with all five fac
     ],
   });
   assert.equal(r.cutoff_date, "2022-12-31");
-  assert.equal(r.breakdown.length, 5);
+  assert.equal(r.breakdown.length, 4);
   const factorNames = r.breakdown.map((f) => f.factor).sort();
-  assert.deepEqual(factorNames, [
-    "applicant_concentration",
-    "feature_uniqueness",
-    "literature_maturity",
-    "novelty",
-    "prior_art_density",
-  ]);
+  assert.deepEqual(factorNames, ["crowding", "novelty", "regional", "temporal"]);
   assert.ok(r.score >= 0 && r.score <= 100);
   assert.ok(["高", "中", "低"].includes(r.grade));
-  // no prior_art supplied -> novelty/feature_uniqueness must fall back to the neutral
-  // value with a note, never a guessed number.
+  // no prior_art supplied -> novelty must fall back to the neutral value with a note,
+  // never a guessed number.
   const novelty = r.breakdown.find((f) => f.factor === "novelty");
   assert.equal(novelty.value, 0.5);
   assert.match(novelty.note, /尚無前案比對資料/);
@@ -73,14 +67,14 @@ test("caller cannot inject a score — the field is silently ignored, backend al
   assert.ok(r.score >= 0 && r.score <= 100);
 });
 
-test("prior_art_density and applicant_concentration are always computed from the real corpus, never neutral placeholders", () => {
+test("crowding and regional are always computed from the real corpus, never neutral placeholders", () => {
   const r = handlePatentabilityRequest({
     mode: "upload",
     publication_year: 2022,
     features: [{ id: "F1", text: "x", ipc: "H04L 45" }],
   });
-  const density = r.breakdown.find((f) => f.factor === "prior_art_density");
-  const conc = r.breakdown.find((f) => f.factor === "applicant_concentration");
-  assert.doesNotMatch(density.note, /中性值 0\.5/);
-  assert.doesNotMatch(conc.note, /中性值 0\.5/);
+  const crowding = r.breakdown.find((f) => f.factor === "crowding");
+  const regional = r.breakdown.find((f) => f.factor === "regional");
+  assert.doesNotMatch(crowding.note, /中性值 0\.5/);
+  assert.doesNotMatch(regional.note, /中性值 0\.5/);
 });

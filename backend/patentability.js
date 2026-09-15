@@ -86,6 +86,7 @@ function scoreWithFeatures({ body, cutoffDate, cutoffYear, feats, caseId }) {
     features: feats,
     priorArt: Array.isArray(body.prior_art) ? body.prior_art : [],
     literature: Array.isArray(body.literature) ? body.literature : [],
+    targetJurisdiction: typeof body.target_jurisdiction === "string" ? body.target_jurisdiction : undefined,
   });
 
   return {
