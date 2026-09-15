@@ -1,5 +1,8 @@
 const menuBtn = document.getElementById("menuBtn");
-const nav = document.querySelector(".nav");
+// scoped to the hero topbar specifically — the sticky site-nav header also has a
+// ".nav", and it comes first in document order, so an unscoped ".nav" query here
+// would silently toggle the wrong (hidden-on-mobile) nav instead of the hamburger's.
+const nav = document.querySelector(".topbar .nav");
 
 menuBtn.addEventListener("click", () => {
   nav.classList.toggle("open");
@@ -11,25 +14,158 @@ document.querySelectorAll(".nav a").forEach(a => {
 });
 
 const backToTop = document.getElementById("backToTop");
+const scrollProgress = document.getElementById("scrollProgress");
+const siteNav = document.getElementById("siteNav");
+
 window.addEventListener("scroll", () => {
   const pastFold = window.scrollY > window.innerHeight * 0.6;
   // hide near the very bottom so it doesn't sit on top of the footer's caption text
   const nearBottom = window.scrollY + window.innerHeight > document.documentElement.scrollHeight - 140;
   backToTop.classList.toggle("visible", pastFold && !nearBottom);
-});
+
+  siteNav.classList.toggle("visible", window.scrollY > window.innerHeight * 0.7);
+
+  const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+  const pct = scrollable > 0 ? (window.scrollY / scrollable) * 100 : 0;
+  scrollProgress.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+}, { passive: true });
 backToTop.addEventListener("click", () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 
-document.querySelectorAll(".tag").forEach(tag => {
+// scoped to .try-row specifically — .chat-suggestion buttons in the AI Assistant
+// panel also carry the shared ".tag" class for visual styling, and a bare ".tag"
+// query here would hijack their clicks into the hero search box too.
+document.querySelectorAll(".try-row .tag").forEach(tag => {
   tag.addEventListener("click", () => {
     document.getElementById("keyword").value = tag.textContent.trim();
-    document.getElementById("keyword").focus();
+    document.getElementById("searchForm").requestSubmit();
   });
 });
 
+/* ===== Real patent corpus: fetched once, searched entirely client-side —
+   no backend, no database. See data/patents.json (2,799 real SDN/NFV/network-
+   slicing patents). Requires being served over http(s); opening this file
+   directly (file://) blocks the fetch under Chrome's CORS rules — see README. */
+let patentCorpus = null;
+let corpusLoadError = null;
+const patentCorpusPromise = fetch("data/patents.json")
+  .then(res => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  })
+  .then(data => { patentCorpus = data; })
+  .catch(err => {
+    corpusLoadError = err;
+    console.error("Failed to load patent corpus:", err);
+  });
+
+function searchCorpus({ keyword, yearStart, yearEnd, jurisdiction, patentType }) {
+  if (!patentCorpus || !patentType) return [];
+  const kw = keyword.trim().toLowerCase();
+  const startY = yearStart ? parseInt(yearStart, 10) : null;
+  const endY = yearEnd ? parseInt(yearEnd, 10) : null;
+  return patentCorpus
+    .filter(p => {
+      if (jurisdiction !== "All" && p.jurisdiction !== jurisdiction) return false;
+      if (startY || endY) {
+        if (!p.publication_date) return false;
+        const y = parseInt(p.publication_date.slice(0, 4), 10);
+        if (startY && y < startY) return false;
+        if (endY && y > endY) return false;
+      }
+      if (kw) {
+        const haystack = `${p.title || ""} ${p.abstract || ""} ${p.category || ""}`.toLowerCase();
+        if (!haystack.includes(kw)) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => (b.publication_date || "").localeCompare(a.publication_date || ""));
+}
+
+const googlePatentsUrl = (publicationNumber) =>
+  `https://patents.google.com/patent/${encodeURIComponent(publicationNumber)}/en`;
+
+const formatCategory = (category) =>
+  category
+    ? category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : "Uncategorized";
+
+const RESULTS_PAGE_SIZE = 24;
+
+function renderResults(results, keyword) {
+  const heading = document.getElementById("resultsHeading");
+  const countEl = document.getElementById("resultsCount");
+  const list = document.getElementById("resultsList");
+
+  heading.textContent = keyword ? `Results for "${keyword}"` : "All patents in the corpus";
+
+  if (corpusLoadError) {
+    countEl.textContent = "";
+    list.innerHTML = `<div class="results-empty">
+      Could not load the patent corpus (${escapeHtml(corpusLoadError.message)}).
+      If you opened this file directly from disk, the browser blocks that fetch — serve it from a
+      local server instead, e.g. <code>python3 -m http.server</code>, then open the printed
+      localhost URL. See README.
+      <br><small>無法載入專利語料庫。若你是直接用瀏覽器開啟本機檔案，請改用本地伺服器（例如
+      <code>python3 -m http.server</code>）開啟印出的 localhost 網址，詳見 README。</small>
+    </div>`;
+    return;
+  }
+
+  if (!results.length) {
+    countEl.textContent = "";
+    list.innerHTML = `<div class="results-empty">
+      No matching patents in the corpus — for this keyword/filter combination, that absence may
+      itself be a white-space signal worth validating.
+      <br><small>語料庫中沒有符合的專利——這個組合的「查無結果」本身，也可能是值得驗證的白地訊號。</small>
+    </div>`;
+    return;
+  }
+
+  const shown = results.slice(0, RESULTS_PAGE_SIZE);
+  countEl.textContent = results.length > shown.length
+    ? `Showing ${shown.length} of ${results.length.toLocaleString()}`
+    : `${results.length.toLocaleString()} result${results.length === 1 ? "" : "s"}`;
+
+  list.innerHTML = shown.map(p => {
+    const applicant = p.company_name || (p.assignees && p.assignees[0]) || "Unknown applicant";
+    return `
+      <article class="result-card">
+        <div class="result-head">
+          <span class="result-jurisdiction">${escapeHtml(p.jurisdiction || "—")}</span>
+          <span>${escapeHtml(p.publication_date || "date unknown")}</span>
+        </div>
+        <h5>${escapeHtml(p.title || "(untitled)")}</h5>
+        <p class="result-meta">${escapeHtml(applicant)} · ${escapeHtml(formatCategory(p.category))}</p>
+        <a class="result-link" href="${googlePatentsUrl(p.publication_number)}" target="_blank" rel="noopener noreferrer">
+          View on Google Patents <span aria-hidden="true">↗</span>
+        </a>
+      </article>
+    `;
+  }).join("");
+}
+
 /* ===== Motion: scroll-reveal, count-up, nav scrollspy ===== */
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// Guards the count-up animation below against a real data race: if a search
+// resolves and writes a real metric value while that metric's scroll-triggered
+// count-up is still mid-flight, the animation's own rAF loop would otherwise
+// blindly overwrite the real value a frame later. Any writer "claims" an
+// element by bumping its generation; the animation checks its own generation
+// is still current on every frame and silently aborts once it isn't.
+const metricGen = new WeakMap();
+const bumpMetricGen = (el) => {
+  const next = (metricGen.get(el) || 0) + 1;
+  metricGen.set(el, next);
+  return next;
+};
+function setMetricValue(el, value) {
+  bumpMetricGen(el);
+  el.textContent = value;
+  popValue(el);
+}
 
 if (!prefersReducedMotion) {
   const revealTargets = document.querySelectorAll(
@@ -64,7 +200,9 @@ if (!prefersReducedMotion) {
       if (!Number.isFinite(target)) return;
       const duration = 900;
       const start = performance.now();
+      const myGen = bumpMetricGen(el);
       function tick(now) {
+        if (metricGen.get(el) !== myGen) return; // a real value was written mid-animation — bail out
         const progress = Math.min(1, (now - start) / duration);
         const eased = 1 - Math.pow(1 - progress, 3);
         el.textContent = Math.round(target * eased).toLocaleString();
@@ -96,6 +234,76 @@ if (spySections.length) {
   spySections.forEach(sec => spyObserver.observe(sec));
 }
 
+const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+if (!prefersReducedMotion) {
+  // trend chart lines "draw" in once scrolled into view
+  const chartLines = document.querySelectorAll(".chart-card .line");
+  chartLines.forEach(line => {
+    const length = line.getTotalLength();
+    line.style.strokeDasharray = `${length}`;
+    line.style.strokeDashoffset = `${length}`;
+  });
+  const lineObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add("draw");
+      lineObserver.unobserve(entry.target);
+    });
+  }, { threshold: 0.35 });
+  chartLines.forEach(line => lineObserver.observe(line));
+
+  // subtle hero-orb mouse parallax (desktop pointer only)
+  const orbField = document.getElementById("orbField");
+  const heroSection = document.querySelector(".hero");
+  if (orbField && heroSection && canHover) {
+    heroSection.addEventListener("mousemove", (e) => {
+      const x = (e.clientX / window.innerWidth - 0.5) * 26;
+      const y = (e.clientY / window.innerHeight - 0.5) * 26;
+      orbField.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    });
+    heroSection.addEventListener("mouseleave", () => {
+      orbField.style.transform = "translate(0, 0)";
+    });
+  }
+
+  // 3D tilt on the featured gap card (desktop pointer only)
+  const featuredCard = document.querySelector(".gap-card.featured");
+  if (featuredCard && canHover) {
+    const maxDeg = 5;
+    featuredCard.addEventListener("mousemove", (e) => {
+      const rect = featuredCard.getBoundingClientRect();
+      const px = (e.clientX - rect.left) / rect.width - 0.5;
+      const py = (e.clientY - rect.top) / rect.height - 0.5;
+      featuredCard.style.transform =
+        `perspective(800px) rotateX(${(-py * maxDeg).toFixed(2)}deg) rotateY(${(px * maxDeg).toFixed(2)}deg)`;
+      featuredCard.classList.add("tilt-active");
+    });
+    featuredCard.addEventListener("mouseleave", () => {
+      featuredCard.style.transform = "perspective(800px) rotateX(0) rotateY(0)";
+      featuredCard.classList.remove("tilt-active");
+    });
+  }
+
+  // ripple micro-interaction on primary action buttons
+  function attachRipple(el) {
+    el.classList.add("ripple-btn");
+    el.addEventListener("click", (e) => {
+      const rect = el.getBoundingClientRect();
+      const size = Math.max(rect.width, rect.height);
+      const span = document.createElement("span");
+      span.className = "ripple";
+      span.style.width = span.style.height = `${size}px`;
+      span.style.left = `${e.clientX - rect.left - size / 2}px`;
+      span.style.top = `${e.clientY - rect.top - size / 2}px`;
+      el.appendChild(span);
+      span.addEventListener("animationend", () => span.remove());
+    });
+  }
+  document.querySelectorAll(".pill-btn, .searchbar button, .chat-input button, .ncu-link")
+    .forEach(attachRipple);
+}
+
 function popValue(el) {
   el.classList.remove("pop");
   // eslint-disable-next-line no-unused-expressions
@@ -117,31 +325,53 @@ function makeDemoMetrics(keyword) {
   };
 }
 
-document.getElementById("searchForm").addEventListener("submit", (e) => {
+document.getElementById("searchForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const keyword = document.getElementById("keyword").value.trim() || "Software Defined Networking";
-  const start = document.getElementById("yearStart").value || "All";
-  const end = document.getElementById("yearEnd").value || "2026";
-  const country = document.getElementById("country").value;
+  const keywordInput = document.getElementById("keyword").value.trim();
+  const start = document.getElementById("yearStart").value;
+  const end = document.getElementById("yearEnd").value;
+  const jurisdiction = document.getElementById("country").value;
   const patent = document.getElementById("patent").checked;
   const paper = document.getElementById("paper").checked;
 
   const types = [patent && "Patent", paper && "Academic Paper"].filter(Boolean).join(" + ") || "No type selected";
-  const m = makeDemoMetrics(keyword);
+
+  document.getElementById("overview").scrollIntoView({behavior:"smooth"});
+
+  const resultsWrap = document.getElementById("resultsWrap");
+  resultsWrap.hidden = false;
+  document.getElementById("resultsList").innerHTML =
+    `<div class="results-loading">Searching the 2,799-patent corpus… <span class="zh">搜尋 2,799 筆專利語料庫中…</span></div>`;
+
+  await patentCorpusPromise;
+  const results = searchCorpus({ keyword: keywordInput, yearStart: start, yearEnd: end, jurisdiction, patentType: patent });
+  renderResults(results, keywordInput);
+
+  const realPatents = corpusLoadError ? null : results.length;
+  const realInstitutions = corpusLoadError ? null
+    : new Set(results.map(p => p.company_name || (p.assignees && p.assignees[0]) || "Unknown")).size;
+
+  // Publications/Topics/Gaps have no real dataset behind them (see the data-note in the
+  // UI). Keep them from contradicting the real search: if the real corpus found nothing
+  // for this combination, show nothing here either, instead of an unrelated
+  // plausible-looking number that has nothing to do with what was actually searched.
+  const nothingFound = realPatents === 0;
+  const m = nothingFound ? { papers: "0", topics: 0, gaps: 0 } : makeDemoMetrics(keywordInput);
 
   const metricEls = ["metricPapers", "metricPatents", "metricInstitutions", "metricTopics", "metricGaps"]
     .map(id => document.getElementById(id));
-  const metricValues = [m.papers, m.patents, m.institutions, m.topics, m.gaps];
-  metricEls.forEach((el, i) => {
-    el.textContent = metricValues[i];
-    popValue(el);
-  });
+  const metricValues = [
+    paper ? m.papers : "0",
+    realPatents === null ? "—" : realPatents.toLocaleString(),
+    realInstitutions === null ? "—" : realInstitutions.toLocaleString(),
+    m.topics,
+    m.gaps
+  ];
+  metricEls.forEach((el, i) => setMetricValue(el, metricValues[i]));
 
   document.getElementById("analysisSummary").textContent =
-    `${keyword} · ${start}—${end} · ${country} · ${types}（Prototype sample analysis）`;
-
-  document.getElementById("overview").scrollIntoView({behavior:"smooth"});
+    `${keywordInput || "All patents"} · ${start || "All"}—${end || "2026"} · ${jurisdiction} · ${types}`;
 });
 
 const gapData = {
@@ -167,20 +397,28 @@ const gapData = {
   }
 };
 
+function selectGap(cell) {
+  const key = cell.dataset.gap;
+  document.getElementById("gapTitle").textContent = key;
+  document.getElementById("gapDescription").textContent = gapData[key].en;
+  document.getElementById("gapDescriptionZh").textContent = gapData[key].zh;
+  const scoreEl = document.querySelector(".score");
+  scoreEl.innerHTML = `${gapData[key].score}<small>/100</small>`;
+  popValue(scoreEl);
+}
+
 document.querySelectorAll("[data-gap]").forEach(cell => {
-  cell.addEventListener("click", () => {
-    const key = cell.dataset.gap;
-    document.getElementById("gapTitle").textContent = key;
-    document.getElementById("gapDescription").textContent = gapData[key].en;
-    document.getElementById("gapDescriptionZh").textContent = gapData[key].zh;
-    const scoreEl = document.querySelector(".score");
-    scoreEl.innerHTML = `${gapData[key].score}<small>/100</small>`;
-    popValue(scoreEl);
+  cell.addEventListener("click", () => selectGap(cell));
+  cell.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      selectGap(cell);
+    }
   });
 });
 
 document.getElementById("evidenceBtn").addEventListener("click", () => {
-  alert("Prototype: this button can later open the supporting papers + patents evidence panel.");
+  document.getElementById("evidenceNote").hidden = false;
 });
 
 /*
@@ -225,17 +463,26 @@ async function sendMessageToAgent(message, history) {
 const chatMessages = document.getElementById("chatMessages");
 const chatText = document.getElementById("chatText");
 
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function addUserBubble(text) {
   const bubble = document.createElement("div");
   bubble.className = "bubble user";
-  bubble.innerHTML = `<p>${text.replace(/</g, "&lt;")}</p>`;
+  bubble.innerHTML = `<p>${escapeHtml(text)}</p>`;
   chatMessages.appendChild(bubble);
 }
 
 function addBotBubble(en, zh) {
   const bubble = document.createElement("div");
   bubble.className = "bubble bot";
-  bubble.innerHTML = `<span>RG</span><p>${en}${zh ? `<br><small>${zh}</small>` : ""}</p>`;
+  bubble.innerHTML = `<span>RG</span><p>${escapeHtml(en)}${zh ? `<br><small>${escapeHtml(zh)}</small>` : ""}</p>`;
   chatMessages.appendChild(bubble);
 }
 

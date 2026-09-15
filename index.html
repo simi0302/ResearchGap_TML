@@ -4,16 +4,47 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="ResearchGap — Patent &amp; Literature White-Space Analysis Platform prototype" />
+  <meta name="theme-color" content="#ff5a00" />
   <title>ResearchGap | Patent &amp; Literature White-Space Analysis Platform</title>
+
+  <link rel="icon" href="logo.png" type="image/png" />
+  <link rel="apple-touch-icon" href="logo.png" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="ResearchGap | Patent &amp; Literature White-Space Analysis Platform" />
+  <meta property="og:description" content="Cross-analyze patents and academic literature to discover research gaps and emerging opportunities." />
+  <meta property="og:image" content="logo.png" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="ResearchGap | Patent &amp; Literature White-Space Analysis Platform" />
+  <meta name="twitter:description" content="Cross-analyze patents and academic literature to discover research gaps and emerging opportunities." />
+  <meta name="twitter:image" content="logo.png" />
+
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <div class="scroll-progress" id="scrollProgress"></div>
+
+  <header class="site-nav" id="siteNav" aria-label="Sticky navigation">
+    <a class="logo" href="#explore" aria-label="ResearchGap home">
+      <img src="logo.png" alt="ResearchGap" />
+    </a>
+    <nav class="nav" aria-label="Sticky main navigation">
+      <a href="#explore">EXPLORE</a>
+      <a href="#white-space">WHITE SPACE</a>
+      <a href="#trends">TRENDS</a>
+      <a href="#assistant">AI ASSISTANT</a>
+      <a href="#about">ABOUT</a>
+    </nav>
+  </header>
+
   <main>
     <!-- HERO / EXPLORE -->
     <section class="hero" id="explore">
-      <div class="orb orb-a"></div>
-      <div class="orb orb-b"></div>
-      <div class="orb orb-c"></div>
+      <div class="orb-field" id="orbField">
+        <div class="orb orb-a"></div>
+        <div class="orb orb-b"></div>
+        <div class="orb orb-c"></div>
+      </div>
 
       <header class="topbar">
         <a class="logo" href="#explore" aria-label="ResearchGap home">
@@ -76,12 +107,12 @@
               <span>Country <span class="zh">國家</span></span>
               <select id="country">
                 <option value="All">All / 全部</option>
-                <option>Taiwan</option>
-                <option>United States</option>
-                <option>Japan</option>
-                <option>South Korea</option>
-                <option>China</option>
-                <option>Germany</option>
+                <option value="TW">Taiwan / 台灣</option>
+                <option value="US">United States / 美國</option>
+                <option value="EP">Europe (EPO) / 歐洲</option>
+                <option value="JP">Japan / 日本</option>
+                <option value="SG">Singapore / 新加坡</option>
+                <option value="MY">Malaysia / 馬來西亞</option>
               </select>
             </label>
 
@@ -119,12 +150,12 @@
           <span>Academic Publications</span><small>學術文獻</small>
           <strong id="metricPapers">2,416</strong>
         </article>
-        <article class="metric">
-          <span>Patents</span><small>專利</small>
+        <article class="metric real" title="Computed live from the real 2,799-patent corpus">
+          <span>Patents <i class="live-dot" aria-hidden="true"></i></span><small>專利</small>
           <strong id="metricPatents">1,083</strong>
         </article>
-        <article class="metric">
-          <span>Institutions</span><small>研究機構</small>
+        <article class="metric real" title="Computed live from the real 2,799-patent corpus">
+          <span>Institutions <i class="live-dot" aria-hidden="true"></i></span><small>研究機構</small>
           <strong id="metricInstitutions">326</strong>
         </article>
         <article class="metric">
@@ -136,6 +167,21 @@
           <strong id="metricGaps">8</strong>
         </article>
       </div>
+      <p class="data-note">
+        <i class="live-dot" aria-hidden="true"></i>
+        <span>
+          Patents &amp; Institutions are computed live from the real 2,799-patent corpus. Publications, Topics, and Gaps are illustrative pending a literature dataset.
+          <span class="zh">專利與機構數字取自真實 2,799 筆專利語料庫即時運算；文獻、新興主題與白地數字為示意用途，尚待接入文獻資料庫。</span>
+        </span>
+      </p>
+
+      <div class="results-wrap" id="resultsWrap" hidden>
+        <div class="results-head">
+          <h4 id="resultsHeading">Search results</h4>
+          <span id="resultsCount"></span>
+        </div>
+        <div class="results-list" id="resultsList"></div>
+      </div>
     </section>
 
     <!-- WHITE SPACE -->
@@ -144,6 +190,13 @@
         <p class="eyebrow">WHITE SPACE ANALYSIS</p>
         <h3>Technology White-Space Matrix <span>/ 技術白地矩陣</span></h3>
         <p>Compare research and patent density across technology combinations. <span class="zh">比較研究與專利密度，找出尚未被充分探索的技術組合。</span></p>
+        <p class="section-note">
+          <i class="static-dot" aria-hidden="true"></i>
+          <span>
+            Fixed illustrative example — doesn't change with your search above; the search results and Patents/Institutions counts do.
+            <span class="zh">固定範例，不會隨上方搜尋變動；搜尋結果清單與 Patents／Institutions 數字才會即時更新。</span>
+          </span>
+        </p>
       </div>
 
       <div class="matrix-wrap">
@@ -164,7 +217,7 @@
               <td class="dense">531</td>
               <td class="dense">426</td>
               <td class="medium">177</td>
-              <td class="gap" data-gap="SDN × Digital Twin">21</td>
+              <td class="gap" data-gap="SDN × Digital Twin" tabindex="0" role="button" aria-label="View evidence for SDN × Digital Twin white space">21</td>
               <td class="medium">102</td>
             </tr>
             <tr>
@@ -172,8 +225,8 @@
               <td class="dense">388</td>
               <td class="medium">203</td>
               <td class="medium">155</td>
-              <td class="gap" data-gap="NFV × Digital Twin">12</td>
-              <td class="gap" data-gap="NFV × Blockchain">48</td>
+              <td class="gap" data-gap="NFV × Digital Twin" tabindex="0" role="button" aria-label="View evidence for NFV × Digital Twin white space">12</td>
+              <td class="gap" data-gap="NFV × Blockchain" tabindex="0" role="button" aria-label="View evidence for NFV × Blockchain white space">48</td>
             </tr>
             <tr>
               <th>6G</th>
@@ -181,7 +234,7 @@
               <td class="medium">121</td>
               <td class="dense">310</td>
               <td class="medium">91</td>
-              <td class="gap" data-gap="6G × Blockchain">27</td>
+              <td class="gap" data-gap="6G × Blockchain" tabindex="0" role="button" aria-label="View evidence for 6G × Blockchain white space">27</td>
             </tr>
           </tbody>
         </table>
@@ -201,7 +254,11 @@
             <h4 id="gapTitle">SDN × Digital Twin</h4>
             <p id="gapDescription">Research volume remains low while recent interest is rising, suggesting an underexplored opportunity worth validating.</p>
             <p class="zh" id="gapDescriptionZh">目前相關研究量仍低，但近年關注度快速上升，可能形成值得進一步驗證的研究白地。</p>
-            <button class="pill-btn" id="evidenceBtn">View Evidence <span class="zh">查看證據</span> →</button>
+            <button class="pill-btn" id="evidenceBtn" aria-describedby="evidenceNote">View Evidence <span class="zh">查看證據</span> →</button>
+            <p class="inline-note" id="evidenceNote" role="status" hidden>
+              Prototype: this button will open the supporting papers + patents evidence panel.
+              <span class="zh">原型階段：此按鈕未來將開啟支援文獻與專利的證據面板。</span>
+            </p>
           </div>
         </article>
 
@@ -220,6 +277,13 @@
         <p class="eyebrow">TECHNOLOGY TRENDS</p>
         <h3>Research Activity Over Time <span>/ 研究活動趨勢</span></h3>
         <p>Compare annual changes in publications and patent activity. <span class="zh">比較學術文獻與專利活動的年度變化。</span></p>
+        <p class="section-note">
+          <i class="static-dot" aria-hidden="true"></i>
+          <span>
+            Fixed illustrative example — doesn't change with your search above.
+            <span class="zh">固定範例，不會隨上方搜尋變動。</span>
+          </span>
+        </p>
       </div>
 
       <div class="trend-layout">
@@ -288,10 +352,20 @@
             <span class="status-dot"></span>Demo now · Azure AI Agent coming soon
           </p>
           <p class="status-pill zh">示範版本 · Azure AI Agent 即將上線</p>
+
+          <a
+            class="status-pill ncu-link"
+            href="https://m365.cloud.microsoft/chat/?titleId=T_147b3184-9453-56fd-8e52-f29ba3d7c471&amp;source=embedded-builder"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Requires sign-in with an NCU Microsoft 365 account / 需使用中央大學 Microsoft 365 帳號登入"
+          >
+            NCU Login <span class="zh">中大師生登入完整版</span> ↗
+          </a>
         </div>
 
         <div class="chat">
-          <div class="chat-messages" id="chatMessages">
+          <div class="chat-messages" id="chatMessages" aria-live="polite" aria-atomic="false">
             <div class="bubble bot">
               <span>RG</span>
               <p>Hi! What research direction would you like to explore?<br><small>嗨！你想探索哪個研究方向？</small></p>

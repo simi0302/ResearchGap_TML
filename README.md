@@ -18,7 +18,7 @@ This repo holds two different things at two different stages of readiness:
 
 | | What it is | Status |
 |---|---|---|
-| **`/` (root)** | A dependency-free static prototype — the marketing/demo page. Plain HTML/CSS/JS, no build step. | Deployable today via GitHub Pages. AI chat runs on local canned responses until a backend URL is configured. |
+| **`/` (root)** | A dependency-free static prototype — the marketing/demo page. Plain HTML/CSS/JS, no build step. Patent search is real (client-side search over `data/patents.json`, the same 2,799-patent corpus, with Google Patents links); AI chat runs on local canned responses until a backend URL is configured. | Deployable today via GitHub Pages. |
 | **`frontend/`** | The real product UI — React 18 + TypeScript + Vite, backed by a real 2,799-patent dataset. | Functional locally (`npm run dev`); not yet deployed. |
 | **`backend/`** | An Express API that fronts Azure OpenAI for the AI assistant, with real tool-calling (function calling) so the model can request a computed score or a web search instead of guessing one. | Code complete and unit-tested; not yet deployed, and not yet holding real Azure credentials. |
 
@@ -26,8 +26,12 @@ This repo holds two different things at two different stages of readiness:
 
 **Static prototype (`/`)**
 - Vanilla HTML5 / CSS3 (Flexbox + Grid, CSS keyframe animations) / JavaScript (ES6+)
-- No framework, no build tooling, no external CDN dependencies — opens directly in a browser
+- No framework, no build tooling, no external CDN dependencies
 - `IntersectionObserver` for scroll-reveal animations and nav scrollspy
+- Real client-side patent search: `data/patents.json` (a copy of the same 2,799-patent corpus
+  `frontend/` uses) is fetched once and filtered entirely in the browser — no backend, no
+  database. Requires being served over http(s); opening `index.html` via `file://` blocks the
+  fetch under Chrome's CORS rules, see "Running locally" below.
 
 **Frontend (`frontend/`)**
 - [React 18](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/)
@@ -66,6 +70,7 @@ is the *only* source of those numbers in the conversation.
 ```
 .
 ├── index.html, styles.css, script.js, logo.png   # static prototype (deploy target for Pages)
+├── data/patents.json                             # copy of the corpus, for the static prototype's real search
 ├── frontend/                                     # React + TypeScript + Vite app
 │   ├── src/{pages,components,data,lib}
 │   └── public/data/patents.json                  # the 2,799-patent corpus
@@ -82,10 +87,13 @@ is the *only* source of those numbers in the conversation.
 
 ## Running locally
 
-**Static prototype** — no install needed, just open `index.html`, or serve it:
+**Static prototype** — no install needed, but must be served (not opened via `file://`) for the
+patent search to work, since that fetches `data/patents.json`:
 ```bash
 python3 -m http.server 8000   # or any static file server
 ```
+Opening `index.html` directly still works for everything else (layout, animations, AI demo chat) —
+only the patent search silently comes back empty without a server.
 
 **Frontend**
 ```bash
