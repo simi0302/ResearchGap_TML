@@ -91,44 +91,12 @@ const formatCategory = (category) =>
     ? category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
     : "Uncategorized";
 
-const RESULTS_PAGE_SIZE = 24;
+const RESULTS_PAGE_SIZE = 5;
+let currentResults = [];
+let currentPage = 1;
 
-function renderResults(results, keyword) {
-  const heading = document.getElementById("resultsHeading");
-  const countEl = document.getElementById("resultsCount");
-  const list = document.getElementById("resultsList");
-
-  heading.textContent = keyword ? `Results for "${keyword}"` : "All patents in the corpus";
-
-  if (corpusLoadError) {
-    countEl.textContent = "";
-    list.innerHTML = `<div class="results-empty">
-      Could not load the patent corpus (${escapeHtml(corpusLoadError.message)}).
-      If you opened this file directly from disk, the browser blocks that fetch — serve it from a
-      local server instead, e.g. <code>python3 -m http.server</code>, then open the printed
-      localhost URL. See README.
-      <br><small>無法載入專利語料庫。若你是直接用瀏覽器開啟本機檔案，請改用本地伺服器（例如
-      <code>python3 -m http.server</code>）開啟印出的 localhost 網址，詳見 README。</small>
-    </div>`;
-    return;
-  }
-
-  if (!results.length) {
-    countEl.textContent = "";
-    list.innerHTML = `<div class="results-empty">
-      No matching patents in the corpus — for this keyword/filter combination, that absence may
-      itself be a white-space signal worth validating.
-      <br><small>語料庫中沒有符合的專利——這個組合的「查無結果」本身，也可能是值得驗證的白地訊號。</small>
-    </div>`;
-    return;
-  }
-
-  const shown = results.slice(0, RESULTS_PAGE_SIZE);
-  countEl.textContent = results.length > shown.length
-    ? `Showing ${shown.length} of ${results.length.toLocaleString()}`
-    : `${results.length.toLocaleString()} result${results.length === 1 ? "" : "s"}`;
-
-  list.innerHTML = shown.map(p => {
+function renderResultCards(pageResults) {
+  return pageResults.map(p => {
     const applicant = p.company_name || (p.assignees && p.assignees[0]) || "Unknown applicant";
     return `
       <article class="result-card">
@@ -146,30 +114,89 @@ function renderResults(results, keyword) {
   }).join("");
 }
 
+function renderResultsPage() {
+  const countEl = document.getElementById("resultsCount");
+  const list = document.getElementById("resultsList");
+  const pagination = document.getElementById("resultsPagination");
+  const pageInfo = document.getElementById("resultsPageInfo");
+  const prevBtn = document.getElementById("resultsPrev");
+  const nextBtn = document.getElementById("resultsNext");
+
+  const totalPages = Math.max(1, Math.ceil(currentResults.length / RESULTS_PAGE_SIZE));
+  currentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const start = (currentPage - 1) * RESULTS_PAGE_SIZE;
+  const pageResults = currentResults.slice(start, start + RESULTS_PAGE_SIZE);
+
+  countEl.textContent = `${currentResults.length.toLocaleString()} result${currentResults.length === 1 ? "" : "s"}`;
+  list.innerHTML = renderResultCards(pageResults);
+
+  if (currentResults.length > RESULTS_PAGE_SIZE) {
+    pagination.hidden = false;
+    pageInfo.textContent = `Page ${currentPage} / ${totalPages} · 第 ${currentPage} / ${totalPages} 頁`;
+    prevBtn.disabled = currentPage <= 1;
+    nextBtn.disabled = currentPage >= totalPages;
+  } else {
+    pagination.hidden = true;
+  }
+}
+
+document.getElementById("resultsPrev").addEventListener("click", () => {
+  if (currentPage <= 1) return;
+  currentPage -= 1;
+  renderResultsPage();
+  document.getElementById("resultsWrap").scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
+});
+document.getElementById("resultsNext").addEventListener("click", () => {
+  currentPage += 1;
+  renderResultsPage();
+  document.getElementById("resultsWrap").scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
+});
+
+function renderResults(results, keyword) {
+  const heading = document.getElementById("resultsHeading");
+  const countEl = document.getElementById("resultsCount");
+  const list = document.getElementById("resultsList");
+  const pagination = document.getElementById("resultsPagination");
+
+  heading.textContent = keyword ? `Results for "${keyword}"` : "All patents in the corpus";
+  currentResults = results;
+  currentPage = 1;
+
+  if (corpusLoadError) {
+    countEl.textContent = "";
+    pagination.hidden = true;
+    list.innerHTML = `<div class="results-empty">
+      Could not load the patent corpus (${escapeHtml(corpusLoadError.message)}).
+      If you opened this file directly from disk, the browser blocks that fetch — serve it from a
+      local server instead, e.g. <code>python3 -m http.server</code>, then open the printed
+      localhost URL. See README.
+      <br><small>無法載入專利語料庫。若你是直接用瀏覽器開啟本機檔案，請改用本地伺服器（例如
+      <code>python3 -m http.server</code>）開啟印出的 localhost 網址，詳見 README。</small>
+    </div>`;
+    return;
+  }
+
+  if (!results.length) {
+    countEl.textContent = "";
+    pagination.hidden = true;
+    list.innerHTML = `<div class="results-empty">
+      No matching patents in the corpus — for this keyword/filter combination, that absence may
+      itself be a white-space signal worth validating.
+      <br><small>語料庫中沒有符合的專利——這個組合的「查無結果」本身，也可能是值得驗證的白地訊號。</small>
+    </div>`;
+    return;
+  }
+
+  renderResultsPage();
+}
+
 /* ===== Motion: scroll-reveal, count-up, nav scrollspy ===== */
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-// Guards the count-up animation below against a real data race: if a search
-// resolves and writes a real metric value while that metric's scroll-triggered
-// count-up is still mid-flight, the animation's own rAF loop would otherwise
-// blindly overwrite the real value a frame later. Any writer "claims" an
-// element by bumping its generation; the animation checks its own generation
-// is still current on every frame and silently aborts once it isn't.
-const metricGen = new WeakMap();
-const bumpMetricGen = (el) => {
-  const next = (metricGen.get(el) || 0) + 1;
-  metricGen.set(el, next);
-  return next;
-};
-function setMetricValue(el, value) {
-  bumpMetricGen(el);
-  el.textContent = value;
-  popValue(el);
-}
-
 if (!prefersReducedMotion) {
   const revealTargets = document.querySelectorAll(
-    ".section-head, .metric, .gap-card, .chart-card, .emerging-list article, .about-copy p"
+    ".section-head, .gap-card, .chart-card, .emerging-list article, .about-copy p"
   );
   revealTargets.forEach((el, i) => {
     el.classList.add("reveal");
@@ -187,32 +214,6 @@ if (!prefersReducedMotion) {
   }, { threshold: 0.12, rootMargin: "0px 0px -8% 0px" });
 
   revealTargets.forEach(el => revealObserver.observe(el));
-
-  // count numeric strong/score values up from 0 the first time they scroll into view
-  const countTargets = document.querySelectorAll(".metric strong");
-  const countObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      countObserver.unobserve(entry.target);
-      const el = entry.target;
-      const raw = el.textContent.trim();
-      const target = parseInt(raw.replace(/[^\d]/g, ""), 10);
-      if (!Number.isFinite(target)) return;
-      const duration = 900;
-      const start = performance.now();
-      const myGen = bumpMetricGen(el);
-      function tick(now) {
-        if (metricGen.get(el) !== myGen) return; // a real value was written mid-animation — bail out
-        const progress = Math.min(1, (now - start) / duration);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        el.textContent = Math.round(target * eased).toLocaleString();
-        if (progress < 1) requestAnimationFrame(tick);
-        else el.textContent = raw;
-      }
-      requestAnimationFrame(tick);
-    });
-  }, { threshold: 0.4 });
-  countTargets.forEach(el => countObserver.observe(el));
 } else {
   document.querySelectorAll(".reveal, .reveal-scale").forEach(el => el.classList.add("is-visible"));
 }
@@ -333,25 +334,6 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
   await patentCorpusPromise;
   const results = searchCorpus({ keyword: keywordInput, yearStart: start, yearEnd: end, jurisdiction, patentType: patent });
   renderResults(results, keywordInput);
-
-  const realPatents = corpusLoadError ? null : results.length;
-  const realInstitutions = corpusLoadError ? null
-    : new Set(results.map(p => p.company_name || (p.assignees && p.assignees[0]) || "Unknown")).size;
-
-  // Publications/Topics/Gaps have no real dataset behind them (no literature corpus exists in
-  // this project — see the data-note in the UI). This build never invents a number for them,
-  // real or "illustrative" — always render "—" regardless of search, so nothing on screen can
-  // be mistaken for a computed result that doesn't exist.
-  const metricEls = ["metricPapers", "metricPatents", "metricInstitutions", "metricTopics", "metricGaps"]
-    .map(id => document.getElementById(id));
-  const metricValues = [
-    "—",
-    realPatents === null ? "—" : realPatents.toLocaleString(),
-    realInstitutions === null ? "—" : realInstitutions.toLocaleString(),
-    "—",
-    "—"
-  ];
-  metricEls.forEach((el, i) => setMetricValue(el, metricValues[i]));
 
   document.getElementById("analysisSummary").textContent =
     `${keywordInput || "All patents"} · ${start || "All"}—${end || "2026"} · ${jurisdiction} · ${types}`;

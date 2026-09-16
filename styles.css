@@ -183,37 +183,6 @@ a{text-decoration:none;color:inherit}
 .section-head.light .section-note{color:#fff;background:rgba(255,255,255,.16)}
 
 .cream{background:var(--cream)}
-.metric-grid{
-  max-width:1120px;margin:auto;display:grid;grid-template-columns:repeat(5,1fr);gap:12px
-}
-.metric{
-  min-height:165px;padding:22px;border:1px solid var(--line);border-radius:22px;background:#fff;
-  display:flex;flex-direction:column
-}
-.metric span{font-weight:900}
-.metric small{font-size:13px;color:#80685d;margin-top:4px}
-.metric strong{font-size:42px;margin-top:auto;letter-spacing:-2px}
-.metric.accent{background:var(--orange);color:#fff;border-color:var(--orange)}
-.metric.accent small{color:#ffe6d6}
-.metric.unavailable{background:#faf5f1;border-style:dashed;border-color:#e6d5c8}
-.metric.unavailable span,.metric.unavailable strong{color:#b8a99c}
-.metric span{display:inline-flex;align-items:center;gap:6px}
-.live-dot{
-  width:6px;height:6px;border-radius:50%;background:#2fa84f;flex-shrink:0;display:inline-block;
-  box-shadow:0 0 0 0 rgba(47,168,79,.5);animation:liveDotPulse 1.8s ease-in-out infinite;
-}
-@keyframes liveDotPulse{
-  0%{box-shadow:0 0 0 0 rgba(47,168,79,.45)}
-  70%{box-shadow:0 0 0 6px rgba(47,168,79,0)}
-  100%{box-shadow:0 0 0 0 rgba(47,168,79,0)}
-}
-@media(prefers-reduced-motion: reduce){.live-dot{animation:none}}
-.data-note{
-  max-width:1120px;margin:16px auto 0;display:flex;align-items:flex-start;gap:8px;
-  font-size:13px;line-height:1.6;color:#80685d;
-}
-.data-note .live-dot{margin-top:6px}
-.data-note .zh{display:block;margin-top:2px;opacity:.85}
 
 .results-wrap{max-width:1120px;margin:34px auto 0}
 .results-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
@@ -242,6 +211,14 @@ a{text-decoration:none;color:inherit}
   border-radius:18px;font-size:14px;line-height:1.6;
 }
 .results-loading{padding:20px;text-align:center;color:#a17557;font-size:13px;font-weight:700}
+.results-pagination{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:20px}
+.results-pagination #resultsPageInfo{font-size:13px;color:#80685d;font-weight:700}
+.page-btn{
+  border:1px solid var(--line);background:#fff;color:var(--orange);border-radius:999px;
+  padding:8px 16px;font-size:13px;font-weight:800;cursor:pointer;
+}
+.page-btn:hover:not(:disabled){background:var(--soft)}
+.page-btn:disabled{opacity:.4;cursor:not-allowed}
 
 .white-space{background:var(--orange);color:#fff}
 .section-head.light .eyebrow{color:#ffd6bf}
@@ -434,10 +411,10 @@ a{text-decoration:none;color:inherit}
 .reveal-scale.is-visible{opacity:1;transform:none}
 
 /* hover lift on interactive card-style elements */
-.metric,.chart-card,.emerging-list article{
+.chart-card,.emerging-list article{
   transition:transform .35s cubic-bezier(.16,.8,.24,1),box-shadow .35s ease,border-color .35s ease
 }
-.metric:hover,.chart-card:hover,.emerging-list article:hover{
+.chart-card:hover,.emerging-list article:hover{
   transform:translateY(-6px);box-shadow:0 18px 34px rgba(120,40,0,.14)
 }
 
@@ -461,7 +438,7 @@ a{text-decoration:none;color:inherit}
 @media(prefers-reduced-motion: reduce){
   .reveal,.reveal-scale{opacity:1!important;transform:none!important;transition:none!important}
   .orb-a,.orb-b,.orb-c,.hero-content>*,.hero{animation:none!important}
-  .metric,.chart-card,.emerging-list article{transition:none!important}
+  .chart-card,.emerging-list article{transition:none!important}
   .orb-field{transition:none!important}
   .gap-card.featured{transition:none!important}
   .line{transition:none!important;stroke-dashoffset:0!important}
@@ -497,8 +474,6 @@ footer .muted{opacity:.5;margin-left:auto}
   .filters input[type="number"],.country-field select{width:100%}
   .dash{display:none}
   .type-field{margin-left:0;display:grid;grid-column:1/-1}
-  .metric-grid{grid-template-columns:repeat(2,1fr)}
-  .metric:last-child{grid-column:1/-1}
   .gap-cards,.trend-layout,.assistant-shell{grid-template-columns:1fr}
   .assistant-shell{gap:20px}
   .chat{min-height:460px;max-height:70vh}
@@ -513,9 +488,6 @@ footer .muted{opacity:.5;margin-left:auto}
   .filters{grid-template-columns:1fr}
   .type-field{grid-column:auto}
   .check{font-size:14px!important}
-  .metric-grid{grid-template-columns:1fr 1fr}
-  .metric{min-height:135px;padding:17px}
-  .metric strong{font-size:33px}
   .section{padding:70px 5vw}
   .gap-card.featured{grid-template-columns:1fr}
   .score{width:82px;height:82px;font-size:28px}

@@ -145,42 +145,17 @@
         <p id="analysisSummary">Enter a keyword to start the analysis. <span class="zh">輸入關鍵字後開始分析。</span></p>
       </div>
 
-      <div class="metric-grid">
-        <article class="metric unavailable" title="No literature dataset is connected yet — this project only has a real patent corpus, not a papers corpus">
-          <span>Academic Publications</span><small>學術文獻</small>
-          <strong id="metricPapers">—</strong>
-        </article>
-        <article class="metric real" title="Computed live from the real 2,799-patent corpus">
-          <span>Patents <i class="live-dot" aria-hidden="true"></i></span><small>專利</small>
-          <strong id="metricPatents">—</strong>
-        </article>
-        <article class="metric real" title="Computed live from the real 2,799-patent corpus">
-          <span>Institutions <i class="live-dot" aria-hidden="true"></i></span><small>研究機構</small>
-          <strong id="metricInstitutions">—</strong>
-        </article>
-        <article class="metric unavailable" title="No literature dataset is connected yet">
-          <span>Emerging Topics</span><small>新興主題</small>
-          <strong id="metricTopics">—</strong>
-        </article>
-        <article class="metric unavailable" title="No literature dataset is connected yet">
-          <span>Potential Gaps</span><small>潛在白地</small>
-          <strong id="metricGaps">—</strong>
-        </article>
-      </div>
-      <p class="data-note">
-        <i class="live-dot" aria-hidden="true"></i>
-        <span>
-          Patents &amp; Institutions are computed live from the real 2,799-patent corpus. Publications, Topics, and Gaps show "—" because no literature dataset is connected yet — this build never displays a number for them, real or placeholder.
-          <span class="zh">專利與機構數字取自真實 2,799 筆專利語料庫即時運算；文獻、新興主題與白地目前顯示「—」，因為尚未接入真實文獻資料庫——此版本不會為這三項顯示任何數字，無論真實或示意。</span>
-        </span>
-      </p>
-
       <div class="results-wrap" id="resultsWrap" hidden>
         <div class="results-head">
           <h4 id="resultsHeading">Search results</h4>
           <span id="resultsCount"></span>
         </div>
         <div class="results-list" id="resultsList"></div>
+        <div class="results-pagination" id="resultsPagination" hidden>
+          <button type="button" class="page-btn" id="resultsPrev">‹ Prev <span class="zh">上一頁</span></button>
+          <span id="resultsPageInfo"></span>
+          <button type="button" class="page-btn" id="resultsNext">Next <span class="zh">下一頁</span> ›</button>
+        </div>
       </div>
     </section>
 
