@@ -319,13 +319,6 @@ a{text-decoration:none;color:inherit}
 @keyframes statusPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.8)}}
 @media(prefers-reduced-motion: reduce){.status-dot{animation:none}}
 
-.ncu-link{
-  cursor:pointer;margin-top:10px!important;
-  background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.4);
-}
-.ncu-link:hover{background:rgba(255,255,255,.24);border-color:rgba(255,255,255,.6)}
-.ncu-link .zh{opacity:.75}
-
 .chat{
   background:#fff;color:var(--ink);border-radius:28px;padding:24px;
   min-height:440px;max-height:640px;display:flex;flex-direction:column;gap:14px;
