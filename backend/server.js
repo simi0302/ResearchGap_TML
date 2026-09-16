@@ -106,9 +106,18 @@ app.post("/api/chat", async (req, res) => {
 
   let messages = [...systemMessages, ...turns];
   const toolTrace = [];
+  const usageTotal = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+  const accumulateUsage = (data) => {
+    const u = data?.usage;
+    if (!u) return;
+    usageTotal.prompt_tokens += u.prompt_tokens || 0;
+    usageTotal.completion_tokens += u.completion_tokens || 0;
+    usageTotal.total_tokens += u.total_tokens || 0;
+  };
 
   try {
     let data = await callAzureChat(messages);
+    accumulateUsage(data);
     let round = 0;
 
     while (round < MAX_TOOL_ROUNDS) {
@@ -141,13 +150,16 @@ app.post("/api/chat", async (req, res) => {
 
       round += 1;
       data = await callAzureChat(messages);
+      accumulateUsage(data);
     }
 
     const reply = data?.choices?.[0]?.message?.content;
     if (typeof reply !== "string") {
       return res.status(502).json({ error: "Azure OpenAI 回應格式異常。" });
     }
-    res.json({ reply, tool_calls: toolTrace });
+    // Real token usage as reported by Azure OpenAI for this turn (summed across every
+    // tool-calling round it took) — not estimated, so the UI can show real cost, not a guess.
+    res.json({ reply, tool_calls: toolTrace, usage: usageTotal });
   } catch (err) {
     console.error("Chat handler failed", err, err.detail || "");
     if (err.status) return res.status(502).json({ error: err.message });

@@ -30,9 +30,9 @@
     </a>
     <nav class="nav" aria-label="Sticky main navigation">
       <a href="#explore">EXPLORE</a>
+      <a href="#assistant">AI ASSISTANT</a>
       <a href="#white-space">WHITE SPACE</a>
       <a href="#trends">TRENDS</a>
-      <a href="#assistant">AI ASSISTANT</a>
       <a href="#about">ABOUT</a>
     </nav>
   </header>
@@ -53,9 +53,9 @@
 
         <nav class="nav" aria-label="Main navigation">
           <a class="active" href="#explore">EXPLORE</a>
+          <a href="#assistant">AI ASSISTANT</a>
           <a href="#white-space">WHITE SPACE</a>
           <a href="#trends">TRENDS</a>
-          <a href="#assistant">AI ASSISTANT</a>
           <a href="#about">ABOUT</a>
         </nav>
 
@@ -146,32 +146,32 @@
       </div>
 
       <div class="metric-grid">
-        <article class="metric">
+        <article class="metric unavailable" title="No literature dataset is connected yet — this project only has a real patent corpus, not a papers corpus">
           <span>Academic Publications</span><small>學術文獻</small>
-          <strong id="metricPapers">2,416</strong>
+          <strong id="metricPapers">—</strong>
         </article>
         <article class="metric real" title="Computed live from the real 2,799-patent corpus">
           <span>Patents <i class="live-dot" aria-hidden="true"></i></span><small>專利</small>
-          <strong id="metricPatents">1,083</strong>
+          <strong id="metricPatents">—</strong>
         </article>
         <article class="metric real" title="Computed live from the real 2,799-patent corpus">
           <span>Institutions <i class="live-dot" aria-hidden="true"></i></span><small>研究機構</small>
-          <strong id="metricInstitutions">326</strong>
+          <strong id="metricInstitutions">—</strong>
         </article>
-        <article class="metric">
+        <article class="metric unavailable" title="No literature dataset is connected yet">
           <span>Emerging Topics</span><small>新興主題</small>
-          <strong id="metricTopics">12</strong>
+          <strong id="metricTopics">—</strong>
         </article>
-        <article class="metric accent">
+        <article class="metric unavailable" title="No literature dataset is connected yet">
           <span>Potential Gaps</span><small>潛在白地</small>
-          <strong id="metricGaps">8</strong>
+          <strong id="metricGaps">—</strong>
         </article>
       </div>
       <p class="data-note">
         <i class="live-dot" aria-hidden="true"></i>
         <span>
-          Patents &amp; Institutions are computed live from the real 2,799-patent corpus. Publications, Topics, and Gaps are illustrative pending a literature dataset.
-          <span class="zh">專利與機構數字取自真實 2,799 筆專利語料庫即時運算；文獻、新興主題與白地數字為示意用途，尚待接入文獻資料庫。</span>
+          Patents &amp; Institutions are computed live from the real 2,799-patent corpus. Publications, Topics, and Gaps show "—" because no literature dataset is connected yet — this build never displays a number for them, real or placeholder.
+          <span class="zh">專利與機構數字取自真實 2,799 筆專利語料庫即時運算；文獻、新興主題與白地目前顯示「—」，因為尚未接入真實文獻資料庫——此版本不會為這三項顯示任何數字，無論真實或示意。</span>
         </span>
       </p>
 
@@ -181,6 +181,70 @@
           <span id="resultsCount"></span>
         </div>
         <div class="results-list" id="resultsList"></div>
+      </div>
+    </section>
+
+    <!-- AI ASSISTANT -->
+    <section class="section assistant" id="assistant">
+      <div class="assistant-shell">
+        <div class="assistant-intro">
+          <p class="eyebrow">AI RESEARCH GAP ASSISTANT</p>
+          <h3>AI Research Gap Assistant <span>/ AI 研究白地助手</span></h3>
+          <p>Ask about research gaps, relevant patents, or possible research questions in natural language.</p>
+          <p class="zh">用自然語言詢問研究缺口、相關專利與可能的研究問題。</p>
+          <p>You can also upload a paper or patent draft (PDF or TXT) and ask whether it's patentable.</p>
+          <p class="zh">你也可以上傳論文或專利草稿（PDF 或 TXT），詢問這份研究是否具有可專利性。</p>
+          <p class="status-pill">
+            <span class="status-dot"></span>Live · Powered by Azure OpenAI
+          </p>
+          <p class="status-pill zh">已上線 · 由 Azure OpenAI 驅動</p>
+
+          <a
+            class="status-pill ncu-link"
+            href="https://m365.cloud.microsoft/chat/?titleId=T_147b3184-9453-56fd-8e52-f29ba3d7c471&amp;source=embedded-builder"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Requires sign-in with an NCU Microsoft 365 account / 需使用中央大學 Microsoft 365 帳號登入"
+          >
+            NCU Login <span class="zh">中大師生登入完整版</span> ↗
+          </a>
+        </div>
+
+        <div class="chat">
+          <div class="chat-messages" id="chatMessages" aria-live="polite" aria-atomic="false">
+            <div class="bubble bot">
+              <span>RG</span>
+              <p>Hi! What research direction would you like to explore?<br><small>嗨！你想探索哪個研究方向？</small></p>
+            </div>
+            <div class="bubble bot sample">
+              <span>RG</span>
+              <p id="aiResponse">Try one of the prompts below, or type your own question — for example: “Find research gaps between SDN and NFV.”</p>
+            </div>
+          </div>
+
+          <div class="chat-suggestions">
+            <span class="chat-suggestions__label">Try asking:</span>
+            <button type="button" class="tag chat-suggestion">Find gaps between SDN and NFV</button>
+            <button type="button" class="tag chat-suggestion">Suggest research questions for 6G</button>
+            <button type="button" class="tag chat-suggestion">Where is the white space in Edge Computing?</button>
+          </div>
+
+          <div class="chat-attachment" id="chatAttachment" hidden>
+            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M17 7.5v8a4 4 0 0 1-8 0v-9a2.5 2.5 0 0 1 5 0v8.5a1 1 0 0 1-2 0v-8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <span class="chat-attachment__name" id="chatAttachmentName"></span>
+            <button type="button" class="chat-attachment__remove" id="chatAttachmentRemove" aria-label="Remove attachment / 移除附件">×</button>
+          </div>
+
+          <form class="chat-input" id="chatForm">
+            <label class="chat-upload-btn" for="chatFile" title="Upload a document (.pdf/.txt) / 上傳文件">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M17 7.5v8a4 4 0 0 1-8 0v-9a2.5 2.5 0 0 1 5 0v8.5a1 1 0 0 1-2 0v-8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span class="visually-hidden">Upload a document / 上傳文件</span>
+            </label>
+            <input type="file" id="chatFile" accept=".pdf,.txt,application/pdf,text/plain" hidden />
+            <input id="chatText" placeholder="Ask about a research gap... / 輸入問題" />
+            <button type="submit" aria-label="Send">→</button>
+          </form>
+        </div>
       </div>
     </section>
 
@@ -404,57 +468,6 @@
       </div>
     </section>
 
-    <!-- AI ASSISTANT -->
-    <section class="section assistant" id="assistant">
-      <div class="assistant-shell">
-        <div class="assistant-intro">
-          <p class="eyebrow">AI RESEARCH GAP ASSISTANT</p>
-          <h3>AI Research Gap Assistant <span>/ AI 研究白地助手</span></h3>
-          <p>Ask about research gaps, relevant patents, or possible research questions in natural language.</p>
-          <p class="zh">用自然語言詢問研究缺口、相關專利與可能的研究問題。</p>
-          <p class="status-pill">
-            <span class="status-dot"></span>Live · Powered by Azure OpenAI
-          </p>
-          <p class="status-pill zh">已上線 · 由 Azure OpenAI 驅動</p>
-
-          <a
-            class="status-pill ncu-link"
-            href="https://m365.cloud.microsoft/chat/?titleId=T_147b3184-9453-56fd-8e52-f29ba3d7c471&amp;source=embedded-builder"
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Requires sign-in with an NCU Microsoft 365 account / 需使用中央大學 Microsoft 365 帳號登入"
-          >
-            NCU Login <span class="zh">中大師生登入完整版</span> ↗
-          </a>
-        </div>
-
-        <div class="chat">
-          <div class="chat-messages" id="chatMessages" aria-live="polite" aria-atomic="false">
-            <div class="bubble bot">
-              <span>RG</span>
-              <p>Hi! What research direction would you like to explore?<br><small>嗨！你想探索哪個研究方向？</small></p>
-            </div>
-            <div class="bubble bot sample">
-              <span>RG</span>
-              <p id="aiResponse">Try one of the prompts below, or type your own question — for example: “Find research gaps between SDN and NFV.”</p>
-            </div>
-          </div>
-
-          <div class="chat-suggestions">
-            <span class="chat-suggestions__label">Try asking:</span>
-            <button type="button" class="tag chat-suggestion">Find gaps between SDN and NFV</button>
-            <button type="button" class="tag chat-suggestion">Suggest research questions for 6G</button>
-            <button type="button" class="tag chat-suggestion">Where is the white space in Edge Computing?</button>
-          </div>
-
-          <form class="chat-input" id="chatForm">
-            <input id="chatText" placeholder="Ask about a research gap... / 輸入問題" />
-            <button type="submit" aria-label="Send">→</button>
-          </form>
-        </div>
-      </div>
-    </section>
-
     <!-- ABOUT -->
     <section class="section about" id="about">
       <div class="section-head">
@@ -497,6 +510,13 @@
     <button class="back-to-top" id="backToTop" aria-label="Back to top / 回到頂端">↑</button>
   </main>
 
+  <script type="module">
+    // Loaded as a module so it can `import` pdf.js's ESM build; exposes pdfjsLib on
+    // window for script.js (a classic script) to use lazily inside the file-upload handler.
+    import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.min.mjs";
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.worker.min.mjs";
+    window.pdfjsLib = pdfjsLib;
+  </script>
   <script src="script.js"></script>
 </body>
 </html>

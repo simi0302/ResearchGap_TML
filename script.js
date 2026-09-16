@@ -311,20 +311,6 @@ function popValue(el) {
   el.classList.add("pop");
 }
 
-const numberFromText = (text) =>
-  [...text].reduce((n, ch) => n + ch.charCodeAt(0), 0);
-
-function makeDemoMetrics(keyword) {
-  const seed = numberFromText(keyword || "ResearchGap");
-  return {
-    papers: (1700 + seed % 2100).toLocaleString(),
-    patents: (500 + seed % 1300).toLocaleString(),
-    institutions: 120 + seed % 330,
-    topics: 7 + seed % 16,
-    gaps: 4 + seed % 11
-  };
-}
-
 document.getElementById("searchForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -352,21 +338,18 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
   const realInstitutions = corpusLoadError ? null
     : new Set(results.map(p => p.company_name || (p.assignees && p.assignees[0]) || "Unknown")).size;
 
-  // Publications/Topics/Gaps have no real dataset behind them (see the data-note in the
-  // UI). Keep them from contradicting the real search: if the real corpus found nothing
-  // for this combination, show nothing here either, instead of an unrelated
-  // plausible-looking number that has nothing to do with what was actually searched.
-  const nothingFound = realPatents === 0;
-  const m = nothingFound ? { papers: "0", topics: 0, gaps: 0 } : makeDemoMetrics(keywordInput);
-
+  // Publications/Topics/Gaps have no real dataset behind them (no literature corpus exists in
+  // this project — see the data-note in the UI). This build never invents a number for them,
+  // real or "illustrative" — always render "—" regardless of search, so nothing on screen can
+  // be mistaken for a computed result that doesn't exist.
   const metricEls = ["metricPapers", "metricPatents", "metricInstitutions", "metricTopics", "metricGaps"]
     .map(id => document.getElementById(id));
   const metricValues = [
-    paper ? m.papers : "0",
+    "—",
     realPatents === null ? "—" : realPatents.toLocaleString(),
     realInstitutions === null ? "—" : realInstitutions.toLocaleString(),
-    m.topics,
-    m.gaps
+    "—",
+    "—"
   ];
   metricEls.forEach((el, i) => setMetricValue(el, metricValues[i]));
 
@@ -441,21 +424,24 @@ async function sendMessageToAgent(message, history) {
     if (!res.ok) {
       return {
         en: `Assistant is temporarily unavailable (server returned ${res.status}). Please try again shortly.`,
-        zh: `助理暫時無法回應（伺服器回傳 ${res.status}）。請稍後再試。`
+        zh: `助理暫時無法回應（伺服器回傳 ${res.status}）。請稍後再試。`,
+        usage: null
       };
     }
     const data = await res.json();
     if (typeof data?.reply !== "string") {
       return {
         en: "Assistant response was malformed. Please contact the site administrator.",
-        zh: "助理回應格式異常，請聯絡系統管理員確認後端服務。"
+        zh: "助理回應格式異常，請聯絡系統管理員確認後端服務。",
+        usage: null
       };
     }
-    return { en: data.reply, zh: "" };
+    return { en: data.reply, zh: "", usage: data.usage || null };
   } catch {
     return {
       en: "Could not reach the assistant backend. Please check your connection and try again.",
-      zh: "無法連線到助理後端，請確認網路連線，或稍後再試。"
+      zh: "無法連線到助理後端，請確認網路連線，或稍後再試。",
+      usage: null
     };
   }
 }
@@ -550,15 +536,18 @@ function renderBotMarkdown(raw) {
 function addUserBubble(text) {
   const bubble = document.createElement("div");
   bubble.className = "bubble user";
-  bubble.innerHTML = `<p>${escapeHtml(text)}</p>`;
+  bubble.innerHTML = `<p>${escapeHtml(text).replace(/\n/g, "<br>")}</p>`;
   chatMessages.appendChild(bubble);
 }
 
-function addBotBubble(en, zh) {
+function addBotBubble(en, zh, usage) {
   const bubble = document.createElement("div");
   bubble.className = "bubble bot";
   const zhBlock = zh ? `<p class="bubble-zh"><small>${escapeHtml(zh)}</small></p>` : "";
-  bubble.innerHTML = `<span>RG</span><div class="bubble-content">${renderBotMarkdown(en)}${zhBlock}</div>`;
+  const usageBlock = usage
+    ? `<p class="bubble-usage"><small>Tokens used: ${usage.total_tokens.toLocaleString()} (prompt ${usage.prompt_tokens.toLocaleString()} + completion ${usage.completion_tokens.toLocaleString()}) <span class="zh">・已使用 ${usage.total_tokens.toLocaleString()} tokens</span></small></p>`
+    : "";
+  bubble.innerHTML = `<span>RG</span><div class="bubble-content">${renderBotMarkdown(en)}${zhBlock}${usageBlock}</div>`;
   chatMessages.appendChild(bubble);
 }
 
@@ -569,6 +558,68 @@ function addTypingBubble() {
   chatMessages.appendChild(bubble);
   return bubble;
 }
+
+/*
+ * Document upload: extracts plain text client-side (PDF via pdf.js loaded as a module in
+ * index.html and exposed on window.pdfjsLib, TXT via File.text()) and folds it into the next
+ * chat message sent to /api/chat, where the existing compute_patentability tool (mode: "upload")
+ * already handles arbitrary pasted text — no new backend endpoint needed.
+ */
+const MAX_ATTACHMENT_CHARS = 12000;
+const MAX_PDF_PAGES = 40;
+let attachedDocText = "";
+let attachedDocName = "";
+
+const chatFile = document.getElementById("chatFile");
+const chatAttachment = document.getElementById("chatAttachment");
+const chatAttachmentName = document.getElementById("chatAttachmentName");
+const chatAttachmentRemove = document.getElementById("chatAttachmentRemove");
+
+async function extractPdfText(file) {
+  if (!window.pdfjsLib) throw new Error("PDF reader is still loading, please try again in a moment");
+  const buf = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+  const pageCount = Math.min(pdf.numPages, MAX_PDF_PAGES);
+  const parts = [];
+  for (let i = 1; i <= pageCount; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    parts.push(content.items.map((item) => item.str).join(" "));
+  }
+  return parts.join("\n\n");
+}
+
+function clearAttachment() {
+  attachedDocText = "";
+  attachedDocName = "";
+  chatFile.value = "";
+  chatAttachment.hidden = true;
+  chatAttachmentName.textContent = "";
+}
+
+chatAttachmentRemove.addEventListener("click", clearAttachment);
+
+chatFile.addEventListener("change", async () => {
+  const file = chatFile.files[0];
+  if (!file) return;
+
+  chatAttachment.hidden = false;
+  chatAttachmentName.textContent = `Reading ${file.name}...`;
+
+  try {
+    const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    const rawText = isPdf ? await extractPdfText(file) : await file.text();
+    const text = rawText.replace(/\s+/g, " ").trim();
+    if (!text) throw new Error("no extractable text found");
+    attachedDocText = text;
+    attachedDocName = file.name;
+    chatAttachmentName.textContent = `${file.name} (${text.length.toLocaleString()} characters extracted)`;
+  } catch (err) {
+    attachedDocText = "";
+    attachedDocName = "";
+    chatAttachmentName.textContent = `Could not read ${file.name}: ${err.message}`;
+  }
+});
 
 function answerFor(text) {
   if (/sdn|nfv/i.test(text)) {
@@ -597,10 +648,26 @@ function answerFor(text) {
 
 document.getElementById("chatForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const text = chatText.value.trim();
-  if (!text) return;
+  const typed = chatText.value.trim();
+  if (!typed && !attachedDocText) return;
 
-  addUserBubble(text);
+  // Fold any uploaded document into the outgoing message (the visible bubble stays short;
+  // the full extracted text rides along for the backend/model to actually read).
+  let text = typed;
+  let displayText = typed;
+  if (attachedDocText) {
+    const truncated = attachedDocText.length > MAX_ATTACHMENT_CHARS
+      ? `${attachedDocText.slice(0, MAX_ATTACHMENT_CHARS)}\n\n[...truncated, document continues...]`
+      : attachedDocText;
+    const question = typed || "Please evaluate whether this document describes a patentable invention, and give a POS score if possible.";
+    text = `${question}\n\n----- Uploaded document: ${attachedDocName} -----\n${truncated}`;
+    displayText = typed
+      ? `${typed}\n[Attached file: ${attachedDocName}]`
+      : `[Attached file: ${attachedDocName}]`;
+  }
+  clearAttachment();
+
+  addUserBubble(displayText);
   chatText.value = "";
   chatMessages.scrollTop = chatMessages.scrollHeight;
 
@@ -608,10 +675,10 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
   chatMessages.scrollTop = chatMessages.scrollHeight;
 
   if (AGENT_API_URL) {
-    const { en, zh } = await sendMessageToAgent(text, chatHistory);
+    const { en, zh, usage } = await sendMessageToAgent(text, chatHistory);
     chatHistory = [...chatHistory, { role: "user", content: text }, { role: "assistant", content: en }];
     typingBubble.remove();
-    addBotBubble(en, zh);
+    addBotBubble(en, zh, usage);
     document.getElementById("aiResponse").textContent = en;
     chatMessages.scrollTop = chatMessages.scrollHeight;
     return;
