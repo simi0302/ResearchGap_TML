@@ -355,9 +355,24 @@ let realCombinationRows = new Map();
 
 function renderWhiteSpaceFromAnalysis(result) {
   const rows = result?.combination_whitespace;
-  if (!Array.isArray(rows) || rows.length === 0) return;
-
   const note = document.getElementById("whiteSpaceNote");
+
+  if (!Array.isArray(rows) || rows.length === 0) {
+    // A real analysis ran, but this case's technical classification (subtech_label ===
+    // "OTHER", or no comparable groups) didn't yield a combination breakdown. Say that
+    // honestly instead of silently doing nothing, which looked identical to "nothing
+    // was ever uploaded."
+    note.innerHTML = `<i class="static-dot" aria-hidden="true"></i><span>
+      Analyzed ${escapeHtml(result.case_id || "")}, but its technical classification (${escapeHtml(result.subtech_label || "unclassified")}) didn't match a known technology group, so no real combination breakdown is available for it.
+      <span class="zh">已分析 ${escapeHtml(result.case_id || "")}，但其技術分類（${escapeHtml(result.subtech_label || "未分類")}）不在已知技術分組內，因此沒有可呈現的真實組合分析。</span>
+    </span>`;
+    document.getElementById("whiteSpaceEmpty").hidden = false;
+    document.getElementById("whiteSpaceTable").hidden = true;
+    document.getElementById("whiteSpaceLegend").hidden = true;
+    document.getElementById("whiteSpaceGapCards").hidden = true;
+    return;
+  }
+
   note.innerHTML = `<i class="static-dot" aria-hidden="true"></i><span>
     Based on: ${escapeHtml(result.case_id)} · cutoff ${escapeHtml(String(result.cutoff_year))} · subtech ${escapeHtml(result.subtech_label)}
     <span class="zh">分析對象：${escapeHtml(result.case_id)}・基準日 ${escapeHtml(String(result.cutoff_year))} 年・技術分類 ${escapeHtml(result.subtech_label)}</span>
@@ -527,6 +542,16 @@ function renderBotMarkdown(raw) {
       continue;
     }
 
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      flushParagraph();
+      const level = headingMatch[1].length;
+      const tag = level <= 2 ? "h4" : level === 3 ? "h5" : "h6";
+      html.push(`<${tag} class="chat-heading">${inlineFormat(escapeHtml(headingMatch[2]))}</${tag}>`);
+      i += 1;
+      continue;
+    }
+
     if (line.trim() === "") {
       flushParagraph();
       i += 1;
@@ -620,7 +645,13 @@ chatFile.addEventListener("change", async () => {
     if (!text) throw new Error("no extractable text found");
     attachedDocText = text;
     attachedDocName = file.name;
-    chatAttachmentName.textContent = `${file.name} (${text.length.toLocaleString()} characters extracted)`;
+    // A scanned/image-only PDF has no embedded text layer, so pdf.js extracts little or
+    // nothing even though the file "succeeded" — warn instead of silently sending near-empty
+    // content the AI can't actually read the document from.
+    const suspicious = isPdf && text.length < 200;
+    chatAttachmentName.textContent = suspicious
+      ? `${file.name}: only ${text.length} characters extracted — this may be a scanned PDF with no text layer; try pasting the text directly instead`
+      : `${file.name} (${text.length.toLocaleString()} characters extracted)`;
   } catch (err) {
     attachedDocText = "";
     attachedDocName = "";

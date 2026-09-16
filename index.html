@@ -374,12 +374,12 @@
     <button class="back-to-top" id="backToTop" aria-label="Back to top / 回到頂端">↑</button>
   </main>
 
-  <script type="module">
-    // Loaded as a module so it can `import` pdf.js's ESM build; exposes pdfjsLib on
-    // window for script.js (a classic script) to use lazily inside the file-upload handler.
-    import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.min.mjs";
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/6.3.289/pdf.worker.min.mjs";
-    window.pdfjsLib = pdfjsLib;
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    // Classic (non-module) build: sets window.pdfjsLib itself, no import juggling. Verified
+    // end-to-end in a real (non-headless-automation) browser session before picking this
+    // version — see script.js's extractPdfText().
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
   </script>
   <script src="script.js"></script>
 </body>
