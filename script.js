@@ -339,51 +339,76 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
     `${keywordInput || "All patents"} · ${start || "All"}—${end || "2026"} · ${jurisdiction} · ${types}`;
 });
 
-const gapData = {
-  "SDN × Digital Twin": {
-    score: 87,
-    en: "Related literature and patents remain scarce, but research growth is accelerating — worth examining real-time network optimization, autonomic management, and digital twin integration.",
-    zh: "相關文獻與專利數量偏低，但研究成長速度較快，適合進一步檢查即時網路最佳化、自治管理與數位孿生整合。"
-  },
-  "NFV × Digital Twin": {
-    score: 91,
-    en: "Direct cross-research between NFV and Digital Twin is still limited — worth exploring service-chain simulation, resource orchestration, and fault prediction.",
-    zh: "NFV 與 Digital Twin 的直接交叉研究仍少，可進一步探索服務鏈模擬、資源編排與故障預測。"
-  },
-  "NFV × Blockchain": {
-    score: 79,
-    en: "This combination already has some security/trust research, but a white space may remain in lightweight coordination and cross-domain NFV management.",
-    zh: "此組合已有部分安全與信任研究，但在輕量化協調與跨域 NFV 管理方面仍可能存在白地。"
-  },
-  "6G × Blockchain": {
-    score: 83,
-    en: "6G research volume is growing fast, but its cross-density with Blockchain patents and literature is relatively limited — worth examining decentralized network coordination.",
-    zh: "6G 的研究量快速增加，但與 Blockchain 的專利與文獻交叉密度相對有限，可檢視去中心化網路協調機會。"
-  }
+/*
+ * White-Space table: driven entirely by a real compute_patentability result (case_id,
+ * subtech_label, combination_whitespace[]) that arrives via /api/chat's tool_calls once the
+ * AI Assistant finishes analyzing a paper/patent draft — see the chatForm submit handler,
+ * which calls renderWhiteSpaceFromAnalysis() whenever a completed (non-needs_confirmation)
+ * compute_patentability result shows up. Nothing here is a fixed example.
+ */
+const STATUS_LABEL = {
+  gap: { en: "Potential White Space", zh: "潛在白地" },
+  developing: { en: "Developing", zh: "發展中" },
+  crowded: { en: "Crowded", zh: "高密度" },
 };
+let realCombinationRows = new Map();
 
-function selectGap(cell) {
-  const key = cell.dataset.gap;
-  document.getElementById("gapTitle").textContent = key;
-  document.getElementById("gapDescription").textContent = gapData[key].en;
-  document.getElementById("gapDescriptionZh").textContent = gapData[key].zh;
-  const scoreEl = document.querySelector(".score");
-  scoreEl.innerHTML = `${gapData[key].score}<small>/100</small>`;
-  popValue(scoreEl);
+function renderWhiteSpaceFromAnalysis(result) {
+  const rows = result?.combination_whitespace;
+  if (!Array.isArray(rows) || rows.length === 0) return;
+
+  const note = document.getElementById("whiteSpaceNote");
+  note.innerHTML = `<i class="static-dot" aria-hidden="true"></i><span>
+    Based on: ${escapeHtml(result.case_id)} · cutoff ${escapeHtml(String(result.cutoff_year))} · subtech ${escapeHtml(result.subtech_label)}
+    <span class="zh">分析對象：${escapeHtml(result.case_id)}・基準日 ${escapeHtml(String(result.cutoff_year))} 年・技術分類 ${escapeHtml(result.subtech_label)}</span>
+  </span>`;
+
+  document.getElementById("whiteSpaceEmpty").hidden = true;
+  const table = document.getElementById("whiteSpaceTable");
+  table.hidden = false;
+  document.getElementById("whiteSpaceLegend").hidden = false;
+  document.getElementById("whiteSpaceGapCards").hidden = false;
+
+  realCombinationRows = new Map();
+  const tbody = document.getElementById("whiteSpaceTbody");
+  tbody.innerHTML = rows.map((row, i) => {
+    const rowId = `row-${i}`;
+    realCombinationRows.set(rowId, row);
+    const label = STATUS_LABEL[row.status] || STATUS_LABEL.developing;
+    const combo = `${escapeHtml(row.combo_a)} (${escapeHtml(row.ipc_a)}) × ${escapeHtml(row.combo_b)} (${escapeHtml(row.ipc_b)})`;
+    const evidenceCell = row.status === "gap"
+      ? `<button class="pill-btn small" data-gap="${rowId}" aria-label="View evidence for ${combo}">View Evidence <span class="zh">查看證據</span> →</button>`
+      : `<span class="combo-evidence">${escapeHtml(row.evidence_en)}</span>`;
+    return `
+      <tr class="${row.status === "gap" ? "gap-row" : ""}">
+        <td>${combo}</td>
+        <td>${row.count.toLocaleString()}</td>
+        <td><span class="status-badge ${row.status === "gap" ? "gap" : row.status === "crowded" ? "dense" : "medium"}">${label.en} <span class="zh">${label.zh}</span></span></td>
+        <td>${evidenceCell}</td>
+      </tr>
+    `;
+  }).join("");
+
+  const firstGap = rows.find((r) => r.status === "gap") || rows[0];
+  showGapCard(firstGap);
 }
 
-document.querySelectorAll("[data-gap]").forEach(cell => {
-  cell.addEventListener("click", () => selectGap(cell));
-  cell.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      selectGap(cell);
-    }
-  });
-});
+function showGapCard(row) {
+  document.getElementById("gapCount").textContent = row.count.toLocaleString();
+  document.getElementById("gapCountUnit").innerHTML = `patents <span class="zh">件專利</span>`;
+  document.getElementById("gapKicker").textContent = row.status === "gap" ? "POTENTIAL GAP" : row.status.toUpperCase();
+  document.getElementById("gapTitle").textContent = `${row.combo_a} × ${row.combo_b}`;
+  document.getElementById("gapDescription").textContent = row.evidence_en;
+  document.getElementById("gapDescriptionZh").textContent = row.evidence_zh;
+  const scoreEl = document.querySelector(".score");
+  if (scoreEl) popValue(scoreEl);
+}
 
-document.getElementById("evidenceBtn").addEventListener("click", () => {
-  document.getElementById("evidenceNote").hidden = false;
+document.getElementById("whiteSpaceTbody").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-gap]");
+  if (!btn) return;
+  const row = realCombinationRows.get(btn.dataset.gap);
+  if (row) showGapCard(row);
 });
 
 /*
@@ -407,7 +432,7 @@ async function sendMessageToAgent(message, history) {
       return {
         en: `Assistant is temporarily unavailable (server returned ${res.status}). Please try again shortly.`,
         zh: `助理暫時無法回應（伺服器回傳 ${res.status}）。請稍後再試。`,
-        usage: null
+        usage: null, tool_calls: []
       };
     }
     const data = await res.json();
@@ -415,15 +440,15 @@ async function sendMessageToAgent(message, history) {
       return {
         en: "Assistant response was malformed. Please contact the site administrator.",
         zh: "助理回應格式異常，請聯絡系統管理員確認後端服務。",
-        usage: null
+        usage: null, tool_calls: []
       };
     }
-    return { en: data.reply, zh: "", usage: data.usage || null };
+    return { en: data.reply, zh: "", usage: data.usage || null, tool_calls: data.tool_calls || [] };
   } catch {
     return {
       en: "Could not reach the assistant backend. Please check your connection and try again.",
       zh: "無法連線到助理後端，請確認網路連線，或稍後再試。",
-      usage: null
+      usage: null, tool_calls: []
     };
   }
 }
@@ -657,12 +682,18 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
   chatMessages.scrollTop = chatMessages.scrollHeight;
 
   if (AGENT_API_URL) {
-    const { en, zh, usage } = await sendMessageToAgent(text, chatHistory);
+    const { en, zh, usage, tool_calls } = await sendMessageToAgent(text, chatHistory);
     chatHistory = [...chatHistory, { role: "user", content: text }, { role: "assistant", content: en }];
     typingBubble.remove();
     addBotBubble(en, zh, usage);
     document.getElementById("aiResponse").textContent = en;
     chatMessages.scrollTop = chatMessages.scrollHeight;
+
+    const scoreResult = tool_calls
+      ?.filter((c) => c.tool === "compute_patentability" && typeof c.result?.score === "number")
+      .map((c) => c.result)
+      .pop();
+    if (scoreResult) renderWhiteSpaceFromAnalysis(scoreResult);
     return;
   }
 

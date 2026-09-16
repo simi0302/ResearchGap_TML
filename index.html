@@ -217,17 +217,21 @@
         <p class="eyebrow">WHITE SPACE ANALYSIS</p>
         <h3>Technology White-Space Table <span>/ 技術白地表格</span></h3>
         <p>Compare research and patent density across technology combinations. <span class="zh">比較研究與專利密度，找出尚未被充分探索的技術組合。</span></p>
-        <p class="section-note">
+        <p class="section-note" id="whiteSpaceNote">
           <i class="static-dot" aria-hidden="true"></i>
           <span>
-            Fixed illustrative example — doesn't change with your search above; the search results and Patents/Institutions counts do.
-            <span class="zh">固定範例，不會隨上方搜尋變動；搜尋結果清單與 Patents／Institutions 數字才會即時更新。</span>
+            Not yet analyzed — upload a paper/patent draft or pick an existing patent in the AI Assistant below to see a real, backend-computed white-space table here.
+            <span class="zh">尚未分析——請在下方 AI 助理上傳論文／專利草稿，或選擇一件既有母體專利，這裡會顯示後端即時算出的真實白地表格。</span>
           </span>
         </p>
       </div>
 
       <div class="matrix-wrap">
-        <table class="matrix-table">
+        <div class="results-empty" id="whiteSpaceEmpty">
+          This table is driven by a real analyzed case, not a fixed example. Ask the AI Assistant to evaluate a paper, patent draft, or existing patent first.
+          <br><small>這張表格由真實分析出的案例驅動，不是固定範例。請先請 AI 助理評估一篇論文、專利草稿或既有專利。</small>
+        </div>
+        <table class="matrix-table" id="whiteSpaceTable" hidden>
           <thead>
             <tr>
               <th>Technology Combination <span class="zh">技術組合</span></th>
@@ -236,128 +240,25 @@
               <th>Evidence <span class="zh">證據</span></th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td>SDN × AI</td>
-              <td>531</td>
-              <td><span class="status-badge dense">Crowded <span class="zh">高密度</span></span></td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td>SDN × IoT</td>
-              <td>426</td>
-              <td><span class="status-badge dense">Crowded <span class="zh">高密度</span></span></td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td>SDN × Edge</td>
-              <td>177</td>
-              <td><span class="status-badge medium">Developing <span class="zh">發展中</span></span></td>
-              <td>—</td>
-            </tr>
-            <tr class="gap-row">
-              <td>SDN × Digital Twin</td>
-              <td>21</td>
-              <td><span class="status-badge gap">Potential White Space <span class="zh">潛在白地</span></span></td>
-              <td><button class="pill-btn small" data-gap="SDN × Digital Twin" aria-label="View evidence for SDN × Digital Twin white space">View Evidence <span class="zh">查看證據</span> →</button></td>
-            </tr>
-            <tr>
-              <td>SDN × Blockchain</td>
-              <td>102</td>
-              <td><span class="status-badge medium">Developing <span class="zh">發展中</span></span></td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td>NFV × AI</td>
-              <td>388</td>
-              <td><span class="status-badge dense">Crowded <span class="zh">高密度</span></span></td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td>NFV × IoT</td>
-              <td>203</td>
-              <td><span class="status-badge medium">Developing <span class="zh">發展中</span></span></td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td>NFV × Edge</td>
-              <td>155</td>
-              <td><span class="status-badge medium">Developing <span class="zh">發展中</span></span></td>
-              <td>—</td>
-            </tr>
-            <tr class="gap-row">
-              <td>NFV × Digital Twin</td>
-              <td>12</td>
-              <td><span class="status-badge gap">Potential White Space <span class="zh">潛在白地</span></span></td>
-              <td><button class="pill-btn small" data-gap="NFV × Digital Twin" aria-label="View evidence for NFV × Digital Twin white space">View Evidence <span class="zh">查看證據</span> →</button></td>
-            </tr>
-            <tr class="gap-row">
-              <td>NFV × Blockchain</td>
-              <td>48</td>
-              <td><span class="status-badge gap">Potential White Space <span class="zh">潛在白地</span></span></td>
-              <td><button class="pill-btn small" data-gap="NFV × Blockchain" aria-label="View evidence for NFV × Blockchain white space">View Evidence <span class="zh">查看證據</span> →</button></td>
-            </tr>
-            <tr>
-              <td>6G × AI</td>
-              <td>490</td>
-              <td><span class="status-badge dense">Crowded <span class="zh">高密度</span></span></td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td>6G × IoT</td>
-              <td>121</td>
-              <td><span class="status-badge medium">Developing <span class="zh">發展中</span></span></td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td>6G × Edge</td>
-              <td>310</td>
-              <td><span class="status-badge dense">Crowded <span class="zh">高密度</span></span></td>
-              <td>—</td>
-            </tr>
-            <tr>
-              <td>6G × Digital Twin</td>
-              <td>91</td>
-              <td><span class="status-badge medium">Developing <span class="zh">發展中</span></span></td>
-              <td>—</td>
-            </tr>
-            <tr class="gap-row">
-              <td>6G × Blockchain</td>
-              <td>27</td>
-              <td><span class="status-badge gap">Potential White Space <span class="zh">潛在白地</span></span></td>
-              <td><button class="pill-btn small" data-gap="6G × Blockchain" aria-label="View evidence for 6G × Blockchain white space">View Evidence <span class="zh">查看證據</span> →</button></td>
-            </tr>
-          </tbody>
+          <tbody id="whiteSpaceTbody"></tbody>
         </table>
 
-        <div class="legend">
+        <div class="legend" id="whiteSpaceLegend" hidden>
           <span><i class="dot dense-dot"></i>Crowded <span class="zh">高密度</span></span>
           <span><i class="dot medium-dot"></i>Developing <span class="zh">發展中</span></span>
           <span><i class="dot gap-dot"></i>Potential White Space <span class="zh">潛在白地</span></span>
         </div>
       </div>
 
-      <div class="gap-cards">
+      <div class="gap-cards single" id="whiteSpaceGapCards" hidden>
         <article class="gap-card featured">
-          <div class="score">87<small>/100</small></div>
+          <div class="score"><strong id="gapCount">0</strong><small id="gapCountUnit">patents</small></div>
           <div>
-            <p class="card-kicker">POTENTIAL GAP</p>
-            <h4 id="gapTitle">SDN × Digital Twin</h4>
-            <p id="gapDescription">Research volume remains low while recent interest is rising, suggesting an underexplored opportunity worth validating.</p>
-            <p class="zh" id="gapDescriptionZh">目前相關研究量仍低，但近年關注度快速上升，可能形成值得進一步驗證的研究白地。</p>
-            <button class="pill-btn" id="evidenceBtn" aria-describedby="evidenceNote">View Evidence <span class="zh">查看證據</span> →</button>
-            <p class="inline-note" id="evidenceNote" role="status" hidden>
-              Prototype: this button will open the supporting papers + patents evidence panel.
-              <span class="zh">原型階段：此按鈕未來將開啟支援文獻與專利的證據面板。</span>
-            </p>
+            <p class="card-kicker" id="gapKicker">POTENTIAL GAP</p>
+            <h4 id="gapTitle">—</h4>
+            <p id="gapDescription"></p>
+            <p class="zh" id="gapDescriptionZh"></p>
           </div>
-        </article>
-
-        <article class="gap-card">
-          <p class="card-kicker">AI SUGGESTED QUESTION</p>
-          <h4>Suggested Research Question <span class="zh">建議研究問題</span></h4>
-          <p>How can Digital Twins improve real-time SDN network optimization?</p>
-          <p class="zh">如何利用數位孿生提升 SDN 即時網路最佳化？</p>
         </article>
       </div>
     </section>

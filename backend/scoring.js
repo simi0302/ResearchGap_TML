@@ -163,6 +163,7 @@ function computeScore({ cutoffDate, cutoffYear, subtechLabel, features, priorArt
     breakdown,
     corpus_meta: corpus.corpusMeta(cutoffDate),
     whitespace: corpus.whitespaceSignal(cutoffPatents).slice(0, 20),
+    combination_whitespace: corpus.combinationWhitespace(cutoffPatents, subtechLabel),
   };
 }
 

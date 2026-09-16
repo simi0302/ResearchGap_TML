@@ -171,6 +171,122 @@ function whitespaceSignal(cutoffPatents) {
   return gaps;
 }
 
+// Human-readable label for an IPC subtech group, derived from the most frequent
+// non-generic title words among patents actually classified under that group — not a
+// hand-picked name. "OTHER" (the catch-all bucket) isn't a coherent classification, so it
+// gets a fixed literal label instead of a computed one.
+const LABEL_STOPWORDS = new Set([
+  "a", "an", "the", "and", "or", "of", "for", "in", "to", "with", "based", "method", "methods",
+  "system", "systems", "device", "devices", "apparatus", "apparatuses", "using", "via", "from",
+  "on", "by", "its", "into", "at", "is", "are", "be", "same", "such", "thereof", "network", "networks",
+  "networking", "non", "first", "second", "one", "more",
+]);
+// Distinctiveness, not raw frequency: this corpus is entirely SDN/NFV/slicing patents, so
+// generic words ("slice", "controller", "function"...) dominate every group's raw word
+// counts and would give different IPC groups the same label. Instead score each word by
+// what fraction of its TOTAL occurrences across the whole corpus fall inside this one
+// group — a word concentrated in one group scores near 1, a word spread evenly across all
+// groups scores near 1/N — computed once for every group together so labels can't collide
+// by construction the way independent per-group top-1 picks could.
+let _labelCache = null;
+function buildLabels() {
+  if (_labelCache) return _labelCache;
+  const all = loadRawCorpus();
+  const groups = allSubtechLabels();
+  const globalCounts = new Map();
+  const groupCounts = new Map(groups.map((g) => [g, new Map()]));
+  for (const p of all) {
+    const g = subtechOf(p);
+    const words = (p.title || "").toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) || [];
+    const seenInTitle = new Set(); // one repetitive title can't dominate the count
+    for (const w of words) {
+      if (LABEL_STOPWORDS.has(w) || seenInTitle.has(w)) continue;
+      seenInTitle.add(w);
+      globalCounts.set(w, (globalCounts.get(w) || 0) + 1);
+      const gc = groupCounts.get(g);
+      gc.set(w, (gc.get(w) || 0) + 1);
+    }
+  }
+  const labels = new Map();
+  for (const g of groups) {
+    if (g === "OTHER") {
+      labels.set(g, "Other / 未分類");
+      continue;
+    }
+    const gc = groupCounts.get(g);
+    // Two-stage pick: first keep only words that are reasonably exclusive to this group
+    // (>=30% of the word's total corpus occurrences happen here) so different groups can't
+    // converge on the same generic term, then rank what's left by how common it is WITHIN
+    // the group, so the label favors "the thing this group is mostly about," not just
+    // whatever rare word happens to be the most exclusive.
+    const qualifying = [...gc.entries()]
+      .filter(([w, c]) => c >= 4 && c / (globalCounts.get(w) || 1) >= 0.3)
+      .sort((a, b) => b[1] - a[1]);
+    const top = qualifying.slice(0, 2).map(([w]) => w);
+    labels.set(g, top.length ? top.map((w) => w[0].toUpperCase() + w.slice(1)).join(" ") : null);
+  }
+  _labelCache = labels;
+  return labels;
+}
+function representativeLabel(group) {
+  return buildLabels().get(group) || `IPC ${group}`;
+}
+
+// Which subtech groups a patent actually touches — every one of its IPC codes' main groups
+// that's among the corpus's top subtech groups, not just the primary (first) one. This is
+// what makes a "combination" mean something real: a patent counts toward A×B only if it is
+// itself classified under both A and B.
+function groupsOf(patent, knownGroups) {
+  const set = new Set();
+  for (const code of patent.ipc) {
+    const g = ipcMainGroup(code);
+    if (knownGroups.has(g)) set.add(g);
+  }
+  return set;
+}
+
+// Real technology-combination cross-tab for a given case's subtech against every other
+// known subtech, computed only from the cutoff-filtered corpus (§ 基準日鐵律). This is what
+// backs the White-Space table when it's showing a real analyzed case, not the static example.
+function combinationWhitespace(cutoffPatents, subtechLabel, limit = 12) {
+  // "OTHER" means the case itself couldn't be classified into any real IPC group (no
+  // features had an IPC code) — there is no real group to cross-tabulate against anything,
+  // so returning rows here would show a false "gap" for every row rather than the true
+  // "we don't know" state.
+  if (subtechLabel === "OTHER") return [];
+  // subtechLabel is the CASE's own primary IPC group, which may or may not be one of the
+  // corpus's top-12 "known" groups (a case can be classified under a less-common group even
+  // though every *comparison* axis is drawn from the top 12) — it must still count as a real
+  // group in groupsOf() below, or no patent (including genuine matches) could ever match it.
+  const knownGroups = new Set(deriveSubtechGroups());
+  knownGroups.add(subtechLabel);
+  const others = allSubtechLabels().filter((l) => l !== subtechLabel && l !== "OTHER");
+  const patentGroupSets = cutoffPatents.map((p) => groupsOf(p, knownGroups));
+
+  const labelA = representativeLabel(subtechLabel);
+  const rows = others.map((other) => {
+    let count = 0;
+    for (const groups of patentGroupSets) {
+      if (groups.has(subtechLabel) && groups.has(other)) count++;
+    }
+    const status = count === 0 ? "gap" : count < 5 ? "developing" : "crowded";
+    const labelB = representativeLabel(other);
+    return {
+      combo_a: labelA,
+      combo_b: labelB,
+      ipc_a: subtechLabel,
+      ipc_b: other,
+      count,
+      status,
+      evidence_en: `Among patents published before the cutoff date, ${count} are classified under both "${labelA}" (${subtechLabel}) and "${labelB}" (${other}).`,
+      evidence_zh: `語料庫中基準日前同時歸類於「${labelA}」(${subtechLabel}) 與「${labelB}」(${other}) 的專利共 ${count} 件。`,
+    };
+  });
+
+  rows.sort((a, b) => a.count - b.count); // gaps (count 0) first — the actionable rows
+  return rows.slice(0, limit);
+}
+
 function corpusMeta(cutoffDate) {
   const all = loadRawCorpus();
   const before = filterByCutoff(all, cutoffDate);
@@ -192,6 +308,8 @@ module.exports = {
   subtechJurisdictionCount,
   applicantConcentrationFactor,
   whitespaceSignal,
+  representativeLabel,
+  combinationWhitespace,
   corpusMeta,
   findByPublicationNumber,
 };

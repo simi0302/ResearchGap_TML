@@ -212,6 +212,7 @@ a{text-decoration:none;color:inherit}
 }
 .results-loading{padding:20px;text-align:center;color:#a17557;font-size:13px;font-weight:700}
 .results-pagination{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:20px}
+.results-pagination[hidden]{display:none}
 .results-pagination #resultsPageInfo{font-size:13px;color:#80685d;font-weight:700}
 .page-btn{
   border:1px solid var(--line);background:#fff;color:var(--orange);border-radius:999px;
@@ -232,6 +233,7 @@ a{text-decoration:none;color:inherit}
 .matrix-table tbody tr:last-child td{border-bottom:0}
 .matrix-table tr.gap-row{background:#fff6ef}
 .matrix-table td:last-child{color:#b99c8d}
+.combo-evidence{font-size:13px;line-height:1.5;display:block;max-width:280px}
 .status-badge{display:inline-block;padding:5px 12px;border-radius:999px;font-weight:800;font-size:13px;white-space:nowrap}
 .status-badge.dense{background:#ffe1be;color:#7a4a1a}
 .status-badge.medium{background:#ffc268;color:#6b3f00}
@@ -239,10 +241,13 @@ a{text-decoration:none;color:inherit}
 .pill-btn.small{padding:7px 14px;font-size:13px;margin-top:0}
 .pill-btn.small:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
 .legend{display:flex;gap:18px;flex-wrap:wrap;padding:6px 9px 2px;font-size:14px}
+.legend[hidden]{display:none}
 .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:6px}
 .dense-dot{background:#ffe1be}.medium-dot{background:#ffc268}.gap-dot{background:var(--orange)}
 
 .gap-cards{max-width:1120px;margin:18px auto 0;display:grid;grid-template-columns:1.7fr 1fr;gap:18px}
+.gap-cards.single{grid-template-columns:1fr;max-width:640px}
+.gap-cards[hidden]{display:none}
 .gap-card{border:1px solid rgba(255,255,255,.3);border-radius:24px;padding:26px;background:rgba(255,255,255,.08)}
 .gap-card.featured{
   display:grid;grid-template-columns:120px 1fr;gap:22px;background:#fff;color:var(--ink);
