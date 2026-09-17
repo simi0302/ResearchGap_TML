@@ -227,6 +227,15 @@ a{text-decoration:none;color:inherit}
 .matrix-wrap{
   max-width:1120px;margin:auto;background:#fff;color:var(--ink);border-radius:24px;padding:20px;overflow:auto
 }
+/* Shown only when the table inside is actually wider than this card (narrow viewports —
+   the matrix/list tables both have a min-width, see .ws-matrix/.matrix-table below), so a
+   user on a narrow screen knows to scroll instead of assuming the visible columns are all
+   there is — toggled by updateMatrixScrollHint() in script.js, not a static hint. */
+.matrix-scroll-hint{
+  display:flex;align-items:center;gap:6px;margin:0 0 12px;padding:8px 12px;border-radius:10px;
+  background:var(--soft);color:var(--ink);font-size:13px;font-weight:700
+}
+.matrix-scroll-hint[hidden]{display:none}
 .ws-matrix{width:100%;border-collapse:separate;border-spacing:8px;min-width:560px}
 .ws-matrix th,.ws-matrix td{text-align:center;padding:19px 10px;border-radius:13px}
 .ws-matrix thead th{font-size:13px;color:#6e5549;font-weight:800}

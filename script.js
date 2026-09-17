@@ -340,6 +340,21 @@ let realCombinationRows = new Map();
 // Shared row-rendering used by both the default corpus-wide table and a real
 // AI-analyzed case (renderWhiteSpaceFromAnalysis) — same row shape either way:
 // combo_a, combo_b, ipc_a, ipc_b, count, status, evidence_en, evidence_zh.
+// Both tables inside .matrix-wrap (the default matrix and the AI-case list) have a
+// min-width wider than the card on narrow viewports, so the wrap scrolls horizontally
+// (see .matrix-wrap{overflow:auto} in styles.css) — this only shows a hint when that's
+// actually true right now, not a static "this might scroll" guess.
+function updateMatrixScrollHint() {
+  const wrap = document.getElementById("matrixWrap");
+  const hint = document.getElementById("matrixScrollHint");
+  if (!wrap || !hint) return;
+  hint.hidden = wrap.scrollWidth <= wrap.clientWidth + 1;
+}
+window.addEventListener("resize", () => {
+  clearTimeout(window._matrixScrollHintTimer);
+  window._matrixScrollHintTimer = setTimeout(updateMatrixScrollHint, 150);
+});
+
 function renderComboRows(rows) {
   document.getElementById("whiteSpaceEmpty").hidden = true;
   document.getElementById("whiteSpaceTable").hidden = false;
@@ -368,6 +383,7 @@ function renderComboRows(rows) {
 
   const firstGap = rows.find((r) => r.status === "gap") || rows[0];
   if (firstGap) showGapCard(firstGap);
+  updateMatrixScrollHint();
 }
 
 function renderWhiteSpaceFromAnalysis(result) {
@@ -547,6 +563,7 @@ function renderDefaultWhiteSpaceMatrix() {
   const firstGapKey = [...cells.entries()].find(([, c]) => c.status === "gap")?.[0];
   const initialKey = firstGapKey || [...cells.keys()][0];
   if (initialKey) selectMatrixCell(initialKey);
+  updateMatrixScrollHint();
 }
 
 function selectMatrixCell(key) {
