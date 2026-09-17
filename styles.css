@@ -320,7 +320,7 @@ a{text-decoration:none;color:inherit}
 
 .chat{
   background:#fff;color:var(--ink);border-radius:28px;padding:24px;
-  min-height:440px;max-height:640px;display:flex;flex-direction:column;gap:14px;
+  min-height:520px;max-height:82vh;display:flex;flex-direction:column;gap:14px;
   box-shadow:0 24px 60px rgba(120,40,0,.18)
 }
 .chat-messages{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:14px;padding-right:4px}
@@ -463,7 +463,7 @@ footer .muted{opacity:.5;margin-left:auto}
   .type-field{margin-left:0;display:grid;grid-column:1/-1}
   .gap-cards,.assistant-shell{grid-template-columns:1fr}
   .assistant-shell{gap:20px}
-  .chat{min-height:460px;max-height:70vh}
+  .chat{min-height:480px;max-height:78vh}
   /* the chat's send button and back-to-top both gravitate to bottom-right on a tall
      mobile chat card — move back-to-top to the opposite corner so they never collide */
   .back-to-top{left:20px;right:auto}
