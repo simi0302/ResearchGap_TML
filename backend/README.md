@@ -1,14 +1,16 @@
 # ResearchGap Agent Backend
 
-Thin Express API on Azure App Service that fronts Azure AI Foundry (Azure OpenAI in Foundry Models)
-for the ResearchGap AI assistant. This is the piece `frontend/src/lib/agent.ts` calls via
-`VITE_AGENT_API_URL`.
+Express API on **Azure App Service** (`researchgap-agent-api`, live at
+https://researchgap-agent-api.azurewebsites.net) that fronts **Azure OpenAI** (`gpt-4.1-mini`)
+for the ResearchGap AI assistant. The static site's chat widget (`../script.js`) calls it
+directly — no separate frontend project is involved; see the root `README.md` for the full
+picture of what's deployed where.
 
-**Compliance note** (see the team's HackMD 作戰計畫): the 2,799-patent corpus is an input to this
-repo's static computation pipeline (`frontend/scripts/extract_fixtures.py` → `sdnFixtures.ts`), not
-a knowledge source for this agent. Don't upload `patents.json`/the CSV as an Azure AI Foundry
-knowledge file — `systemPrompt.js` already instructs the model to treat exact numbers as the
-backend's job and only cite public sources.
+**Compliance note**: the 2,799-patent corpus (`data/patents.json`, this folder's own copy) is an
+input to this repo's deterministic computation (`corpus.js`, `scoring.js`), never a knowledge
+source fed to the model. Don't upload `patents.json` as an Azure AI Foundry knowledge file —
+`systemPrompt.js` already instructs the model to treat every number as the backend's job and only
+cite public sources it actually searched for.
 
 ## Local setup
 
@@ -20,71 +22,81 @@ npm run dev
 ```
 
 Health check: `GET http://localhost:8080/api/health`
-Chat endpoint: `POST http://localhost:8080/api/chat` with body `{ "history": [...], "context"?: {...} }`, returns `{ "reply": "...", "tool_calls": [...] }`. `context`, if present, is injected as an extra system message so the model explains/cites it rather than inventing numbers — pass it the JSON from `/api/patentability`. `tool_calls` is a trace of every tool the model invoked this turn (name, args, result) — handy for debugging, the frontend can ignore it.
+Chat endpoint: `POST http://localhost:8080/api/chat` with body `{ "message": "...", "history": [...] }` (or `{ "history": [...including the latest turn] }`), returns `{ "reply": "...", "tool_calls": [...], "usage": {...} }`. `tool_calls` is a full trace of every tool the model invoked this turn (name, args, result) — useful for debugging, the frontend mostly uses it to pull out a completed `compute_patentability` result and render the White-Space section from it.
 
-## Tool-calling (server.js + tools.js)
+## Tool-calling (`server.js` + `tools.js`)
 
-`/api/chat` gives the model two tools (OpenAI/Azure-compatible `tools` function-calling) and loops
-up to `MAX_TOOL_ROUNDS` (4) times, executing each tool call server-side and feeding the result back,
-before returning the final text reply. This is what actually enforces "backend decides, AI explains"
-once a real model is connected — the model can't compute a score itself, it can only call
-`compute_patentability` and relay what comes back.
+`/api/chat` gives the model two tools and loops up to `MAX_TOOL_ROUNDS` (4) times, executing each
+tool call server-side and feeding the result back, before returning the final text reply. This is
+what enforces "backend decides, AI explains" — the model can't compute a score itself, it can
+only call `compute_patentability` and relay what comes back.
 
-- **`compute_patentability`** — calls `patentability.js` directly. Fully functional right now, no
-  external credentials needed (pure local computation against `patents.json`).
-- **`search_prior_art`** — searches for prior art. The literature half calls the free, keyless
-  Semantic Scholar Graph API and works today. The patents/web half needs `BING_SEARCH_KEY`
-  (`.env.example`) — until that's set it returns `{"unavailable": true, "reason": "..."}` and the
-  tool result explicitly tells the model to report that honestly rather than guess a patent number.
+- **`compute_patentability`** — wraps `patentability.js`. For upload-mode text, it auto-detects
+  the cutoff year (`features.pickCutoffYear` — most-frequent-year heuristic over the real text)
+  and technical features (`features.extractFeatures` — keyword match against a ~110-term
+  SDN/NFV/5G/6G/cloud-native vocabulary, each mapped to whichever real IPC group co-occurs with
+  it most often in the corpus) and scores directly in one shot whenever it finds *any* real
+  signal — it only stops to ask the user when detection is genuinely empty. Before returning, it
+  also auto-enriches the Temporal factor with a real literature search (see below) if the caller
+  didn't already supply `literature[]`. `server.js` additionally extracts the real uploaded
+  document text straight from the request body and overrides whatever the model passed as the
+  `text` argument, rather than trusting the model to relay a large block of text into a
+  function-call argument verbatim.
+- **`search_prior_art`** — literature search queries **Semantic Scholar + Crossref + arXiv** in
+  parallel (`Promise.allSettled`, so one source failing doesn't blank the others) — all free,
+  keyless, no registration. Patents/general-web search needs `BING_SEARCH_KEY` (`.env.example`);
+  until that's set it returns `{"unavailable": true, "reason": "..."}` and the tool result
+  explicitly tells the model to report that honestly rather than guess a patent number.
 
-Verified end-to-end (see git history / session notes) by pointing `AZURE_OPENAI_ENDPOINT` at a
-scripted local mock that requests `compute_patentability` then replies with the real returned score
-— confirms the request→tool-call→execute→feed-back→final-reply loop works before any real Azure
-credentials exist. Swapping in the real Azure OpenAI endpoint requires no code changes.
+`server.js` also keyword-detects whether the latest user turn is asking about POS/win-rate vs.
+white-space specifically, and for the white-space case renders the technology-combination table
+**deterministically from the tool's JSON** rather than trusting the model's own formatting —
+gpt-4.1-mini was observed (reproducibly) re-answering with the wrong table otherwise.
 
-## Patentability score (ResearchGap_Agent_Skill_v2.md §④/§⑤)
+## Patentability score
 
-`POST /api/patentability` — computes the "可專利性初判分數" and cutoff-filtered corpus stats.
-Never calls the model; pure computation against `frontend/public/data/patents.json`. See
-`corpus.js` (cutoff filtering, data-driven 12-subtech taxonomy from real IPC codes, density/HHI),
-`features.js` (keyword-heuristic feature extraction, not an LLM), `scoring.js` (the five-factor
-formula), and `patentability.js` (request orchestration + the Stage 0 confirmation gate).
+`scoring.js` implements the four-factor POS formula:
 
-Two modes:
+```
+POS = 100 × (0.40·Novelty + 0.25·Crowding + 0.20·Temporal + 0.15·Regional)
+```
+
+- **Novelty** — needs `prior_art` (from `search_prior_art`, each entry with `matched_features`);
+  without it, falls back to a disclosed neutral 0.5.
+- **Crowding** — always computed from the real corpus (same-subtech hit count within 200-patent
+  normalization).
+- **Temporal** — needs `literature` ([{year, ...}]); `tools.js` now auto-searches this before
+  scoring if the model didn't supply it, so this rarely falls back to neutral in practice.
+- **Regional** — always computed (target-jurisdiction hit count + applicant HHI concentration),
+  with its family-gap term disclosed as an approximation (jurisdiction presence, not true
+  patent-family linkage — the corpus has no family ID).
+
+Two modes via `POST /api/patentability` (also reachable mid-conversation via the
+`compute_patentability` tool):
 - `{"mode":"corpus","patent_id":"<publication_number>"}` — cutoff = that patent's filing date.
-- `{"mode":"upload","text":"...","publication_year"?:2022,"features"?:[...],"prior_art"?:[...],"literature"?:[...]}` —
-  omit `publication_year` or `features` to get a `needs_confirmation` response (candidate years /
-  extracted features) instead of a score — the caller (Agent or frontend) must get the user to
-  confirm before resubmitting with those fields filled in, per the skill's "Stage 0" rule.
+- `{"mode":"upload","text":"...", "publication_year"?, "features"?, "prior_art"?, "literature"?}` —
+  omitting `publication_year`/`features` triggers auto-detection (see above), not a hard stop.
 
-`novelty` and `feature_uniqueness` need `prior_art` (the Agent's web-search results, each entry
-carrying `matched_features: ["F1", ...]`); `literature_maturity` needs `literature` (`[{year, ...}]`).
-Without them these factors fall back to a neutral 0.5 with a note — they are never guessed.
-`prior_art_density` and `applicant_concentration` are always computed from the real corpus.
-
-Run `npm test` for the smoke-test suite (mirrors §⑧ of the skill doc).
-
-**Not yet wired**: nothing in `ChatPage.tsx` calls `/api/patentability` or passes its result as
-`/api/chat`'s `context` yet — that frontend integration (an upload UI, or a "score this patent"
-button that calls `/api/patentability` then forwards the JSON into `/api/chat`) is still open work.
+Run `npm test` for the smoke-test suite (`node --test`, 9 tests) — cutoff filtering, auto-
+detection, the "backend always recomputes even if the caller injects a score" guarantee, and that
+Crowding/Regional are never silently neutral.
 
 ## Deploying to Azure App Service
 
-1. Create an Azure OpenAI resource inside your Azure AI Foundry project, deploy a chat model
-   (e.g. `gpt-4o-mini` or whatever fits the NT$12,000 credit budget), note the endpoint, deployment
-   name, and an API key.
-2. Create an Azure App Service (Node 18+ runtime).
-3. Set the app settings (environment variables) to match `.env.example`: `AZURE_OPENAI_ENDPOINT`,
-   `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_DEPLOYMENT`, `AZURE_OPENAI_API_VERSION`, `ALLOWED_ORIGIN`
-   (set this to the deployed frontend's real origin, not `*`, once you know it).
-4. Deploy this `backend/` folder (zip deploy, GitHub Actions, or `az webapp up` all work — pick
-   whichever your team is already comfortable with).
-5. Put the resulting App Service URL + `/api/chat` into the frontend's `VITE_AGENT_API_URL`
-   (`frontend/.env`), rebuild, redeploy the frontend.
+Already live; redeploying after a code change:
+```bash
+az webapp up --name researchgap-agent-api --resource-group ResearchGap_TML --sku F1
+```
+(Linux, Node 22-LTS, region `southeastasia`. `backend/` is a self-contained deploy unit — its own
+copy of `data/patents.json`, no dependency on anything outside this folder. App settings
+`AZURE_OPENAI_ENDPOINT`/`_API_KEY`/`_DEPLOYMENT`/`_API_VERSION` and `ALLOWED_ORIGIN` are set via
+`az webapp config appsettings set`, never committed.)
 
 ## Cost control
 
 - `MAX_HISTORY_MESSAGES` in `server.js` caps how much conversation history gets sent per request
-  (bounds both token cost and context-window risk). Lower it if the credit runs low.
-- Pick a smaller/cheaper Azure OpenAI model for the demo unless quality testing says otherwise —
-  this is a competition demo with limited concurrent users, not production traffic.
+  (bounds both token cost and context-window risk).
+- `gpt-4.1-mini` (Global Standard deployment) was chosen for cost/availability over larger models —
+  see the Azure OpenAI deployment in the linked Azure resource for current quota/cost.
+- Literature auto-search (Semantic Scholar/Crossref/arXiv) is free and keyless, so it adds no
+  extra API cost — only a small amount of added latency per analysis.
