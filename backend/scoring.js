@@ -30,7 +30,7 @@ function jaccard(setA, setB) {
 // as returned by the Agent's search_prior_art tool.
 function noveltyFactor(features, priorArt) {
   if (!priorArt || priorArt.length === 0) {
-    return { value: 0.5, note: "尚無前案比對資料（待 Agent 全網路廣蒐後回傳 prior_art[]），因子暫定中性值 0.5。" };
+    return { value: 0.5, note: "本次尚未取得可比對的前案資料，新穎性暫採中性估計值 0.5；建議進一步蒐集相關前案以精確評估。" };
   }
   const caseIds = new Set(features.map((f) => f.id));
   const top5 = priorArt.slice(0, 5);
@@ -74,7 +74,7 @@ function crowdingFactor(cutoffPatents, subtechLabel) {
 // 只有質性描述（無逐年數字）固定 0.5。
 function temporalFactor(literature, cutoffYear, cutoffPatents, subtechLabel) {
   if (!literature || literature.length === 0) {
-    return { value: 0.5, note: "文獻端無逐年數字（本 repo 尚無真實論文檢索資料），因子暫定中性值 0.5，如需精確值請提供 literature[]。" };
+    return { value: 0.5, note: "本次尚未取得逐年文獻成長數據，時間差暫採中性估計值 0.5；建議進一步蒐集相關文獻以精確評估。" };
   }
   const byYear = new Map();
   for (const l of literature) {

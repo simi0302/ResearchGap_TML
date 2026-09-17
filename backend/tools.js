@@ -157,9 +157,66 @@ async function searchArxiv(query, limit = 5) {
   }).filter((p) => p.title);
 }
 
+// Shared by search_prior_art and the auto-enrichment below — three independent, keyless,
+// real sources queried in parallel; a single source failing (rate limit, timeout)
+// shouldn't blank out the other two. Semantic Scholar + Crossref between them cover most
+// peer-reviewed venues (including IEEE Xplore/ACM-indexed papers via DOI), arXiv covers
+// preprints.
+async function searchLiteratureAllSources(query) {
+  const literature = [];
+  const notes = [];
+  const [ss, crossref, arxiv] = await Promise.allSettled([
+    searchSemanticScholar(query),
+    searchCrossref(query),
+    searchArxiv(query),
+  ]);
+  if (ss.status === "fulfilled") literature.push(...ss.value);
+  else notes.push(`Semantic Scholar search failed: ${ss.reason.message}`);
+  if (crossref.status === "fulfilled") literature.push(...crossref.value);
+  else notes.push(`Crossref search failed: ${crossref.reason.message}`);
+  if (arxiv.status === "fulfilled") literature.push(...arxiv.value);
+  else notes.push(`arXiv search failed: ${arxiv.reason.message}`);
+  return { literature, notes };
+}
+
 async function executeTool(name, args) {
   if (name === "compute_patentability") {
-    return handlePatentabilityRequest(args || {});
+    let result = handlePatentabilityRequest(args || {});
+    // Auto-enrich the Temporal factor with a real literature search before returning,
+    // instead of leaving it at the neutral 0.5 fallback whenever the model didn't already
+    // supply literature[] itself. This is deterministic-backend behavior, not dependent on
+    // the model remembering to call search_prior_art first — same "don't rely on model
+    // initiative for something the backend can just do" pattern as elsewhere in this file.
+    // Only literature (year-only data) is safe to auto-fill this way; prior_art/Novelty
+    // needs per-result feature-overlap judgment (matched_features) that a keyword search
+    // can't produce on its own, so that one still depends on the model calling
+    // search_prior_art itself (see systemPrompt.js Stage 2).
+    const hasFeatures = !result.needs_confirmation && Array.isArray(result.features) && result.features.length > 0;
+    const suppliedLiterature = Array.isArray(args?.literature) && args.literature.length > 0;
+    if (hasFeatures && !suppliedLiterature) {
+      const query = result.features.slice(0, 3).map((f) => f.text).join(" ");
+      const { literature } = await searchLiteratureAllSources(query).catch(() => ({ literature: [] }));
+      if (literature.length > 0) {
+        const enriched = handlePatentabilityRequest({
+          mode: args.mode,
+          patent_id: args.patent_id,
+          case_id: result.case_id,
+          publication_year: result.cutoff_year,
+          features: result.features,
+          prior_art: args?.prior_art,
+          literature,
+          target_jurisdiction: args?.target_jurisdiction,
+        });
+        result = {
+          ...enriched,
+          auto_detected_cutoff_year: result.auto_detected_cutoff_year,
+          auto_detected_features: result.auto_detected_features,
+          year_candidates: result.year_candidates,
+          literature_auto_searched: true,
+        };
+      }
+    }
+    return result;
   }
 
   if (name === "search_prior_art") {
@@ -169,21 +226,9 @@ async function executeTool(name, args) {
     const result = { query, literature: [], patents: [], notes: [] };
 
     if (type === "literature" || type === "both") {
-      // Three independent, keyless, real sources — a single source failing (rate limit,
-      // timeout) shouldn't blank out the other two. Semantic Scholar + Crossref between
-      // them cover most peer-reviewed venues (including IEEE Xplore/ACM-indexed papers
-      // via DOI), arXiv covers preprints.
-      const [ss, crossref, arxiv] = await Promise.allSettled([
-        searchSemanticScholar(query),
-        searchCrossref(query),
-        searchArxiv(query),
-      ]);
-      if (ss.status === "fulfilled") result.literature.push(...ss.value);
-      else result.notes.push(`Semantic Scholar search failed: ${ss.reason.message}`);
-      if (crossref.status === "fulfilled") result.literature.push(...crossref.value);
-      else result.notes.push(`Crossref search failed: ${crossref.reason.message}`);
-      if (arxiv.status === "fulfilled") result.literature.push(...arxiv.value);
-      else result.notes.push(`arXiv search failed: ${arxiv.reason.message}`);
+      const { literature, notes } = await searchLiteratureAllSources(query);
+      result.literature.push(...literature);
+      result.notes.push(...notes);
     }
 
     if (type === "patents" || type === "both") {

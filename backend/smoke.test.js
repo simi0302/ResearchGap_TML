@@ -62,7 +62,7 @@ test("upload mode with confirmed features returns a real POS score with all four
   // never a guessed number.
   const novelty = r.breakdown.find((f) => f.factor === "novelty");
   assert.equal(novelty.value, 0.5);
-  assert.match(novelty.note, /尚無前案比對資料/);
+  assert.match(novelty.note, /尚未取得可比對的前案資料/);
 });
 
 test("corpus mode only uses patents published on/before the reference patent's filing date", () => {
