@@ -1,0 +1,9 @@
+AI-Driven Network Digital Twin for Predictive Network Slicing Orchestration
+
+Published 2024. (c) 2024 IEEE.
+
+This work introduces an AI-driven network digital twin for predictive network slicing
+orchestration, using reinforcement learning for anomaly detection and traffic prediction
+across a multi-access edge computing deployment. The digital twin continuously mirrors
+live slice telemetry so that orchestration decisions can be simulated before being applied
+to the production network, reducing service degradation during reconfiguration.

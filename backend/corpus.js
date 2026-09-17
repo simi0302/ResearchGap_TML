@@ -290,11 +290,30 @@ function combinationWhitespace(cutoffPatents, subtechLabel, limit = 12) {
 function corpusMeta(cutoffDate) {
   const all = loadRawCorpus();
   const before = filterByCutoff(all, cutoffDate);
-  return { n: all.length, n_before_cutoff: before.length, source: "GPSS (frontend/public/data/patents.json)", extracted: "2026-06-03" };
+  return { n: all.length, n_before_cutoff: before.length, source: "GPSS (backend/data/patents.json)", extracted: "2026-06-03" };
 }
 
 function findByPublicationNumber(publication_number) {
   return loadRawCorpus().find((p) => p.publication_number === publication_number) || null;
+}
+
+// P(group) across the whole corpus — the base rate a keyword→IPC lift/PMI calculation
+// (features.js) divides by. Computed once from the same subtechOf() grouping everything
+// else in this module already uses, so "lift" and "raw co-occurrence" agree on what a
+// group even is.
+let _groupBaseRates = null;
+function groupBaseRates() {
+  if (_groupBaseRates) return _groupBaseRates;
+  const all = loadRawCorpus();
+  const counts = new Map();
+  for (const p of all) {
+    const g = subtechOf(p);
+    counts.set(g, (counts.get(g) || 0) + 1);
+  }
+  const rates = new Map();
+  for (const [g, c] of counts) rates.set(g, c / all.length);
+  _groupBaseRates = rates;
+  return rates;
 }
 
 module.exports = {
@@ -312,4 +331,5 @@ module.exports = {
   combinationWhitespace,
   corpusMeta,
   findByPublicationNumber,
+  groupBaseRates,
 };

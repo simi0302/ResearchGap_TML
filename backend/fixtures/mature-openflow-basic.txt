@@ -1,0 +1,9 @@
+A Basic OpenFlow Flow Table Matching Scheme for Centralized Packet Forwarding
+
+Published 2021.
+
+A basic OpenFlow flow table matching mechanism using flow rules for packet forwarding in
+the data plane, controlled by a centralized SDN controller via northbound API. Incoming
+packets are matched against flow table entries in priority order, and unmatched packets
+are forwarded to the controller for a forwarding decision, following the standard
+OpenFlow control-plane/data-plane split.

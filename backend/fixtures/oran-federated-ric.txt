@@ -1,0 +1,10 @@
+Federated Learning-Based Intelligent Controller for O-RAN Radio Resource Management
+
+Published 2023. (c) 2023 IEEE.
+
+This paper proposes a federated learning based O-RAN intelligent controller (RIC) for
+intent-based radio resource management, integrating xApps for beamforming optimization
+across gNB and enb nodes in a cloud-native RAN deployment. The proposed architecture
+allows distributed massive MIMO scheduling decisions to be trained locally at each site
+without sharing raw channel state information, improving spectral efficiency while
+preserving operator data privacy.

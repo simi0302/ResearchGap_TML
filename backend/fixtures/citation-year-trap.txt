@@ -1,0 +1,17 @@
+Intent-Based SDN Controller for Adaptive Network Slicing
+
+(c) 2024 IEEE.
+
+Section 1. Introduction
+
+Prior work (Smith et al., 2022) and (Jones, 2021) discussed similar ideas [Lee et al., 2022].
+We build on that 2022 baseline extensively, discussing the 2022 dataset repeatedly
+throughout this section 2022 2022 2022. This paper proposes an intent-based SDN controller
+for adaptive network slicing that responds to real-time traffic prediction using
+reinforcement learning.
+
+References
+
+[1] Smith, J. (2022). Some earlier paper. IEEE, 2022.
+[2] Jones, A. (2021). Another paper. ACM, 2021.
+[3] Lee, K. et al. (2022). A third paper. IEEE, 2022.

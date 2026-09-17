@@ -1,0 +1,9 @@
+Zero Trust Authentication for 5G Core Network Functions
+
+Published 2020. (c) 2020 IEEE.
+
+A zero trust authentication and access control framework for 5G core network functions
+including AMF, SMF and UPF, with encryption for multi-tenant isolation. Each core network
+function must re-authenticate on every inter-function call rather than relying on a single
+perimeter check, so a compromised function cannot silently impersonate another function
+within the same network slice.

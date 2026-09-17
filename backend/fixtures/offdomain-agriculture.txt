@@ -1,0 +1,8 @@
+Satellite Imagery and Convolutional Neural Networks for Crop Yield Forecasting
+
+Published 2022.
+
+This paper studies the effect of soil moisture on crop yield using satellite imagery and
+convolutional neural networks for agricultural forecasting. We collect multispectral
+imagery over three growing seasons and train a regression model to predict yield per
+hectare from vegetation indices and soil moisture readings.

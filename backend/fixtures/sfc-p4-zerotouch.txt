@@ -1,0 +1,9 @@
+Zero-Touch Service Function Chaining over Kubernetes-Based NFV Infrastructure
+
+Published 2022. (c) 2022 ACM.
+
+We propose an intent-based SDN controller for SFC provisioning across Kubernetes-based
+NFV infrastructure, using P4 programmable switches for flow table offload and zero-touch
+closed-loop automation. The controller automatically re-provisions a service chain when a
+programmable switch reports a fault, without operator intervention, using a declarative
+configuration model for the desired chain topology.

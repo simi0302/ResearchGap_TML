@@ -1,9 +1,19 @@
-// Request-level orchestration for POST /api/patentability — implements the "基準日鐵律"
-// and Stage 0 confirmation gate from §③ before any score is computed, then calls scoring.js.
+// Request-level orchestration for POST /api/patentability. Implements the cutoff-date rule
+// and the Stage 0 auto-detection gate before any score is computed, then calls scoring.js.
 // Kept separate from server.js so it can be unit-tested without spinning up Express.
+// Async because scoring now needs a real per-year literature count (literature.js →
+// OpenAlex) before Temporal can be computed — see scoring.js's header comment.
 const corpus = require("./corpus");
 const features = require("./features");
 const scoring = require("./scoring");
+const literature = require("./literature");
+const { t } = require("./i18n");
+
+const DEFAULT_LANG = process.env.DEFAULT_LANG === "zh" ? "zh" : "en";
+
+function resolveLang(body) {
+  return body?.lang === "zh" ? "zh" : body?.lang === "en" ? "en" : DEFAULT_LANG;
+}
 
 function toCutoffDateFromYear(year) {
   return `${year}-12-31`;
@@ -19,53 +29,60 @@ function subtechFromFeatures(feats) {
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
 }
 
-// body: see §④ schema. Returns either
-//   { needs_confirmation: "cutoff_year" | "features", ... }   (Stage 0, not scored yet)
-// or the full §④ result object (scored).
-function handlePatentabilityRequest(body) {
+// body: see README's "Request/response shapes" section. Returns one of:
+//   { needs_confirmation: "cutoff_year" | "features", ... }        (Stage 0, not scored)
+//   { out_of_scope: true, reason: "insufficient" | "other", ... }  (P0-1 fix item 7, not scored)
+//   { error: "..." }                                               (bad request)
+//   the full scored result object
+async function handlePatentabilityRequest(body) {
+  const lang = resolveLang(body);
+  const s = t(lang);
   const mode = body.mode === "corpus" ? "corpus" : "upload";
 
   if (mode === "corpus") {
     const patentId = body.patent_id;
-    if (!patentId) return { error: "corpus 模式需要 patent_id（母體專利的 publication_number）。" };
+    if (!patentId) return { error: s.errors.missingPatentId };
     const ref = corpus.findByPublicationNumber(patentId);
-    if (!ref) return { error: `找不到 publication_number = ${patentId} 的母體專利。` };
-    const cutoffDate = ref.filing_date; // §③: 母體專利模式以該母體專利的申請日為基準日
+    if (!ref) return { error: s.errors.unknownPatentId(patentId) };
+    const cutoffDate = ref.filing_date; // corpus mode: cutoff = the reference patent's own filing date
     const cutoffYear = Number(String(cutoffDate).slice(0, 4));
-    const feats = (ref.ipc.length ? ref.ipc : ["UNCLASSIFIED"]).map((code, i) => ({
-      id: `F${i + 1}`,
-      text: `${ref.title}（IPC ${corpus.ipcMainGroup(code)}）`,
-      ipc: corpus.ipcMainGroup(code),
-    }));
-    return scoreWithFeatures({ body, cutoffDate, cutoffYear, feats, caseId: patentId });
+    const text = `${ref.title} ${ref.abstract}`;
+    let feats = features.extractFeatures(text);
+    if (feats.length === 0) {
+      // Fall back to the reference patent's own IPC codes when its title/abstract don't
+      // match any canonical feature term — still real data (the patent's own
+      // classification), never invented.
+      feats = (ref.ipc.length ? ref.ipc : ["UNCLASSIFIED"]).map((code, i) => ({
+        id: `F${i + 1}`,
+        text: `${ref.title} (IPC ${corpus.ipcMainGroup(code)})`,
+        ipc: corpus.ipcMainGroup(code),
+        feature_id: null,
+      }));
+    }
+    return scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, caseId: patentId });
   }
 
-  // upload mode. 2026-09-17: previously this always stopped and asked the user to
-  // confirm the cutoff year, then stopped again to confirm the feature list — two
-  // required round trips before any analysis appeared. User feedback: "不需要使用者
-  // 分次回應，就一次產出長篇分析就好啊" (don't make the user respond in stages, just
-  // produce one rich analysis in one go). Now: auto-detect and proceed straight to a
-  // score whenever the real document text gives *any* signal (still fully
-  // deterministic/reproducible from the real text — see features.pickCutoffYear /
-  // extractFeatures — never a model guess); only stop and ask when detection is truly
-  // empty (no year mentioned anywhere, or zero known vocabulary matched), since there's
-  // nothing real to auto-pick in that case. Every auto-picked value is flagged
-  // (auto_detected_cutoff_year / auto_detected_features) so the caller can disclose it
-  // and the user can still correct it — 基準日鐵律 stays intact, it just isn't a
-  // blocking round trip when the document already answers the question.
+  // Upload mode: auto-detect both the cutoff year and technical features directly from the
+  // real document text and score in one shot whenever there's real signal — only stops to
+  // ask when detection is truly empty (nothing real to auto-pick). See README for why this
+  // isn't a multi-round-trip confirmation flow.
   const text = body.text || "";
   let cutoffYear = body.publication_year;
   let autoDetectedCutoffYear = false;
+  let yearConfidence = "user";
+  let yearSource = "user";
   if (!cutoffYear) {
-    const picked = features.pickCutoffYear(text);
-    if (picked === null) {
+    const detected = features.detectCutoffYear(text);
+    if (detected === null) {
       return {
         needs_confirmation: "cutoff_year",
         candidates: [],
-        message: "無法從文字中偵測到年份，請使用者提供發表年以設定基準日。",
+        message: s.needsConfirmationYear,
       };
     }
-    cutoffYear = picked;
+    cutoffYear = detected.year;
+    yearConfidence = detected.confidence;
+    yearSource = detected.source;
     autoDetectedCutoffYear = true;
   }
   cutoffYear = Number(cutoffYear);
@@ -82,33 +99,61 @@ function handlePatentabilityRequest(body) {
         cutoff_year: cutoffYear,
         cutoff_date: cutoffDate,
         auto_detected_cutoff_year: autoDetectedCutoffYear,
+        year_confidence: yearConfidence,
+        year_source: yearSource,
         year_candidates: yearCandidates,
-        message: "後端無法從文字中拆解出任何已知技術特徵關鍵字，請使用者補充技術特徵描述。",
+        message: s.needsConfirmationFeatures,
       };
     }
     feats = extracted;
     autoDetectedFeatures = true;
   }
 
-  const result = scoreWithFeatures({ body, cutoffDate, cutoffYear, feats, caseId: body.case_id || `U-${Date.now()}` });
+  const result = await scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, caseId: body.case_id || `U-${Date.now()}` });
   return {
     ...result,
     auto_detected_cutoff_year: autoDetectedCutoffYear,
+    year_confidence: yearConfidence,
+    year_source: yearSource,
     year_candidates: autoDetectedCutoffYear ? yearCandidates : undefined,
     auto_detected_features: autoDetectedFeatures,
   };
 }
 
-function scoreWithFeatures({ body, cutoffDate, cutoffYear, feats, caseId }) {
+async function scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, caseId }) {
+  const s = t(lang);
   const subtechLabel = subtechFromFeatures(feats);
+
+  const reason = scoring.outOfScopeReason(feats, subtechLabel);
+  if (reason) {
+    return {
+      out_of_scope: true,
+      reason,
+      case_id: caseId,
+      cutoff_year: cutoffYear,
+      cutoff_date: cutoffDate,
+      subtech_label: subtechLabel,
+      features: feats,
+      message: reason === "other" ? s.outOfScope.other : s.outOfScope.insufficient,
+    };
+  }
+
+  // Real per-year literature counts for Temporal (P0-1 fix item 5) — fetched here so both
+  // POST /api/patentability and the compute_patentability tool call go through the exact
+  // same deterministic pipeline, regardless of whether the model remembered to search first.
+  const query = feats.slice(0, 4).map((f) => f.text).join(" ");
+  const literatureYearCounts = await literature.fetchYearlyLiteratureCounts(query, cutoffYear - 4, cutoffYear);
+
+  const targetJurisdiction = typeof body.target_jurisdiction === "string" ? body.target_jurisdiction.toUpperCase() : undefined;
+
   const result = scoring.computeScore({
     cutoffDate,
     cutoffYear,
     subtechLabel,
     features: feats,
-    priorArt: Array.isArray(body.prior_art) ? body.prior_art : [],
-    literature: Array.isArray(body.literature) ? body.literature : [],
-    targetJurisdiction: typeof body.target_jurisdiction === "string" ? body.target_jurisdiction : undefined,
+    literatureYearCounts,
+    targetJurisdiction,
+    lang,
   });
 
   return {
@@ -117,12 +162,14 @@ function scoreWithFeatures({ body, cutoffDate, cutoffYear, feats, caseId }) {
     cutoff_year: cutoffYear,
     cutoff_date: cutoffDate,
     subtech_label: subtechLabel,
+    target_jurisdiction: scoring.VALID_JURISDICTIONS.includes(targetJurisdiction) ? targetJurisdiction : scoring.DEFAULT_TARGET_JURISDICTION,
     features: feats,
     score: result.score,
     grade: result.grade,
     breakdown: result.breakdown,
-    prior_art: Array.isArray(body.prior_art) ? body.prior_art : [],
-    literature: Array.isArray(body.literature) ? body.literature : [],
+    insufficient_evidence: result.insufficient_evidence,
+    disclaimer: result.disclaimer,
+    prior_art: result.prior_art,
     whitespace: result.whitespace,
     combination_whitespace: result.combination_whitespace,
     corpus_meta: result.corpus_meta,
