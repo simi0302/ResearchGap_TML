@@ -531,8 +531,11 @@ function statusClass(status) {
 
 function renderDefaultWhiteSpaceMatrix() {
   if (!patentCorpus) {
-    // Corpus fetch failed — leave the honest "could not load" empty state (already in
-    // the HTML) visible instead of the transient "loading" note.
+    // Corpus fetch genuinely failed (patentCorpusPromise already settled by the time this
+    // runs) — reveal the honest "could not load" empty state, which starts `hidden` in the
+    // HTML precisely so it doesn't flash as a false-alarm error during the normal few-
+    // hundred-ms-to-seconds it takes to fetch+parse the ~3MB corpus on a real connection.
+    document.getElementById("whiteSpaceEmpty").hidden = false;
     document.getElementById("whiteSpaceNote").innerHTML = `<i class="static-dot" aria-hidden="true"></i><span>
       Could not load the patent corpus, so no real white-space matrix is available right now.
       <span class="zh">目前無法載入專利語料庫，暫無真實白地矩陣。</span>

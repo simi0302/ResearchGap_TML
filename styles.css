@@ -472,6 +472,7 @@ footer .muted{opacity:.5;margin-left:auto}
   .hero-content{width:90%}
   .hero h2{font-size:22px}
   .hero-copy{font-size:14px}
+  .searchbar input{font-size:13px}
   .filters{grid-template-columns:1fr}
   .type-field{grid-column:auto}
   .check{font-size:14px!important}
