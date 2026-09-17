@@ -396,8 +396,8 @@ function renderWhiteSpaceFromAnalysis(result) {
     // honestly instead of silently doing nothing, which looked identical to "nothing
     // was ever uploaded."
     note.innerHTML = `<i class="static-dot" aria-hidden="true"></i><span>
-      Analyzed ${escapeHtml(result.case_id || "")}, but its technical classification (${escapeHtml(result.subtech_label || "unclassified")}) didn't match a known technology group, so no real combination breakdown is available for it. Showing the corpus-wide default matrix below instead.
-      <span class="zh">已分析 ${escapeHtml(result.case_id || "")}，但其技術分類（${escapeHtml(result.subtech_label || "未分類")}）不在已知技術分組內，因此沒有可呈現的真實組合分析，改顯示全語料庫預設矩陣。</span>
+      ${escapeHtml(result.case_id || "")} has no matching technology group, so showing the full corpus instead.
+      <span class="zh">${escapeHtml(result.case_id || "")} 無對應技術分組，改顯示全語料庫。</span>
     </span>`;
     document.getElementById("whiteSpaceTable").hidden = true;
     renderDefaultWhiteSpaceMatrix();
@@ -535,8 +535,8 @@ function renderDefaultWhiteSpaceMatrix() {
   if (rowGroups.length === 0 || colGroups.length === 0) return;
 
   document.getElementById("whiteSpaceNote").innerHTML = `<i class="static-dot" aria-hidden="true"></i><span>
-    Default view across all ${patentCorpus.length.toLocaleString()} patents in the corpus — click any cell for its real count and evidence, computed client-side from the same data the search above uses. Ask the AI Assistant below to analyze a specific paper or patent for a case-specific version.
-    <span class="zh">預設檢視，基於全部 ${patentCorpus.length.toLocaleString()} 筆專利語料庫即時計算，點任一格可看該組合的真實數字與依據。可在下方請 AI 助理分析特定論文或專利草稿，取得針對該案例的版本。</span>
+    All ${patentCorpus.length.toLocaleString()} patents in the corpus — click a cell for details.
+    <span class="zh">全部 ${patentCorpus.length.toLocaleString()} 筆專利語料庫——點格子看詳情。</span>
   </span>`;
 
   document.getElementById("whiteSpaceEmpty").hidden = true;
