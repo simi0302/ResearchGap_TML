@@ -196,7 +196,7 @@ const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)
 
 if (!prefersReducedMotion) {
   const revealTargets = document.querySelectorAll(
-    ".section-head, .gap-card, .chart-card, .emerging-list article, .about-copy p"
+    ".section-head, .gap-card, .about-copy p"
   );
   revealTargets.forEach((el, i) => {
     el.classList.add("reveal");
@@ -238,22 +238,6 @@ if (spySections.length) {
 const canHover = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 
 if (!prefersReducedMotion) {
-  // trend chart lines "draw" in once scrolled into view
-  const chartLines = document.querySelectorAll(".chart-card .line");
-  chartLines.forEach(line => {
-    const length = line.getTotalLength();
-    line.style.strokeDasharray = `${length}`;
-    line.style.strokeDashoffset = `${length}`;
-  });
-  const lineObserver = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return;
-      entry.target.classList.add("draw");
-      lineObserver.unobserve(entry.target);
-    });
-  }, { threshold: 0.35 });
-  chartLines.forEach(line => lineObserver.observe(line));
-
   // subtle hero-orb mouse parallax (desktop pointer only)
   const orbField = document.getElementById("orbField");
   const heroSection = document.querySelector(".hero");

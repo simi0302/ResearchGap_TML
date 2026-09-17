@@ -32,7 +32,6 @@
       <a href="#explore">EXPLORE</a>
       <a href="#assistant">AI ASSISTANT</a>
       <a href="#white-space">WHITE SPACE</a>
-      <a href="#trends">TRENDS</a>
       <a href="#about">ABOUT</a>
     </nav>
   </header>
@@ -55,7 +54,6 @@
           <a class="active" href="#explore">EXPLORE</a>
           <a href="#assistant">AI ASSISTANT</a>
           <a href="#white-space">WHITE SPACE</a>
-          <a href="#trends">TRENDS</a>
           <a href="#about">ABOUT</a>
         </nav>
 
@@ -276,75 +274,6 @@
       </div>
     </section>
 
-    <!-- TRENDS -->
-    <section class="section trends" id="trends">
-      <div class="section-head">
-        <p class="eyebrow">TECHNOLOGY TRENDS</p>
-        <h3>Research Activity Over Time <span>/ 研究活動趨勢</span></h3>
-        <p>Compare annual changes in publications and patent activity. <span class="zh">比較學術文獻與專利活動的年度變化。</span></p>
-        <p class="section-note">
-          <i class="static-dot" aria-hidden="true"></i>
-          <span>
-            Fixed illustrative example — doesn't change with your search above.
-            <span class="zh">固定範例，不會隨上方搜尋變動。</span>
-          </span>
-        </p>
-      </div>
-
-      <div class="trend-layout">
-        <article class="chart-card">
-          <div class="chart-title">
-            <strong>SDN + Digital Twin</strong>
-            <span>2019—2026</span>
-          </div>
-          <svg viewBox="0 0 760 300" role="img" aria-label="Trend chart">
-            <g class="gridlines">
-              <line x1="55" y1="40" x2="730" y2="40"></line>
-              <line x1="55" y1="95" x2="730" y2="95"></line>
-              <line x1="55" y1="150" x2="730" y2="150"></line>
-              <line x1="55" y1="205" x2="730" y2="205"></line>
-              <line x1="55" y1="260" x2="730" y2="260"></line>
-            </g>
-            <polyline class="line papers" points="60,242 150,231 240,216 330,192 420,168 510,132 600,92 720,54"></polyline>
-            <polyline class="line patents" points="60,252 150,248 240,242 330,232 420,219 510,204 600,184 720,156"></polyline>
-            <g class="xlabels">
-              <text x="55" y="286">2019</text><text x="145" y="286">2020</text>
-              <text x="235" y="286">2021</text><text x="325" y="286">2022</text>
-              <text x="415" y="286">2023</text><text x="505" y="286">2024</text>
-              <text x="595" y="286">2025</text><text x="700" y="286">2026</text>
-            </g>
-          </svg>
-          <div class="chart-legend">
-            <span><i class="line-key papers-key"></i>Academic Publications</span>
-            <span><i class="line-key patents-key"></i>Patents</span>
-          </div>
-        </article>
-
-        <div class="emerging-list">
-          <article>
-            <span class="rank">01</span>
-            <div><strong>AI-driven SDN</strong><small>Fast-growing / 快速成長</small></div>
-            <b>+78%</b>
-          </article>
-          <article>
-            <span class="rank">02</span>
-            <div><strong>Digital Twin Networking</strong><small>Emerging / 新興</small></div>
-            <b>+64%</b>
-          </article>
-          <article>
-            <span class="rank">03</span>
-            <div><strong>Intent-based Networking</strong><small>Developing / 發展中</small></div>
-            <b>+51%</b>
-          </article>
-          <article>
-            <span class="rank">04</span>
-            <div><strong>Green Networking</strong><small>Developing / 發展中</small></div>
-            <b>+47%</b>
-          </article>
-        </div>
-      </div>
-    </section>
-
     <!-- ABOUT -->
     <section class="section about" id="about">
       <div class="section-head">
@@ -358,8 +287,8 @@
           <span class="zh">ResearchGap 是一套專利與學術文獻白地分析平台，協助研發人員在投入研究或申請專利前，快速掌握技術主題目前的競爭與研究密度，找出尚未被充分探索的「白地」方向。</span>
         </p>
         <p>
-          Traditional searches rely on manually combing databases and journals — slow and easy to miss things. An interactive white-space matrix and trend charts make crowded, developing, and gap areas visible at a glance.
-          <span class="zh">現行做法多仰賴人工逐篇檢索專利庫與期刊論文，憑經驗判斷哪些交叉領域仍有機會，過程耗時且易遺漏。ResearchGap 將專利與文獻數據交叉比對，以互動式矩陣呈現各技術組合的研究與專利密度，讓使用者一眼看出高密度區、發展中區與潛在白地，並提供趨勢圖表追蹤成長速度。</span>
+          Traditional searches rely on manually combing databases and journals — slow and easy to miss things. An interactive white-space matrix makes crowded, developing, and gap areas visible at a glance, computed from the real patent corpus.
+          <span class="zh">現行做法多仰賴人工逐篇檢索專利庫與期刊論文，憑經驗判斷哪些交叉領域仍有機會，過程耗時且易遺漏。ResearchGap 將專利與文獻數據交叉比對，以互動式矩陣呈現各技術組合的研究與專利密度，讓使用者一眼看出高密度區、發展中區與潛在白地，數字均來自真實母體專利計算。</span>
         </p>
         <p>
           An AI research assistant answers natural-language questions about gaps, patents, and possible research questions. Numbers always come from real backend computation — the AI only explains and suggests, never fabricates figures.
@@ -381,7 +310,7 @@
         <img src="logo.png" alt="ResearchGap" />
       </a>
       <p>Patent &amp; Literature White-Space Analysis Platform <span class="zh">· 專利文獻白地分析平台</span></p>
-      <p class="muted">Real patent search, White-Space Matrix (2,799 patents) &amp; AI assistant live; Trends remains an illustrative example. <span class="zh">真實專利搜尋、白地矩陣（2,799 筆）與 AI 助手已上線；趨勢圖仍為示意範例。</span></p>
+      <p class="muted">Real patent search, White-Space Matrix (2,799 patents) &amp; AI assistant — every number on this site is computed from the real corpus or the live backend, nothing is a placeholder. <span class="zh">真實專利搜尋、白地矩陣（2,799 筆）與 AI 助手——站上所有數字均來自真實語料庫或即時後端計算，沒有任何示意／佔位資料。</span></p>
     </footer>
 
     <button class="back-to-top" id="backToTop" aria-label="Back to top / 回到頂端">↑</button>

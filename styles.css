@@ -288,32 +288,6 @@ a{text-decoration:none;color:inherit}
 @keyframes rippleAnim{to{transform:scale(2.6);opacity:0}}
 @media(prefers-reduced-motion: reduce){.ripple{display:none}}
 
-.trends{background:#fff7ef}
-.trend-layout{max-width:1120px;margin:auto;display:grid;grid-template-columns:1.8fr 1fr;gap:18px}
-.chart-card{border:1px solid var(--line);border-radius:24px;background:#fff;padding:22px}
-.chart-title{display:flex;justify-content:space-between;font-size:14px}
-.chart-title span{opacity:.5}
-.chart-card svg{width:100%;height:auto;margin-top:12px;overflow:visible}
-.gridlines line{stroke:#eadfd8;stroke-width:1}
-.line{fill:none;stroke-width:6;stroke-linecap:round;stroke-linejoin:round;transition:stroke-dashoffset 1.5s cubic-bezier(.16,.8,.24,1)}
-.line.patents{transition-delay:.15s}
-.line.draw{stroke-dashoffset:0!important}
-.line.papers{stroke:var(--orange)}
-.line.patents{stroke:var(--gold)}
-.xlabels text{font-size:14px;fill:#8c7569}
-.chart-legend{display:flex;gap:18px;font-size:14px}
-.line-key{display:inline-block;width:23px;height:4px;border-radius:4px;margin-right:6px;vertical-align:middle}
-.papers-key{background:var(--orange)}.patents-key{background:var(--gold)}
-.emerging-list{display:grid;gap:10px}
-.emerging-list article{
-  background:white;border:1px solid var(--line);border-radius:18px;padding:17px;
-  display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:10px
-}
-.rank{font-weight:900;color:var(--orange);font-size:14px}
-.emerging-list div{display:grid;gap:4px}
-.emerging-list small{opacity:.7;font-size:14px}
-.emerging-list b{color:var(--orange);font-size:19px}
-
 .assistant{
   background:linear-gradient(130deg,#ff6a00,#ff9a25 65%,#ffc35e);
   color:white
@@ -424,14 +398,6 @@ h6.chat-heading{font-size:14px;text-transform:uppercase;letter-spacing:.03em;opa
 .reveal-scale{opacity:0;transform:scale(.94);transition:opacity .6s ease,transform .6s cubic-bezier(.16,.8,.24,1)}
 .reveal-scale.is-visible{opacity:1;transform:none}
 
-/* hover lift on interactive card-style elements */
-.chart-card,.emerging-list article{
-  transition:transform .35s cubic-bezier(.16,.8,.24,1),box-shadow .35s ease,border-color .35s ease
-}
-.chart-card:hover,.emerging-list article:hover{
-  transform:translateY(-6px);box-shadow:0 18px 34px rgba(120,40,0,.14)
-}
-
 /* hero entrance (plays once on load, not scroll-gated — it's above the fold) */
 .hero-content>*{animation:heroRise .8s cubic-bezier(.16,.8,.24,1) both}
 .hero-content h1{animation-delay:.05s}
@@ -452,10 +418,8 @@ h6.chat-heading{font-size:14px;text-transform:uppercase;letter-spacing:.03em;opa
 @media(prefers-reduced-motion: reduce){
   .reveal,.reveal-scale{opacity:1!important;transform:none!important;transition:none!important}
   .orb-a,.orb-b,.orb-c,.hero-content>*,.hero{animation:none!important}
-  .chart-card,.emerging-list article{transition:none!important}
   .orb-field{transition:none!important}
   .gap-card.featured{transition:none!important}
-  .line{transition:none!important;stroke-dashoffset:0!important}
 }
 
 .back-to-top{
@@ -488,7 +452,7 @@ footer .muted{opacity:.5;margin-left:auto}
   .filters input[type="number"],.country-field select{width:100%}
   .dash{display:none}
   .type-field{margin-left:0;display:grid;grid-column:1/-1}
-  .gap-cards,.trend-layout,.assistant-shell{grid-template-columns:1fr}
+  .gap-cards,.assistant-shell{grid-template-columns:1fr}
   .assistant-shell{gap:20px}
   .chat{min-height:460px;max-height:70vh}
   /* the chat's send button and back-to-top both gravitate to bottom-right on a tall
