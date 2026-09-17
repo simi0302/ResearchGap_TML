@@ -410,7 +410,16 @@ function renderWhiteSpaceFromAnalysis(result) {
   </span>`;
 
   document.getElementById("whiteSpaceMatrix").hidden = true;
-  renderComboRows(rows);
+  // The backend's own combo_a/combo_b labels are TF-IDF title-word extractions (e.g.
+  // "Assurance Conflict") — the same awkward, made-up-sounding pattern already fixed
+  // for the default matrix via WS_IPC_LABELS (see below). Apply the same curated
+  // lookup here by IPC code so an AI-analyzed case doesn't regress to that look.
+  const relabeled = rows.map((row) => ({
+    ...row,
+    combo_a: wsLabelFor(row.ipc_a),
+    combo_b: wsLabelFor(row.ipc_b),
+  }));
+  renderComboRows(relabeled);
 }
 
 /*
