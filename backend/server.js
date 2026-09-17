@@ -104,6 +104,60 @@ app.post("/api/chat", async (req, res) => {
     });
   }
 
+  // Per-turn table steering: gpt-4.1-mini reliably follows the systemPrompt's Stage
+  // rules right after a tool call, but on a *second* question in the same conversation
+  // (e.g. "現在看白地" right after a POS question) it was observed just re-pasting the
+  // previous turn's Stage 1 table instead of switching to Stage 3 — the systemPrompt's
+  // static Stage-selection rule sits too far from the end of the context for a small
+  // model to reliably re-apply every turn. Detect the latest user turn's intent with a
+  // keyword check (deterministic, not model-guessed) and re-append a short reminder as
+  // the LAST message before every model call in this request (see buildCallMessages
+  // below) so it's always the freshest instruction, even across tool-calling rounds.
+  const latestUserContent = [...turns].reverse().find((t) => t.role === "user")?.content || "";
+  const wantsWhitespace = /白地|white[\s-]?space|機會缺口|技術組合/i.test(latestUserContent);
+  const wantsPOS = /勝率|可專利性|patentability|POS\b|機會分數/i.test(latestUserContent);
+  let steeringMessage = null;
+  if (wantsWhitespace && !wantsPOS) {
+    steeringMessage = {
+      role: "system",
+      content: "【本輪強制指令】使用者這則訊息問的是白地／技術組合分析。這一輪回覆只能輸出 Stage 3 的「技術組合白地表」，直接引用 compute_patentability 結果的 combination_whitespace 陣列逐列照抄。嚴禁這一輪輸出 Stage 1 的 POS 子分數表，也不可把先前對話已回答過的 POS 表格再貼一次。",
+    };
+  } else if (wantsPOS && !wantsWhitespace) {
+    steeringMessage = {
+      role: "system",
+      content: "【本輪強制指令】使用者這則訊息問的是 POS／勝率分析。這一輪回覆只能輸出 Stage 1 的「子分數表」，直接引用 compute_patentability 結果的 breakdown 陣列逐列照抄。",
+    };
+  }
+  const buildCallMessages = (base) => (steeringMessage ? [...base, steeringMessage] : base);
+
+  // Hard guarantee, not just a prompt hint: gpt-4.1-mini was observed (reproducibly,
+  // even single-turn) ignoring an explicit white-space question and re-answering with
+  // the Stage 1 POS table instead of Stage 3's technology-combination table — a prompt
+  // is a request, not a contract, and this project's "AI 只負責解釋，backend 決定數字"
+  // rule means the table itself shouldn't depend on the model getting the format right.
+  // So for white-space specifically, the reply is replaced with a deterministically
+  // rendered table straight from the same JSON the model sees (see below, near the
+  // final reply assembly) rather than trusted to the model's own formatting.
+  function escapeMd(v) {
+    return String(v ?? "").replace(/\|/g, "\\|").replace(/\n/g, " ");
+  }
+  function statusLabel(status) {
+    if (status === "gap") return "Potential White Space 潛在白地";
+    if (status === "crowded") return "Crowded 高密度";
+    return "Developing 發展中";
+  }
+  function renderWhitespaceTable(rows) {
+    const body = rows.map(
+      (r) =>
+        `| ${escapeMd(r.combo_a)} (${r.ipc_a}) × ${escapeMd(r.combo_b)} (${r.ipc_b}) | ${r.count} | ${statusLabel(r.status)} | ${escapeMd(r.evidence_zh || r.evidence_en)} |`
+    );
+    return [
+      "| 技術組合 / Combination | 母體內專利數 / Patents | 狀態 / Status | 佐證 / Evidence |",
+      "|---|---|---|---|",
+      ...body,
+    ].join("\n");
+  }
+
   let messages = [...systemMessages, ...turns];
   const toolTrace = [];
   const usageTotal = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
@@ -116,7 +170,7 @@ app.post("/api/chat", async (req, res) => {
   };
 
   try {
-    let data = await callAzureChat(messages);
+    let data = await callAzureChat(buildCallMessages(messages));
     accumulateUsage(data);
     let round = 0;
 
@@ -149,7 +203,7 @@ app.post("/api/chat", async (req, res) => {
       }
 
       round += 1;
-      data = await callAzureChat(messages);
+      data = await callAzureChat(buildCallMessages(messages));
       accumulateUsage(data);
     }
 
@@ -157,9 +211,39 @@ app.post("/api/chat", async (req, res) => {
     if (typeof reply !== "string") {
       return res.status(502).json({ error: "Azure OpenAI 回應格式異常。" });
     }
+
+    // See the "Hard guarantee" block above buildCallMessages. Only the white-space case
+    // gets a deterministic *replacement* (not just a prepend) — repeated local testing
+    // showed gpt-4.1-mini reliably re-answers with the Stage 1 POS table instead of the
+    // Stage 3 white-space table even on a single-turn, unambiguous "白地分析" question,
+    // so the model's own text for that case is actively wrong, not just incomplete, and
+    // showing it underneath would just contradict the real table above it. The POS case
+    // (wantsPOS) was verified working correctly on its own in the same testing, so it's
+    // left alone rather than risking a duplicated table for the common case.
+    let finalReply = reply;
+    if (wantsWhitespace && !wantsPOS) {
+      const lastScored = [...toolTrace]
+        .reverse()
+        .find((t) => t.tool === "compute_patentability" && t.result && !t.result.needs_confirmation && t.result.score !== undefined);
+      if (lastScored) {
+        const r = lastScored.result;
+        const rows = Array.isArray(r.combination_whitespace) ? r.combination_whitespace : [];
+        const table = rows.length
+          ? `以 ${r.cutoff_year} 年為基準日，共找到 ${rows.filter((x) => x.status === "gap").length} 個技術組合白地（技術分類：${r.subtech_label}）。\n\n${renderWhitespaceTable(rows)}\n\n資料來源：ResearchGap 後端計算，N=2,799，資料擷取自 GPSS。`
+          : `以 ${r.cutoff_year} 年為基準日，此案例的技術分類（${r.subtech_label}）不在已知技術分組內，暫無可呈現的技術組合白地表格。`;
+        // Keep the model's own text as supplementary content (web-sourced evidence,
+        // suggested jurisdictions, attorney questions) only if it actually stayed on
+        // topic — if it leaked Stage 1's POS/sub-score vocabulary, it's the wrong-topic
+        // answer this override exists to fix, so drop it instead of showing it under a
+        // table that already contradicts it.
+        const leakedWrongTopic = /Novelty|新穎性|Crowding|擁擠度|Temporal 時間差/i.test(reply);
+        finalReply = leakedWrongTopic ? table : `${table}\n\n---\n\n${reply}`;
+      }
+    }
+
     // Real token usage as reported by Azure OpenAI for this turn (summed across every
     // tool-calling round it took) — not estimated, so the UI can show real cost, not a guess.
-    res.json({ reply, tool_calls: toolTrace, usage: usageTotal });
+    res.json({ reply: finalReply, tool_calls: toolTrace, usage: usageTotal });
   } catch (err) {
     console.error("Chat handler failed", err, err.detail || "");
     if (err.status) return res.status(502).json({ error: err.message });
