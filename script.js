@@ -396,10 +396,11 @@ function renderWhiteSpaceFromAnalysis(result) {
     // honestly instead of silently doing nothing, which looked identical to "nothing
     // was ever uploaded."
     note.innerHTML = `<i class="static-dot" aria-hidden="true"></i><span>
-      Analyzed ${escapeHtml(result.case_id || "")}, but its technical classification (${escapeHtml(result.subtech_label || "unclassified")}) didn't match a known technology group, so no real combination breakdown is available for it. Showing the corpus-wide default below instead.
-      <span class="zh">已分析 ${escapeHtml(result.case_id || "")}，但其技術分類（${escapeHtml(result.subtech_label || "未分類")}）不在已知技術分組內，因此沒有可呈現的真實組合分析，改顯示全語料庫預設表格。</span>
+      Analyzed ${escapeHtml(result.case_id || "")}, but its technical classification (${escapeHtml(result.subtech_label || "unclassified")}) didn't match a known technology group, so no real combination breakdown is available for it. Showing the corpus-wide default matrix below instead.
+      <span class="zh">已分析 ${escapeHtml(result.case_id || "")}，但其技術分類（${escapeHtml(result.subtech_label || "未分類")}）不在已知技術分組內，因此沒有可呈現的真實組合分析，改顯示全語料庫預設矩陣。</span>
     </span>`;
-    renderDefaultWhiteSpace();
+    document.getElementById("whiteSpaceTable").hidden = true;
+    renderDefaultWhiteSpaceMatrix();
     return;
   }
 
@@ -408,26 +409,46 @@ function renderWhiteSpaceFromAnalysis(result) {
     <span class="zh">分析對象：${escapeHtml(result.case_id)}・基準日 ${escapeHtml(String(result.cutoff_year))} 年・技術分類 ${escapeHtml(result.subtech_label)}</span>
   </span>`;
 
+  document.getElementById("whiteSpaceMatrix").hidden = true;
   renderComboRows(rows);
 }
 
 /*
- * Default (whole-corpus) White-Space table: a real technology-combination cross-tab
- * computed entirely client-side from data/patents.json — the same 2,799-patent corpus
- * the search bar already uses — so the section shows real numbers (N=2,799) on page
- * load instead of an empty "not yet analyzed" state. Ports the same IPC-grouping
- * approach as backend/corpus.js's deriveSubtechGroups/combinationWhitespace (top-12
- * most frequent IPC main-groups, cross-tabbed pairwise), just run in the browser since
- * this default view isn't tied to any single AI-analyzed case. A completed AI Assistant
- * analysis (renderWhiteSpaceFromAnalysis) overrides this with a case-specific table.
+ * Default (whole-corpus) White-Space matrix: a real click-to-explore grid computed
+ * entirely client-side from data/patents.json — the same 2,799-patent corpus the
+ * search bar already uses — so the section shows a real matrix (N=2,799) on page load
+ * instead of an empty "not yet analyzed" state. Same IPC-grouping approach as
+ * backend/corpus.js's deriveSubtechGroups (top-12 most frequent IPC main-groups), just
+ * run in the browser since this default view isn't tied to any single AI-analyzed case.
+ *
+ * Row/column labels: earlier versions derived labels from title-word frequency
+ * (TF-IDF-style), which produced real-but-awkward, made-up-sounding phrases like
+ * "Medium Functions" or "Assurance Conflict" — technically traceable to the data but
+ * reads as fabricated to anyone unfamiliar with how it was generated. WS_IPC_LABELS
+ * below is a small curated map from IPC main-group code to that group's actual
+ * classification scope (WIPO IPC subject matter, paraphrased) instead — grounded in a
+ * real, checkable external standard rather than an algorithm's word-frequency guess.
+ * A completed AI Assistant analysis (renderWhiteSpaceFromAnalysis) replaces this with
+ * a case-specific list, since "one case vs many groups" isn't a square matrix.
  */
 const WS_SUBTECH_COUNT = 12;
-const WS_LABEL_STOPWORDS = new Set([
-  "a", "an", "the", "and", "or", "of", "for", "in", "to", "with", "based", "method", "methods",
-  "system", "systems", "device", "devices", "apparatus", "apparatuses", "using", "via", "from",
-  "on", "by", "its", "into", "at", "is", "are", "be", "same", "such", "thereof", "network", "networks",
-  "networking", "non", "first", "second", "one", "more",
-]);
+const WS_IPC_LABELS = {
+  "H04L 12": "Data Switching Networks",
+  "H04L 45": "Routing & Path Selection",
+  "H04L 41": "Network Management",
+  "H04L 29": "Network Protocol Control",
+  "H04L 47": "Traffic Control & QoS",
+  "H04W 48": "Network Access Selection",
+  "G06F 15": "Computing Systems",
+  "G06F 9": "Virtualization & Scheduling",
+  "H04L 9": "Network Security",
+  "H04W 28": "Wireless Resource Management",
+  "H04W 24": "Wireless Monitoring & Testing",
+  "H04W 4": "Wireless Network Services",
+};
+function wsLabelFor(code) {
+  return WS_IPC_LABELS[code] || `IPC ${code}`;
+}
 
 function wsIpcMainGroup(code) {
   return String(code).split("(")[0].trim().split("/")[0].trim();
@@ -442,7 +463,7 @@ function wsDeriveSubtechGroups(corpus) {
     if (!g) continue;
     counts.set(g, (counts.get(g) || 0) + 1);
   }
-  return new Set([...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, WS_SUBTECH_COUNT).map(([g]) => g));
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, WS_SUBTECH_COUNT).map(([g]) => g);
 }
 function wsGroupsOf(p, known) {
   const set = new Set();
@@ -452,78 +473,121 @@ function wsGroupsOf(p, known) {
   }
   return set;
 }
-function wsBuildLabels(corpus, groups) {
-  const globalCounts = new Map();
-  const groupCounts = new Map([...groups].map((g) => [g, new Map()]));
-  for (const p of corpus) {
-    const g = wsPrimaryGroup(p);
-    if (!groups.has(g)) continue;
-    const words = (p.title || "").toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) || [];
-    const seen = new Set();
-    for (const w of words) {
-      if (WS_LABEL_STOPWORDS.has(w) || seen.has(w)) continue;
-      seen.add(w);
-      globalCounts.set(w, (globalCounts.get(w) || 0) + 1);
-      groupCounts.get(g).set(w, (groupCounts.get(g).get(w) || 0) + 1);
-    }
-  }
-  const labels = new Map();
-  for (const g of groups) {
-    const gc = groupCounts.get(g);
-    const qualifying = [...gc.entries()]
-      .filter(([w, c]) => c >= 4 && c / (globalCounts.get(w) || 1) >= 0.3)
-      .sort((a, b) => b[1] - a[1]);
-    const top = qualifying.slice(0, 2).map(([w]) => w);
-    labels.set(g, top.length ? top.map((w) => w[0].toUpperCase() + w.slice(1)).join(" ") : `IPC ${g}`);
-  }
-  return labels;
-}
-function computeDefaultWhitespace(corpus, limit = 15) {
-  const groups = wsDeriveSubtechGroups(corpus);
-  const groupList = [...groups];
-  const labels = wsBuildLabels(corpus, groups);
-  const groupSets = corpus.map((p) => wsGroupsOf(p, groups));
-  const rows = [];
-  for (let i = 0; i < groupList.length; i++) {
-    for (let j = i + 1; j < groupList.length; j++) {
-      const a = groupList[i], b = groupList[j];
+
+// Rows = the 4 most frequent groups in the corpus, columns = the next 4 — an 8-group,
+// 4×4 grid stays readable while still covering the bulk of the corpus (disjoint sets,
+// so every cell is a distinct, real pair; no diagonal/self-pair ambiguity to handle).
+function computeDefaultWhitespaceMatrix(corpus) {
+  const topGroups = wsDeriveSubtechGroups(corpus);
+  const known = new Set(topGroups);
+  const rowGroups = topGroups.slice(0, 4);
+  const colGroups = topGroups.slice(4, 8);
+  const groupSets = corpus.map((p) => wsGroupsOf(p, known));
+
+  const rawCounts = [];
+  for (const a of rowGroups) {
+    for (const b of colGroups) {
       let count = 0;
       for (const gs of groupSets) if (gs.has(a) && gs.has(b)) count++;
-      const status = count === 0 ? "gap" : count < 5 ? "developing" : "crowded";
-      const labelA = labels.get(a), labelB = labels.get(b);
-      rows.push({
-        combo_a: labelA, combo_b: labelB, ipc_a: a, ipc_b: b, count, status,
-        evidence_en: `Among all ${corpus.length.toLocaleString()} patents in the corpus, ${count} are classified under both "${labelA}" (${a}) and "${labelB}" (${b}).`,
-        evidence_zh: `母體 ${corpus.length.toLocaleString()} 筆專利中，同時歸類於「${labelA}」(${a}) 與「${labelB}」(${b}) 的共 ${count} 件。`,
-      });
+      rawCounts.push([a, b, count]);
     }
   }
-  rows.sort((a, b) => a.count - b.count);
-  return rows.slice(0, limit);
+  // Crowded/developing is relative to this matrix's own scale, not a fixed absolute
+  // count — these top-8-group cells run far higher than the finer per-case subtech
+  // combinations elsewhere on this page, so a fixed "<5" threshold (tuned for those)
+  // would leave every non-zero cell here reading as "crowded" and flatten the matrix
+  // to two colors. Split non-zero counts at their own median instead.
+  const nonZero = rawCounts.map(([, , c]) => c).filter((c) => c > 0).sort((x, y) => x - y);
+  const median = nonZero.length ? nonZero[Math.floor((nonZero.length - 1) / 2)] : 0;
+
+  const cells = new Map();
+  for (const [a, b, count] of rawCounts) {
+    const status = count === 0 ? "gap" : count < median ? "developing" : "crowded";
+    const labelA = wsLabelFor(a), labelB = wsLabelFor(b);
+    cells.set(`${a}|${b}`, {
+      combo_a: labelA, combo_b: labelB, ipc_a: a, ipc_b: b, count, status,
+      evidence_en: `Among all ${corpus.length.toLocaleString()} patents in the corpus, ${count} are classified under both "${labelA}" (${a}) and "${labelB}" (${b}).`,
+      evidence_zh: `母體 ${corpus.length.toLocaleString()} 筆專利中，同時歸類於「${labelA}」(${a}) 與「${labelB}」(${b}) 的共 ${count} 件。`,
+    });
+  }
+  return { rowGroups, colGroups, cells };
 }
 
-let defaultWhitespaceRows = null;
-function renderDefaultWhiteSpace() {
+let defaultWhitespaceMatrix = null;
+let activeMatrixCellKey = null;
+
+function statusClass(status) {
+  return status === "gap" ? "gap" : status === "crowded" ? "dense" : "medium";
+}
+
+function renderDefaultWhiteSpaceMatrix() {
   if (!patentCorpus) {
     // Corpus fetch failed — leave the honest "could not load" empty state (already in
     // the HTML) visible instead of the transient "loading" note.
     document.getElementById("whiteSpaceNote").innerHTML = `<i class="static-dot" aria-hidden="true"></i><span>
-      Could not load the patent corpus, so no real white-space table is available right now.
-      <span class="zh">目前無法載入專利語料庫，暫無真實白地表格。</span>
+      Could not load the patent corpus, so no real white-space matrix is available right now.
+      <span class="zh">目前無法載入專利語料庫，暫無真實白地矩陣。</span>
     </span>`;
     return;
   }
-  if (!defaultWhitespaceRows) defaultWhitespaceRows = computeDefaultWhitespace(patentCorpus, 15);
-  if (defaultWhitespaceRows.length === 0) return;
+  if (!defaultWhitespaceMatrix) defaultWhitespaceMatrix = computeDefaultWhitespaceMatrix(patentCorpus);
+  const { rowGroups, colGroups, cells } = defaultWhitespaceMatrix;
+  if (rowGroups.length === 0 || colGroups.length === 0) return;
 
   document.getElementById("whiteSpaceNote").innerHTML = `<i class="static-dot" aria-hidden="true"></i><span>
-    Default view across all ${patentCorpus.length.toLocaleString()} patents in the corpus — real counts, computed client-side from the same data the search above uses. Ask the AI Assistant below to analyze a specific paper or patent for a case-specific version.
-    <span class="zh">預設檢視，基於全部 ${patentCorpus.length.toLocaleString()} 筆專利語料庫即時計算，資料來源與上方搜尋相同。可在下方請 AI 助理分析特定論文或專利草稿，取得針對該案例的版本。</span>
+    Default view across all ${patentCorpus.length.toLocaleString()} patents in the corpus — click any cell for its real count and evidence, computed client-side from the same data the search above uses. Ask the AI Assistant below to analyze a specific paper or patent for a case-specific version.
+    <span class="zh">預設檢視，基於全部 ${patentCorpus.length.toLocaleString()} 筆專利語料庫即時計算，點任一格可看該組合的真實數字與依據。可在下方請 AI 助理分析特定論文或專利草稿，取得針對該案例的版本。</span>
   </span>`;
-  renderComboRows(defaultWhitespaceRows);
+
+  document.getElementById("whiteSpaceEmpty").hidden = true;
+  document.getElementById("whiteSpaceTable").hidden = true;
+  document.getElementById("whiteSpaceMatrix").hidden = false;
+  document.getElementById("whiteSpaceLegend").hidden = false;
+  document.getElementById("whiteSpaceGapCards").hidden = false;
+
+  document.getElementById("whiteSpaceMatrixHead").innerHTML = `
+    <tr><th></th>${colGroups.map((c) => `<th>${escapeHtml(wsLabelFor(c))}</th>`).join("")}</tr>
+  `;
+  document.getElementById("whiteSpaceMatrixBody").innerHTML = rowGroups.map((a) => `
+    <tr>
+      <th>${escapeHtml(wsLabelFor(a))}</th>
+      ${colGroups.map((b) => {
+        const key = `${a}|${b}`;
+        const cell = cells.get(key);
+        return `<td class="${statusClass(cell.status)}" data-cell="${key}" tabindex="0" role="button"
+          aria-label="View ${escapeHtml(cell.combo_a)} × ${escapeHtml(cell.combo_b)}">${cell.count.toLocaleString()}</td>`;
+      }).join("")}
+    </tr>
+  `).join("");
+
+  const firstGapKey = [...cells.entries()].find(([, c]) => c.status === "gap")?.[0];
+  const initialKey = firstGapKey || [...cells.keys()][0];
+  if (initialKey) selectMatrixCell(initialKey);
 }
 
-patentCorpusPromise.then(renderDefaultWhiteSpace);
+function selectMatrixCell(key) {
+  const cell = defaultWhitespaceMatrix?.cells.get(key);
+  if (!cell) return;
+  activeMatrixCellKey = key;
+  document.querySelectorAll("#whiteSpaceMatrixBody td").forEach((td) => {
+    td.classList.toggle("active", td.dataset.cell === key);
+  });
+  showGapCard(cell);
+}
+
+document.getElementById("whiteSpaceMatrixBody").addEventListener("click", (e) => {
+  const td = e.target.closest("[data-cell]");
+  if (td) selectMatrixCell(td.dataset.cell);
+});
+document.getElementById("whiteSpaceMatrixBody").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  const td = e.target.closest("[data-cell]");
+  if (!td) return;
+  e.preventDefault();
+  selectMatrixCell(td.dataset.cell);
+});
+
+patentCorpusPromise.then(renderDefaultWhiteSpaceMatrix);
 
 function showGapCard(row) {
   document.getElementById("gapCount").textContent = row.count.toLocaleString();
