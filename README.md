@@ -33,7 +33,7 @@ separate build step and no framework: what's in `index.html` is what's live.
 **Backend — Node.js + Express, deployed on Azure App Service**
 - [Azure OpenAI](https://learn.microsoft.com/azure/ai-services/openai/) (`gpt-4.1-mini`) chat completions with **function calling / tool-calling** — the model can only report a score via the `compute_patentability` tool (pure local computation, no LLM involved in the math) or search supporting academic literature via `search_prior_art`.
 - **In-corpus prior-art retrieval is fully backend-side**: `retrieval.js` runs a deterministic BM25 search over the corpus (title + abstract, cutoff-filtered), and the feature-overlap between a case and each matched patent is computed by the backend's own word-boundary text matcher — never supplied or judged by the model.
-- `search_prior_art`'s literature search queries three independent, free, **keyless** sources in parallel (`literature.js`) — [Semantic Scholar](https://www.semanticscholar.org/product/api), [Crossref](https://api.crossref.org/), and [arXiv](https://arxiv.org/help/api/) — so real citations (including most IEEE Xplore/ACM-indexed papers, via DOI) work with zero API keys. Real per-year publication counts (for the Temporal factor) come from [OpenAlex](https://openalex.org/), also free/keyless. There is no patent-office/Google-Patents web search on this deployment — that used to depend on Bing Search v7, which Microsoft retired in August 2025, so the dead code path was removed rather than left silently failing.
+- `search_prior_art`'s literature search queries three independent, free, **keyless** sources in parallel (`literature.js`) — [Semantic Scholar](https://www.semanticscholar.org/product/api), [Crossref](https://api.crossref.org/), and [arXiv](https://arxiv.org/help/api/) — so real citations (including most IEEE Xplore/ACM-indexed papers, via DOI) work with zero API keys. Real per-year publication counts (for the Temporal factor) come from [OpenAlex](https://openalex.org/), also free/keyless. `search_prior_art` also runs a real general-web/patent-office search (`webSearch.js`) via Azure OpenAI's Responses API `web_search` tool — Bing-grounded, reaching Google Patents/USPTO/EPO and general engineering sources, billed per call (~$0.014/search) on the same Azure OpenAI resource already in use, no separate resource or credential needed. This replaced the old standalone Bing Search v7 dependency, which Microsoft retired in August 2025.
 - `compute_patentability` auto-detects the cutoff year (first-page copyright/publication/conference patterns, checked against citation-stripped text so a cited earlier work doesn't win) and technical features (a canonical 17-feature SDN/NFV/5G/6G/cloud-native taxonomy, matched with word-boundary + case-sensitive-acronym rules) directly from an uploaded document's real text — deterministic extraction, never a model guess — and scores in one shot whenever there's real signal to work with. Out-of-scope input (too few matched features, or a dominant classification the corpus doesn't recognize) is refused with a reason instead of returned as a diluted score.
 - Node's built-in test runner (`node --test`) — 22 tests across `backend/smoke.test.js` and `backend/fixtures.test.js`, covering the scoring engine, cutoff filtering, anti-fabrication guarantees, and acceptance criteria on 7 real fixture documents (distinct topics score distinctly, a mature/well-established technique scores lower Novelty than genuinely novel work, off-domain/nonsense input is never scored, a citation-year trap still resolves to the paper's own year).
 
@@ -101,6 +101,7 @@ confident number.
 │   ├── corpus.js              # cutoff filtering, sub-technology taxonomy, density/HHI stats
 │   ├── retrieval.js           # deterministic in-corpus BM25 prior-art search
 │   ├── literature.js          # Semantic Scholar / Crossref / arXiv / OpenAlex, all free/keyless
+│   ├── webSearch.js            # real general-web/patent-office search (Azure OpenAI Responses API)
 │   ├── scoring.js             # four-factor POS formula
 │   ├── patentability.js       # request orchestration, auto-detection, out-of-scope gate
 │   ├── features.js            # canonical feature taxonomy, keyword/cutoff-year extraction
@@ -135,11 +136,13 @@ chat widget end to end.
 
 ## Known limitations (disclosed honestly, not hidden)
 
-- **Patent-office / Google Patents / IEEE full-text web search** is not available on this
-  deployment (the standalone API it would have depended on was retired by its provider). Patent
-  prior art comes from the backend's own deterministic search over the internal 2,799-patent
-  corpus instead. Academic literature search (Semantic Scholar/Crossref/arXiv/OpenAlex) works
-  fully without any key.
+- **Patent-office / Google Patents / general-web search** is real (via `search_prior_art`'s
+  `webSearch.js`, Bing-grounded through Azure OpenAI's Responses API), but is informational only
+  — it supports the model's prose citations and is never used to compute the Novelty score.
+  The Novelty score itself always comes from the backend's own deterministic search over the
+  internal 2,799-patent corpus (`retrieval.js`), never from the model's web findings. IEEE Xplore
+  specifically isn't directly integrated (it requires an institutional API key with separate
+  approval); Crossref surfaces many IEEE-indexed papers by DOI as a partial substitute.
 - **Regional factor's family-gap term** is an approximation (jurisdiction presence in the
   matched-feature set, not true patent-family linkage — the corpus has no family ID) and is
   disclosed as such in the score's own note text, not just here.

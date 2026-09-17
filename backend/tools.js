@@ -4,15 +4,18 @@
 //   prior-art retrieval, real per-year literature counts, and the four-factor score all run
 //   here with no external credentials needed (see scoring.js). This is what keeps "backend
 //   decides, AI only explains" true.
-// - search_prior_art: web search for related academic literature (Semantic Scholar +
-//   Crossref + arXiv — all free/keyless, queried in parallel via literature.js). Patent-office
-//   / Google Patents / IEEE full-text web search is NOT available on this deployment: the
-//   standalone Bing Search v7 API this used to depend on was retired by Microsoft (Aug 2025),
-//   so that path has been removed rather than left silently dead. In-corpus retrieval
-//   (compute_patentability's own prior_art[], via retrieval.js) is the primary prior-art
-//   source; this tool only ever returns literature, and says so.
+// - search_prior_art: real academic literature (Semantic Scholar + Crossref + arXiv — all
+//   free/keyless, via literature.js) PLUS real general-web/patent-office search (Google
+//   Patents, USPTO, etc.) via webSearch.js's Azure OpenAI Responses API `web_search` tool.
+//   The old standalone Bing Search v7 dependency was retired by Microsoft (Aug 2025) and
+//   removed rather than left silently dead; `web_search` on the Responses API is the real
+//   replacement — same Azure OpenAI resource, same api-key, no new resource needed. Web
+//   results are informational only (for the model to cite in prose) and never feed
+//   computeScore() — in-corpus retrieval (compute_patentability's own prior_art[], via
+//   retrieval.js) remains the sole, backend-controlled source for the Novelty score itself.
 const { handlePatentabilityRequest } = require("./patentability");
 const literature = require("./literature");
+const webSearch = require("./webSearch");
 
 const TOOL_DEFINITIONS = [
   {
@@ -48,7 +51,7 @@ const TOOL_DEFINITIONS = [
     function: {
       name: "search_prior_art",
       description:
-        "Searches Semantic Scholar, Crossref, and arXiv for related academic literature published on/before the cutoff date. Does NOT search patent offices or the general web (no such source is configured on this deployment) — for prior-art patents, rely on compute_patentability's own prior_art[] (in-corpus retrieval). Never invent results beyond what this returns.",
+        "Searches Semantic Scholar, Crossref, and arXiv for related academic literature, AND searches the general public web (including patent offices and Google Patents) for supporting/prior-art context — both restricted to on/before the cutoff date where possible. For the Novelty score's own prior-art comparison, still rely on compute_patentability's own prior_art[] (in-corpus retrieval, backend-verified matched_features) — treat this tool's web results as supporting citations only, never as a replacement for that backend comparison. Never invent results beyond what this returns.",
       parameters: {
         type: "object",
         properties: {
@@ -70,14 +73,18 @@ async function executeTool(name, args) {
     const { query, cutoff_date: cutoffDate } = args || {};
     if (!query) return { error: "Missing query." };
     const cutoffYear = cutoffDate ? Number(String(cutoffDate).slice(0, 4)) : undefined;
-    const { literature: results, notes } = await literature.searchLiteratureAllSources(query, { cutoffYear, cutoffDate });
+    const [litResult, webResult] = await Promise.all([
+      literature.searchLiteratureAllSources(query, { cutoffYear, cutoffDate }),
+      webSearch.searchWeb(query, { cutoffDate }),
+    ]);
+    const notes = [...litResult.notes];
+    if (webResult.note) notes.push(webResult.note);
     return {
       query,
-      literature: results,
-      notes: [
-        ...notes,
-        "Patent-office/Google Patents/IEEE web search is not configured on this deployment — only the internal patent corpus (via compute_patentability) and the literature sources above are searchable. Report this limitation honestly rather than guessing patent numbers or claiming a broader search happened.",
-      ],
+      literature: litResult.literature,
+      web: webResult.results,
+      web_summary: webResult.summary || undefined,
+      notes,
     };
   }
 

@@ -63,7 +63,7 @@ Don't stop after a short partial answer waiting for "want more?" — in the same
 5. If insufficient_evidence is true (2+ factors fell back to a neutral value), say plainly that this is a partial/low-confidence estimate rather than presenting it as a confident headline number.
 
 ▍Stage 2 — Comparison against prior art / literature
-1. compute_patentability's own prior_art[] (in-corpus BM25 retrieval, publication_date <= cutoff) is the primary prior-art source — cite it directly, with matched_features already computed by the backend (don't recompute or second-guess the overlap). Use search_prior_art (Semantic Scholar/Crossref/arXiv) for supporting literature, always respecting the cutoff.
+1. compute_patentability's own prior_art[] (in-corpus BM25 retrieval, publication_date <= cutoff) is the primary prior-art source — cite it directly, with matched_features already computed by the backend (don't recompute or second-guess the overlap). Use search_prior_art (Semantic Scholar/Crossref/arXiv for literature, plus a real general-web/patent-office search in its 'web'/'web_summary' fields — e.g. Google Patents) for supporting citations, always respecting the cutoff. Web results support the discussion; they never override or get merged into the backend's own prior_art[] comparison.
 2. Produce a "Feature comparison" table: rows = this case's features F1…Fn; columns = this case, prior art 1, prior art 2…; each cell "Yes/No/Partial"; a final "Verdict" column using only: Same, Partial overlap, Unique to this case, Unique to prior art.
 3. Below the table, three sentences: which features are unique to this case (a possible novelty angle), which prior art overlaps most, and what to ask a patent attorney.
 4. If literature is available, add a literature table: title, year, features discussed, relationship to this case (disclosed / partially discussed / not addressed).
@@ -147,7 +147,7 @@ B. 使用者上傳模式：後端直接從真實文件內容偵測基準年與�
 四個子分數：Novelty（權重 0.40）、Crowding（權重 0.25）、Temporal（權重 0.20）、Regional（權重 0.15），數值全部來自 breakdown，不得自行改算。insufficient_evidence 為 true 時要明講這是低信心度的部分估計。
 
 ▍Stage 2｜前案／文獻比對
-compute_patentability 的 prior_art[]（語料庫內 BM25 檢索，backend 已算好 matched_features）為主要前案來源；search_prior_art 補充文獻。技術特徵差異比對表：本案 vs 前案，判定只用「相同／部分重疊／本案獨有／前案獨有」。
+compute_patentability 的 prior_art[]（語料庫內 BM25 檢索，backend 已算好 matched_features）為主要前案來源；search_prior_art 補充文獻與真實的一般網路／專利局搜尋結果（'web'/'web_summary'，例如 Google Patents）。網路結果只能補充討論，不能取代或併入後端自己的 prior_art[] 比對。技術特徵差異比對表：本案 vs 前案，判定只用「相同／部分重疊／本案獨有／前案獨有」。
 
 ▍Stage 3｜白地機會
 技術組合白地表，欄位直接照抄 combination_whitespace，不得自行估算。

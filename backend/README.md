@@ -46,12 +46,19 @@ only call `compute_patentability` and relay what comes back.
   uploaded document text straight from the request body and overrides whatever the model passed
   as the `text` argument, rather than trusting the model to relay a large block of text into a
   function-call argument verbatim.
-- **`search_prior_art`** — literature search queries **Semantic Scholar + Crossref + arXiv** in
-  parallel (`Promise.allSettled`, so one source failing doesn't blank the others) — all free,
-  keyless, no registration. There is no patent-office/Google-Patents/general-web search on this
-  deployment: it used to depend on standalone Bing Search v7, which Microsoft retired in August
-  2025, so that dead code path has been removed rather than left silently failing. Patent prior
-  art comes from `compute_patentability`'s own in-corpus retrieval instead.
+- **`search_prior_art`** — queries **Semantic Scholar + Crossref + arXiv** in parallel
+  (`Promise.allSettled`, so one source failing doesn't blank the others) for literature — all
+  free, keyless, no registration — **plus a real general-web/patent-office search** (`webSearch.js`)
+  via Azure OpenAI's Responses API `web_search` tool (Bing-grounded), which can reach Google
+  Patents, USPTO, EPO, and general engineering sources. This replaces the old standalone Bing
+  Search v7 dependency (retired by Microsoft in August 2025, removed rather than left silently
+  failing) with its real, current successor — no new Azure resource, no Entra ID: it's a second,
+  isolated call to the *same* Azure OpenAI resource's `/openai/v1/responses` endpoint using the
+  *same* `AZURE_OPENAI_API_KEY`. Costs ~$0.014 per web search call (billed as "Grounding with
+  Bing Search" on the Azure invoice) — negligible next to the per-analysis token cost. Web
+  results are informational only (for the model to cite in prose); they never feed
+  `computeScore()` — in-corpus retrieval (`compute_patentability`'s own `prior_art[]`, via
+  `retrieval.js`) remains the sole, backend-controlled source for the Novelty score itself.
 
 `server.js` also keyword-detects whether the latest user turn is asking about POS/scoring vs.
 white-space specifically, and for the white-space case renders the technology-combination table
