@@ -2,6 +2,20 @@
 // for this deployment (international track — see DEFAULT_LANG in server.js); Chinese is kept
 // for local/demo use. Never mix languages inside one string — callers pick the whole table via
 // t(lang) and read from it, so a string can't drift out of sync in only one language.
+// English ordinal suffix (1st/2nd/3rd/4th, with the 11th/12th/13th exception) — used so a
+// percentile like 83 renders as "83rd", not the grammatically wrong "83th" a plain template
+// literal would produce.
+function ordinal(n) {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+
 const STRINGS = {
   en: {
     grade: { high: "High", medium: "Medium", low: "Low" },
@@ -23,7 +37,7 @@ const STRINGS = {
       formula:
         "Crowding = 1 − percentile rank of (patents before the cutoff matching ≥2 of the case's features) among the hit-counts of every pairwise combination of known technical features.",
       note: (hits, percentile, nPairs) =>
-        `${hits} patents before the cutoff match at least 2 of this case's features — that places this combination at the ${percentile}th percentile of crowdedness among ${nPairs} known feature-pair combinations (higher percentile = more crowded, lower score).`,
+        `${hits} patents before the cutoff match at least 2 of this case's features — that places this combination at the ${ordinal(percentile)} percentile of crowdedness among ${nPairs} known feature-pair combinations (higher percentile = more crowded, lower score).`,
     },
     regional: {
       note: (target, targetHits, gapTerm, concentrationNote) =>

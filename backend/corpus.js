@@ -14,6 +14,30 @@ const path = require("path");
 const CORPUS_PATH = path.join(__dirname, "data", "patents.json");
 const SUBTECH_COUNT = 12; // matches the "12 子技術" language in the spec; see deriveSubtechGroups()
 
+// Curated IPC main-group labels (real WIPO IPC classification scope, paraphrased) for the
+// corpus's most frequent groups — grounded in an external, checkable standard instead of the
+// TF-IDF title-word extraction in buildLabels() below, which produces awkward, made-up-
+// sounding phrases (e.g. "Assurance Conflict") for the same groups that read as fabricated to
+// anyone unfamiliar with how they were generated (a real complaint this project got once
+// already, for the same labels reaching the frontend's default White-Space matrix — see
+// WS_IPC_LABELS in script.js, which this mirrors). Used by representativeLabel() below so
+// every consumer of combination_whitespace (the /api/chat table, the raw /api/patentability
+// response, and the frontend) gets the same honest label from one place.
+const CURATED_IPC_LABELS = {
+  "H04L 12": "Data Switching Networks",
+  "H04L 45": "Routing & Path Selection",
+  "H04L 41": "Network Management",
+  "H04L 29": "Network Protocol Control",
+  "H04L 47": "Traffic Control & QoS",
+  "H04W 48": "Network Access Selection",
+  "G06F 15": "Computing Systems",
+  "G06F 9": "Virtualization & Scheduling",
+  "H04L 9": "Network Security",
+  "H04W 28": "Wireless Resource Management",
+  "H04W 24": "Wireless Monitoring & Testing",
+  "H04W 4": "Wireless Network Services",
+};
+
 let _cache = null;
 
 function loadRawCorpus() {
@@ -229,7 +253,7 @@ function buildLabels() {
   return labels;
 }
 function representativeLabel(group) {
-  return buildLabels().get(group) || `IPC ${group}`;
+  return CURATED_IPC_LABELS[group] || buildLabels().get(group) || `IPC ${group}`;
 }
 
 // Which subtech groups a patent actually touches — every one of its IPC codes' main groups
