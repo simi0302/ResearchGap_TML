@@ -40,41 +40,63 @@ function handlePatentabilityRequest(body) {
     return scoreWithFeatures({ body, cutoffDate, cutoffYear, feats, caseId: patentId });
   }
 
-  // upload mode
+  // upload mode. 2026-09-17: previously this always stopped and asked the user to
+  // confirm the cutoff year, then stopped again to confirm the feature list — two
+  // required round trips before any analysis appeared. User feedback: "不需要使用者
+  // 分次回應，就一次產出長篇分析就好啊" (don't make the user respond in stages, just
+  // produce one rich analysis in one go). Now: auto-detect and proceed straight to a
+  // score whenever the real document text gives *any* signal (still fully
+  // deterministic/reproducible from the real text — see features.pickCutoffYear /
+  // extractFeatures — never a model guess); only stop and ask when detection is truly
+  // empty (no year mentioned anywhere, or zero known vocabulary matched), since there's
+  // nothing real to auto-pick in that case. Every auto-picked value is flagged
+  // (auto_detected_cutoff_year / auto_detected_features) so the caller can disclose it
+  // and the user can still correct it — 基準日鐵律 stays intact, it just isn't a
+  // blocking round trip when the document already answers the question.
   const text = body.text || "";
   let cutoffYear = body.publication_year;
+  let autoDetectedCutoffYear = false;
   if (!cutoffYear) {
-    const candidates = features.suggestPublicationYears(text);
-    return {
-      needs_confirmation: "cutoff_year",
-      candidates,
-      message: candidates.length
-        ? `從文字中偵測到可能年份：${candidates.join("、")}，請使用者確認發表年以設定基準日。`
-        : "無法從文字中偵測到年份，請使用者提供發表年以設定基準日。",
-    };
+    const picked = features.pickCutoffYear(text);
+    if (picked === null) {
+      return {
+        needs_confirmation: "cutoff_year",
+        candidates: [],
+        message: "無法從文字中偵測到年份，請使用者提供發表年以設定基準日。",
+      };
+    }
+    cutoffYear = picked;
+    autoDetectedCutoffYear = true;
   }
   cutoffYear = Number(cutoffYear);
   const cutoffDate = toCutoffDateFromYear(cutoffYear);
+  const yearCandidates = features.suggestPublicationYears(text);
 
   let feats = body.features;
+  let autoDetectedFeatures = false;
   if (!feats || feats.length === 0) {
     const extracted = features.extractFeatures(text);
     if (extracted.length === 0) {
       return {
         needs_confirmation: "features",
+        cutoff_year: cutoffYear,
+        cutoff_date: cutoffDate,
+        auto_detected_cutoff_year: autoDetectedCutoffYear,
+        year_candidates: yearCandidates,
         message: "後端無法從文字中拆解出任何已知技術特徵關鍵字，請使用者補充技術特徵描述。",
       };
     }
-    return {
-      needs_confirmation: "features",
-      cutoff_year: cutoffYear,
-      cutoff_date: cutoffDate,
-      extracted_features: extracted,
-      message: "以下為後端以關鍵字比對拆解出的技術特徵（含資料支持度 support = 語料庫中同時出現該詞的專利數），請使用者確認或修正後再評分。",
-    };
+    feats = extracted;
+    autoDetectedFeatures = true;
   }
 
-  return scoreWithFeatures({ body, cutoffDate, cutoffYear, feats, caseId: body.case_id || `U-${Date.now()}` });
+  const result = scoreWithFeatures({ body, cutoffDate, cutoffYear, feats, caseId: body.case_id || `U-${Date.now()}` });
+  return {
+    ...result,
+    auto_detected_cutoff_year: autoDetectedCutoffYear,
+    year_candidates: autoDetectedCutoffYear ? yearCandidates : undefined,
+    auto_detected_features: autoDetectedFeatures,
+  };
 }
 
 function scoreWithFeatures({ body, cutoffDate, cutoffYear, feats, caseId }) {

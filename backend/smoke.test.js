@@ -10,15 +10,37 @@ test("upload mode without a year asks for cutoff confirmation first (Stage 0)", 
   assert.equal(r.score, undefined);
 });
 
-test("upload mode with a year but no features asks for feature confirmation before scoring", () => {
+test("upload mode with a year but no features auto-extracts features and scores in one shot", () => {
   const r = handlePatentabilityRequest({
     mode: "upload",
     publication_year: 2022,
     text: "An intent-based SDN controller for network slicing orchestration.",
   });
+  assert.equal(r.needs_confirmation, undefined);
+  assert.equal(r.auto_detected_features, true);
+  assert.ok(Array.isArray(r.features) && r.features.length > 0);
+  assert.ok(r.score >= 0 && r.score <= 100);
+});
+
+test("upload mode with text but no vocabulary match still asks for features (nothing real to auto-pick)", () => {
+  const r = handlePatentabilityRequest({
+    mode: "upload",
+    publication_year: 2022,
+    text: "This paper is about baking sourdough bread.",
+  });
   assert.equal(r.needs_confirmation, "features");
-  assert.ok(Array.isArray(r.extracted_features) && r.extracted_features.length > 0);
   assert.equal(r.score, undefined);
+});
+
+test("upload mode auto-detects the cutoff year from real text and flags it as auto-detected", () => {
+  const r = handlePatentabilityRequest({
+    mode: "upload",
+    text: "Published in 2021. Published in 2021. This paper (cf. a 2015 survey) proposes an SDN controller for network slicing.",
+  });
+  assert.equal(r.auto_detected_cutoff_year, true);
+  assert.equal(r.cutoff_year, 2021, "the more frequently mentioned year should win over a single citation year");
+  assert.ok(Array.isArray(r.year_candidates) && r.year_candidates.includes(2015));
+  assert.ok(r.score >= 0 && r.score <= 100);
 });
 
 test("upload mode with confirmed features returns a real POS score with all four factors", () => {

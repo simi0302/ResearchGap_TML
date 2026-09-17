@@ -90,6 +90,27 @@ app.post("/api/chat", async (req, res) => {
     return res.status(400).json({ error: "Missing message/history." });
   }
 
+  // Ground-truth override for the uploaded document's raw text (see buildCallMessages
+  // below for the same pattern applied to table formatting). script.js folds an uploaded
+  // PDF/TXT's extracted text into the user message under a fixed
+  // "----- Uploaded document: <name> -----" marker before sending it here. The
+  // compute_patentability tool's `text` parameter asks the *model* to copy that same
+  // text back out into a function-call argument — gpt-4.1-mini was observed doing this
+  // unreliably (paraphrasing or truncating it), which silently broke cutoff-year
+  // detection and feature extraction (both regex/keyword-matched against whatever `text`
+  // the model actually sent, not the real document) even though the real text was right
+  // there in the conversation. Extract it here directly from the request instead, and
+  // use it to override whatever the model passes — the backend already has the ground
+  // truth, no reason to trust a model relay for it.
+  // Search every user turn, not just the latest — the document is attached on the
+  // original upload turn, while later turns just confirm the year/features in reply.
+  let uploadedDocText = null;
+  for (const t of turns) {
+    if (t.role !== "user") continue;
+    const m = t.content.match(/-----\s*Uploaded document:.*?-----\n([\s\S]*)/);
+    if (m) uploadedDocText = m[1].trim();
+  }
+
   // Optional: caller (frontend) first calls POST /api/patentability to get real backend
   // numbers, then passes that JSON back here as `context` so the model explains/cites it
   // instead of computing or guessing its own — keeps the §③ "分工鐵律" intact end-to-end.
@@ -187,6 +208,11 @@ app.post("/api/chat", async (req, res) => {
         } catch {
           // malformed tool-call arguments — fall through with empty args, tool will
           // report the missing required fields back to the model rather than crash.
+        }
+        // See the ground-truth override comment above — always prefer the real
+        // extracted document text over whatever the model relayed into the argument.
+        if (call.function.name === "compute_patentability" && args.mode === "upload" && uploadedDocText) {
+          args.text = uploadedDocText;
         }
         let result;
         try {

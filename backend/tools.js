@@ -4,11 +4,13 @@
 // - compute_patentability: wraps patentability.js. Fully working right now — pure local
 //   computation, no external credentials needed. This is what keeps "backend decides, AI
 //   explains" true once a real model is wired up.
-// - search_prior_art: web search for prior art / related work. The Semantic Scholar half works
-//   right now with no key (their public Graph API is free and keyless). The general
-//   patents/web half needs BING_SEARCH_KEY — until that's set it returns an honest
-//   "unavailable" result instead of fabricating hits, same anti-fabrication rule as everywhere
-//   else in this backend.
+// - search_prior_art: web search for prior art / related work. The literature half works
+//   right now with no key at all — Semantic Scholar, Crossref, and arXiv are all free/keyless
+//   public APIs, queried in parallel (one failing doesn't blank the others). The
+//   patents/general-web half (Google Patents, patent office sites, IEEE Xplore full-text
+//   search) needs BING_SEARCH_KEY — until that's set it returns an honest "unavailable"
+//   result instead of fabricating hits, same anti-fabrication rule as everywhere else in
+//   this backend.
 const { handlePatentabilityRequest } = require("./patentability");
 
 const { BING_SEARCH_KEY, BING_SEARCH_ENDPOINT = "https://api.bing.microsoft.com/v7.0/search" } = process.env;
@@ -113,6 +115,48 @@ async function searchBingPatents(query, limit = 5) {
   }));
 }
 
+// Crossref: free, keyless, no registration — indexes DOI-bearing works across journals
+// and conferences (including most IEEE Xplore / ACM Digital Library papers), so this is
+// real L2 coverage beyond Semantic Scholar even without any API key configured.
+async function searchCrossref(query, limit = 5) {
+  const url = `https://api.crossref.org/works?query=${encodeURIComponent(query)}&rows=${limit}`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!res.ok) throw new Error(`Crossref ${res.status}`);
+  const data = await res.json();
+  return (data.message?.items || []).map((p) => ({
+    title: Array.isArray(p.title) ? p.title[0] : p.title || null,
+    year: p.issued?.["date-parts"]?.[0]?.[0] ?? null,
+    venue: p["container-title"]?.[0] || null,
+    url: p.URL || (p.DOI ? `https://doi.org/${p.DOI}` : null),
+    source: "Crossref",
+    tier: "L2",
+  })).filter((p) => p.title);
+}
+
+// arXiv: free, keyless, no registration — real preprints (L3, per 【來源層級】: usable
+// but must be flagged "未經審查"). Atom XML response, parsed with a small regex scan
+// rather than pulling in an XML dependency for four fields.
+async function searchArxiv(query, limit = 5) {
+  const url = `http://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(query)}&start=0&max_results=${limit}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`arXiv ${res.status}`);
+  const xml = await res.text();
+  const entries = xml.split("<entry>").slice(1);
+  return entries.map((e) => {
+    const title = e.match(/<title>([\s\S]*?)<\/title>/)?.[1]?.replace(/\s+/g, " ").trim() || null;
+    const published = e.match(/<published>(\d{4})-/)?.[1];
+    const id = e.match(/<id>([\s\S]*?)<\/id>/)?.[1]?.trim() || null;
+    return {
+      title,
+      year: published ? Number(published) : null,
+      venue: "arXiv preprint",
+      url: id,
+      source: "arXiv",
+      tier: "L3",
+    };
+  }).filter((p) => p.title);
+}
+
 async function executeTool(name, args) {
   if (name === "compute_patentability") {
     return handlePatentabilityRequest(args || {});
@@ -125,18 +169,30 @@ async function executeTool(name, args) {
     const result = { query, literature: [], patents: [], notes: [] };
 
     if (type === "literature" || type === "both") {
-      try {
-        result.literature = await searchSemanticScholar(query);
-      } catch (err) {
-        result.notes.push(`Semantic Scholar search failed: ${err.message}`);
-      }
+      // Three independent, keyless, real sources — a single source failing (rate limit,
+      // timeout) shouldn't blank out the other two. Semantic Scholar + Crossref between
+      // them cover most peer-reviewed venues (including IEEE Xplore/ACM-indexed papers
+      // via DOI), arXiv covers preprints.
+      const [ss, crossref, arxiv] = await Promise.allSettled([
+        searchSemanticScholar(query),
+        searchCrossref(query),
+        searchArxiv(query),
+      ]);
+      if (ss.status === "fulfilled") result.literature.push(...ss.value);
+      else result.notes.push(`Semantic Scholar search failed: ${ss.reason.message}`);
+      if (crossref.status === "fulfilled") result.literature.push(...crossref.value);
+      else result.notes.push(`Crossref search failed: ${crossref.reason.message}`);
+      if (arxiv.status === "fulfilled") result.literature.push(...arxiv.value);
+      else result.notes.push(`arXiv search failed: ${arxiv.reason.message}`);
     }
 
     if (type === "patents" || type === "both") {
       try {
         const patentResult = await searchBingPatents(query);
         if (patentResult && patentResult.unavailable) {
-          result.notes.push(`Patent/web search unavailable: ${patentResult.reason} Report this honestly to the user rather than guessing patent numbers.`);
+          result.notes.push(
+            `Patent/web search unavailable: ${patentResult.reason} This means live patent-office/Google Patents/IEEE web search is not configured on this deployment (needs a Bing Search API key) — only the internal 2,799-patent corpus and the literature sources above (Semantic Scholar/Crossref/arXiv) are searchable right now. Report this limitation honestly to the user rather than guessing patent numbers or claiming a broader search happened.`
+          );
         } else {
           result.patents = patentResult;
         }
