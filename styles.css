@@ -367,6 +367,24 @@ h6.chat-heading{font-size:14px;text-transform:uppercase;letter-spacing:.03em;opa
 .chat-suggestion:hover{background:var(--orange)!important;color:#fff!important;transform:translateY(-1px)}
 
 .chat-input{margin-top:auto;background:#f3ede8;border-radius:999px;display:flex;gap:4px;padding:6px;align-items:center}
+
+.backtest-panel{
+  grid-column:1/-1;background:#fff;color:var(--ink);border-radius:24px;padding:22px 26px;
+  box-shadow:0 24px 60px rgba(120,40,0,.18)
+}
+.backtest-panel h4{margin:0 0 10px;font-size:20px}
+.backtest-panel h4 span{font-size:.6em;opacity:.7;font-weight:700}
+.backtest-panel p{margin:0 0 4px;font-size:14.5px;line-height:1.55}
+.backtest-panel p.zh{opacity:.7;font-size:13px}
+.backtest-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:14px}
+.backtest-controls label{font-size:13px;font-weight:800;color:#9a6a4d}
+.backtest-controls input{width:100px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font-size:14px}
+.backtest-controls .pill-btn{margin-top:0;font-size:13.5px;padding:9px 18px}
+.backtest-status{margin-top:10px;font-size:13.5px;font-weight:700;color:#9a6a4d}
+.backtest-status.error{color:#c0392b}
+.backtest-result{margin-top:14px}
+.backtest-source{margin-top:8px!important;font-size:12.5px!important;opacity:.6}
+.backtest-source .zh{display:block;margin-top:2px}
 .chat-input input{border:0;outline:0;background:transparent;width:100%;padding:0 10px;font-size:16px}
 .chat-input button{border:0;width:44px;height:44px;flex-shrink:0;border-radius:50%;background:var(--orange);color:white;font-size:20px;cursor:pointer}
 .chat-input button:hover{background:var(--orange2)}

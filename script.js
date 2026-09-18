@@ -628,6 +628,7 @@ document.getElementById("whiteSpaceTbody").addEventListener("click", (e) => {
  * exactly as before — nothing about the current demo behavior changes until this is set.
  */
 const AGENT_API_URL = "https://researchgap-agent-api.azurewebsites.net/api/chat";
+const PATENTABILITY_API_URL = AGENT_API_URL.replace("/api/chat", "/api/patentability");
 let chatHistory = [];
 
 async function sendMessageToAgent(message, history) {
@@ -853,6 +854,103 @@ chatFile.addEventListener("change", async () => {
   }
 });
 
+/*
+ * Backtest panel: re-runs the same already-scored case's real extracted features against a
+ * different cutoff year via POST /api/patentability (mode:"upload", features + publication_year
+ * supplied directly, so the endpoint skips re-extraction and just recomputes from a different
+ * historical corpus slice). This is the backend capability the professor's 2023-vs-2020 cutoff
+ * request was already asking for — see backend/scoring.js's cutoff-filtered corpus — this panel
+ * is the missing demo-facing surface for it, no backend change needed.
+ */
+const backtestPanel = document.getElementById("backtestPanel");
+const backtestCaseLabel = document.getElementById("backtestCaseLabel");
+const backtestCaseLabelZh = document.getElementById("backtestCaseLabelZh");
+const backtestYear = document.getElementById("backtestYear");
+const backtestRun = document.getElementById("backtestRun");
+const backtestStatus = document.getElementById("backtestStatus");
+const backtestResult = document.getElementById("backtestResult");
+let lastScoredCase = null;
+
+function showBacktestPanel(scoreResult) {
+  lastScoredCase = scoreResult;
+  backtestResult.hidden = true;
+  backtestStatus.hidden = true;
+  const label = `${scoreResult.case_id} (${scoreResult.subtech_label}, cutoff ${scoreResult.cutoff_year})`;
+  const labelZh = `${scoreResult.case_id}（${scoreResult.subtech_label}，基準年 ${scoreResult.cutoff_year}）`;
+  backtestCaseLabel.textContent = label;
+  backtestCaseLabelZh.textContent = labelZh;
+  backtestYear.value = Math.max(2016, Math.min(2027, scoreResult.cutoff_year - 3));
+  backtestPanel.hidden = false;
+}
+
+function renderBacktestComparison(original, compareYear, compareResult) {
+  const rows = original.breakdown
+    .map((f, i) => {
+      const cf = compareResult.breakdown?.[i];
+      return `<tr><td>${escapeHtml(f.label)}</td><td>${f.weighted}</td><td>${cf ? cf.weighted : "—"}</td></tr>`;
+    })
+    .join("");
+  backtestResult.innerHTML = `
+    <div class="chat-table-wrap">
+      <table class="chat-table">
+        <thead><tr><th>Factor / 因子</th><th>Cutoff ${escapeHtml(String(original.cutoff_year))}</th><th>Cutoff ${escapeHtml(String(compareYear))}</th></tr></thead>
+        <tbody>
+          ${rows}
+          <tr><td><strong>POS Score</strong></td><td><strong>${original.score}</strong></td><td><strong>${compareResult.score}</strong></td></tr>
+          <tr><td><strong>Grade / 等級</strong></td><td><strong>${escapeHtml(original.grade)}</strong></td><td><strong>${escapeHtml(compareResult.grade)}</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="backtest-source">Both columns are computed live from the same real corpus, each sliced at its own cutoff date — not estimated.<span class="zh">兩欄皆由同一份真實語料庫、依各自基準日切片後即時計算，非估計值。</span></p>
+  `;
+  backtestResult.hidden = false;
+}
+
+backtestRun?.addEventListener("click", async () => {
+  if (!lastScoredCase) return;
+  const year = Number(backtestYear.value);
+  backtestResult.hidden = true;
+  backtestStatus.hidden = false;
+  if (!year || year < 2000 || year > 2100) {
+    backtestStatus.className = "backtest-status error";
+    backtestStatus.textContent = "Please enter a valid year. / 請輸入有效的年份。";
+    return;
+  }
+  backtestStatus.className = "backtest-status";
+  backtestStatus.textContent = "Recomputing against the historical corpus... / 正在用歷史語料庫重新計算……";
+  backtestRun.disabled = true;
+  try {
+    const res = await fetch(PATENTABILITY_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        mode: "upload",
+        features: lastScoredCase.features,
+        publication_year: year,
+        target_jurisdiction: lastScoredCase.target_jurisdiction,
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data) {
+      backtestStatus.className = "backtest-status error";
+      backtestStatus.textContent = data?.error || `Server returned ${res.status}. / 伺服器回傳 ${res.status}。`;
+      return;
+    }
+    if (data.needs_confirmation || data.out_of_scope || typeof data.score !== "number") {
+      backtestStatus.className = "backtest-status error";
+      backtestStatus.textContent = "Not enough real data existed by that year to score honestly. / 該年份之前的真實資料不足，無法誠實評分。";
+      return;
+    }
+    backtestStatus.hidden = true;
+    renderBacktestComparison(lastScoredCase, year, data);
+  } catch {
+    backtestStatus.className = "backtest-status error";
+    backtestStatus.textContent = "Could not reach the backend. / 無法連線到後端。";
+  } finally {
+    backtestRun.disabled = false;
+  }
+});
+
 function answerFor(text) {
   if (/sdn|nfv/i.test(text)) {
     return {
@@ -918,7 +1016,10 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
       ?.filter((c) => c.tool === "compute_patentability" && typeof c.result?.score === "number")
       .map((c) => c.result)
       .pop();
-    if (scoreResult) renderWhiteSpaceFromAnalysis(scoreResult);
+    if (scoreResult) {
+      renderWhiteSpaceFromAnalysis(scoreResult);
+      showBacktestPanel(scoreResult);
+    }
     return;
   }
 
