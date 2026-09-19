@@ -130,7 +130,10 @@ app.delete("/api/session/:id", (req, res) => {
 });
 
 app.post("/api/chat", async (req, res) => {
-  const lang = resolveLang(req.body);
+  // The website agent is English-only: ignore body.lang and DEFAULT_LANG here so neither a
+  // stray client value nor a deployed DEFAULT_LANG=zh can switch the chat (or its tool
+  // outputs) to Chinese. resolveLang() still serves the scoring endpoints above.
+  const lang = "en";
   const s = t(lang);
   if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY || !AZURE_OPENAI_DEPLOYMENT) {
     return res.status(500).json({ error: s.errors.missingAzureConfig });

@@ -7,6 +7,7 @@ const corpus = require("./corpus");
 const features = require("./features");
 const scoring = require("./scoring");
 const literature = require("./literature");
+const externalPriorArt = require("./externalPriorArt");
 const { t } = require("./i18n");
 
 const DEFAULT_LANG = process.env.DEFAULT_LANG === "zh" ? "zh" : "en";
@@ -146,7 +147,12 @@ async function scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, ca
 
   const targetJurisdiction = typeof body.target_jurisdiction === "string" ? body.target_jurisdiction.toUpperCase() : undefined;
 
+  // Backend-fetched external patents (never taken from the request body or the model) join
+  // the corpus for Novelty's prior-art search. Failure → [] and the corpus alone is used.
+  const external = await externalPriorArt.fetchExternalPatents(feats, cutoffDate);
+
   const result = scoring.computeScore({
+    externalPatents: external.patents,
     cutoffDate,
     cutoffYear,
     subtechLabel,
@@ -170,6 +176,7 @@ async function scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, ca
     insufficient_evidence: result.insufficient_evidence,
     disclaimer: result.disclaimer,
     prior_art: result.prior_art,
+    external_prior_art: { used: external.patents.map((p) => p.publication_number), count: external.patents.length, note: external.note },
     whitespace: result.whitespace,
     combination_whitespace: result.combination_whitespace,
     corpus_meta: result.corpus_meta,

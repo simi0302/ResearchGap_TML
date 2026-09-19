@@ -8,11 +8,12 @@
 // a single, separate POST to a DIFFERENT endpoint path (/openai/v1/responses instead of
 // /openai/deployments/.../chat/completions) on the SAME Azure OpenAI resource, using the
 // SAME api-key — no new Azure resource, no Entra ID, no Foundry project/connection. Kept
-// out of the deterministic score entirely (see scoring.js/retrieval.js): results here are
-// informational only, surfaced through search_prior_art for the model to cite in prose,
-// exactly like the existing Semantic Scholar/Crossref/arXiv literature results — never fed
-// into computeScore(). That boundary is what keeps "the backend decides the number" true
-// even though this specific source's relevance judgment does come from the model.
+// out of the deterministic score: the model's text/summary here is informational only,
+// surfaced through search_prior_art for the model to cite in prose — never fed into
+// computeScore(). The one scoring use is externalPriorArt.js, which takes only candidate
+// patent numbers/URLs from these results and verifies every one by fetching the page itself;
+// nothing the model says about a patent is trusted. That boundary is what keeps "the backend
+// decides the number" true even though this source's relevance judgment comes from the model.
 const AZURE_OPENAI_ENDPOINT = process.env.AZURE_OPENAI_ENDPOINT;
 const AZURE_OPENAI_API_KEY = process.env.AZURE_OPENAI_API_KEY;
 const AZURE_OPENAI_DEPLOYMENT = process.env.AZURE_OPENAI_DEPLOYMENT;

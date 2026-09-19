@@ -21,16 +21,17 @@ function tokenize(text) {
   return (String(text || "").toLowerCase().match(/[a-z][a-z0-9-]{2,}/g) || []).filter((t) => !STOPWORDS.has(t));
 }
 
+function vectorize(p) {
+  const tokens = tokenize(`${p.title} ${p.abstract}`);
+  const tf = new Map();
+  for (const t of tokens) tf.set(t, (tf.get(t) || 0) + 1);
+  return { patent: p, tf, len: tokens.length };
+}
+
 let _docVectors = null;
 function buildDocVectors() {
   if (_docVectors) return _docVectors;
-  const all = corpus.loadRawCorpus();
-  _docVectors = all.map((p) => {
-    const tokens = tokenize(`${p.title} ${p.abstract}`);
-    const tf = new Map();
-    for (const t of tokens) tf.set(t, (tf.get(t) || 0) + 1);
-    return { patent: p, tf, len: tokens.length };
-  });
+  _docVectors = corpus.loadRawCorpus().map(vectorize);
   return _docVectors;
 }
 
@@ -40,8 +41,8 @@ const BM25_B = 0.75;
 // Okapi BM25 over the cutoff-filtered subset, with IDF recomputed within that subset (not
 // the whole corpus) — a term's rarity should be judged against what was actually public
 // as-of the cutoff, not against patents that didn't exist yet.
-function bm25Search(queryTokens, cutoffDate, limit = 5) {
-  const all = buildDocVectors();
+function bm25Search(queryTokens, cutoffDate, limit = 5, extraPatents = []) {
+  const all = extraPatents.length ? [...buildDocVectors(), ...extraPatents.map(vectorize)] : buildDocVectors();
   const subset = cutoffDate ? all.filter((d) => d.patent.publication_date && d.patent.publication_date <= cutoffDate) : all;
   const N = subset.length;
   if (N === 0 || queryTokens.length === 0) return [];
@@ -103,12 +104,15 @@ function matchedFeatureIdsForPatent(patent, caseFeatures) {
 // highest similarity first. Empty array (not an error) when nothing matches at all —
 // caller (scoring.js) is responsible for falling back to the neutral Novelty value and
 // flagging is_fallback in that case.
-function searchPriorArt(caseFeatures, cutoffDate, limit = 5) {
+// extraPatents: backend-fetched external patents (externalPriorArt.js), searched together
+// with the corpus. Each result carries source: "corpus" | "external".
+function searchPriorArt(caseFeatures, cutoffDate, limit = 5, extraPatents = []) {
   const queryTokens = queryTokensForFeatures(caseFeatures);
-  const hits = bm25Search(queryTokens, cutoffDate, limit);
+  const hits = bm25Search(queryTokens, cutoffDate, limit, extraPatents);
   return hits.map((h) => ({
     patent_no: h.patent.publication_number,
     title: h.patent.title,
+    source: h.patent.source === "external" ? "external" : "corpus",
     year: h.patent.publication_date ? Number(String(h.patent.publication_date).slice(0, 4)) : null,
     jurisdiction: h.patent.jurisdiction,
     similarity: Math.round(h.similarity * 1000) / 1000,

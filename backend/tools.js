@@ -10,9 +10,10 @@
 //   The old standalone Bing Search v7 dependency was retired by Microsoft (Aug 2025) and
 //   removed rather than left silently dead; `web_search` on the Responses API is the real
 //   replacement — same Azure OpenAI resource, same api-key, no new resource needed. Web
-//   results are informational only (for the model to cite in prose) and never feed
-//   computeScore() — in-corpus retrieval (compute_patentability's own prior_art[], via
-//   retrieval.js) remains the sole, backend-controlled source for the Novelty score itself.
+//   results are informational only (for the model to cite in prose); the model's words never
+//   feed computeScore(). Separately, externalPriorArt.js re-uses the web search purely to find
+//   candidate patent numbers, then fetches/parses/date-checks each page itself, so verified
+//   external patents join the corpus for Novelty — backend-controlled end to end.
 const { handlePatentabilityRequest } = require("./patentability");
 const literature = require("./literature");
 const webSearch = require("./webSearch");
@@ -51,7 +52,7 @@ const TOOL_DEFINITIONS = [
     function: {
       name: "search_prior_art",
       description:
-        "Searches Semantic Scholar, Crossref, and arXiv for related academic literature, AND searches the general public web (including patent offices and Google Patents) for supporting/prior-art context — both restricted to on/before the cutoff date where possible. For the Novelty score's own prior-art comparison, still rely on compute_patentability's own prior_art[] (in-corpus retrieval, backend-verified matched_features) — treat this tool's web results as supporting citations only, never as a replacement for that backend comparison. Never invent results beyond what this returns.",
+        "Searches Semantic Scholar, Crossref, and arXiv for related academic literature, AND searches the general public web (including patent offices and Google Patents) for supporting/prior-art context — both restricted to on/before the cutoff date where possible. For the Novelty score's own prior-art comparison, still rely on compute_patentability's own prior_art[] (in-corpus retrieval, backend-verified matched_features) — treat this tool's web results as supporting citations only, never as a replacement for that backend comparison (the backend separately finds, fetches and verifies external patents itself for Novelty — they appear in compute_patentability's prior_art[] with source: 'external'). Never invent results beyond what this returns.",
       parameters: {
         type: "object",
         properties: {

@@ -136,11 +136,17 @@ chat widget end to end.
 
 ## Known limitations (disclosed honestly, not hidden)
 
-- **Patent-office / Google Patents / general-web search** is real (via `search_prior_art`'s
-  `webSearch.js`, Bing-grounded through Azure OpenAI's Responses API), but is informational only
-  — it supports the model's prose citations and is never used to compute the Novelty score.
-  The Novelty score itself always comes from the backend's own deterministic search over the
-  internal 2,799-patent corpus (`retrieval.js`), never from the model's web findings. IEEE Xplore
+- **External patents count toward Novelty — through the backend, not the model.**
+  `externalPriorArt.js` uses the web search only to find candidate patent numbers, then fetches
+  each Google Patents page itself, parses title / publication date / abstract, drops anything
+  after the cutoff or already in the corpus, and runs the same BM25 + feature matching over
+  corpus + external patents together (`prior_art[].source` = `corpus` | `external`). A
+  hallucinated number 404s and is dropped. Only Novelty uses external patents; Crowding,
+  Temporal, Regional and white-space stay on the fixed 2,799-patent corpus. Trade-offs: external
+  lookups can vary between runs (cached per process), depend on Google Patents' page layout
+  (on failure the score falls back to the corpus alone, with a note), and pages without
+  abstract text are skipped. Raw web results shown by `search_prior_art` remain prose-only
+  citations. IEEE Xplore
   specifically isn't directly integrated (it requires an institutional API key with separate
   approval); Crossref surfaces many IEEE-indexed papers by DOI as a partial substitute.
 - **Regional factor's family-gap term** is an approximation (jurisdiction presence in the
