@@ -7,6 +7,9 @@
   <meta name="theme-color" content="#ff5a00" />
   <title>ResearchGap | Patent &amp; Literature White-Space Analysis Platform</title>
 
+  <!-- No inline scripts, event handlers or third-party origins beyond the pinned pdf.js build and the API. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com; worker-src blob: https://cdnjs.cloudflare.com; connect-src 'self' https://researchgap-agent-api.azurewebsites.net https://cdnjs.cloudflare.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" href="logo.png" type="image/png" />
   <link rel="apple-touch-icon" href="logo.png" />
 
@@ -331,12 +334,6 @@
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script>
-    // Classic (non-module) build: sets window.pdfjsLib itself, no import juggling. Verified
-    // end-to-end in a real (non-headless-automation) browser session before picking this
-    // version — see script.js's extractPdfText().
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
-  </script>
   <script src="script.js"></script>
 </body>
 </html>

@@ -1,3 +1,7 @@
+if (window.pdfjsLib) {
+  // Kept here (not as an inline <script>) so the page can run under a strict Content-Security-Policy.
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+}
 const menuBtn = document.getElementById("menuBtn");
 // scoped to the hero topbar specifically — the sticky site-nav header also has a
 // ".nav", and it comes first in document order, so an unscoped ".nav" query here
@@ -399,7 +403,7 @@ function renderComboRows(rows) {
     return `
       <tr class="${row.status === "gap" ? "gap-row" : ""}">
         <td>${combo}</td>
-        <td>${row.count.toLocaleString()}</td>
+        <td>${(Number(row.count) || 0).toLocaleString()}</td>
         <td><span class="status-badge ${row.status === "gap" ? "gap" : row.status === "crowded" ? "dense" : "medium"}">${label.en} <span class="zh">${label.zh}</span></span></td>
         <td>${evidenceCell}</td>
       </tr>
@@ -939,7 +943,7 @@ function renderBacktestComparison(original, compareYear, compareResult) {
   const rows = original.breakdown
     .map((f, i) => {
       const cf = compareResult.breakdown?.[i];
-      return `<tr><td>${escapeHtml(f.label)}</td><td>${f.weighted}</td><td>${cf ? cf.weighted : "—"}</td></tr>`;
+      return `<tr><td>${escapeHtml(String(f.label))}</td><td>${escapeHtml(String(f.weighted))}</td><td>${cf ? escapeHtml(String(cf.weighted)) : "—"}</td></tr>`;
     })
     .join("");
   backtestResult.innerHTML = `
@@ -948,8 +952,8 @@ function renderBacktestComparison(original, compareYear, compareResult) {
         <thead><tr><th>Factor / 因子</th><th>Cutoff ${escapeHtml(String(original.cutoff_year))}</th><th>Cutoff ${escapeHtml(String(compareYear))}</th></tr></thead>
         <tbody>
           ${rows}
-          <tr><td><strong>POS Score</strong></td><td><strong>${original.score}</strong></td><td><strong>${compareResult.score}</strong></td></tr>
-          <tr><td><strong>Grade / 等級</strong></td><td><strong>${escapeHtml(original.grade)}</strong></td><td><strong>${escapeHtml(compareResult.grade)}</strong></td></tr>
+          <tr><td><strong>POS Score</strong></td><td><strong>${escapeHtml(String(original.score))}</strong></td><td><strong>${escapeHtml(String(compareResult.score))}</strong></td></tr>
+          <tr><td><strong>Grade / 等級</strong></td><td><strong>${escapeHtml(String(original.grade))}</strong></td><td><strong>${escapeHtml(String(compareResult.grade))}</strong></td></tr>
         </tbody>
       </table>
     </div>
@@ -1118,3 +1122,14 @@ document.querySelectorAll(".chat-suggestion").forEach(btn => {
     document.getElementById("chatForm").requestSubmit();
   });
 });
+
+// The long bilingual placeholder is cut off after "技術、" on a phone-width search bar; use a short one there.
+{
+  const kw = document.getElementById("keyword");
+  const narrow = window.matchMedia("(max-width: 520px)");
+  const setPlaceholder = () => {
+    kw.placeholder = narrow.matches ? "Search patents / 搜尋專利" : "Technology, field, or keyword / 技術、領域或關鍵字";
+  };
+  setPlaceholder();
+  narrow.addEventListener?.("change", setPlaceholder);
+}

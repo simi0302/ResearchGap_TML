@@ -356,8 +356,11 @@ app.post("/api/chat", chatLimit, dailyCap, async (req, res) => {
 
     // Real token usage as reported by Azure OpenAI for this turn (summed across every
     // tool-calling round it took) — not estimated, so the UI can show real cost, not a guess.
-    res.json({ reply: finalReply, tool_calls: toolTrace, usage: usageTotal, lang });
+    res.json({ reply: security.redactPromptLeak(finalReply), tool_calls: toolTrace, usage: usageTotal, lang });
   } catch (err) {
+    if (security.isContentFilterError(err)) {
+      return res.json({ reply: security.BLOCKED_REPLY, tool_calls: [], usage: null, lang });
+    }
     console.error("Chat handler failed", err, err.detail || "");
     if (err.status) return res.status(502).json({ error: s.errors.azureError(err.status) });
     res.status(500).json({ error: s.errors.azureCallFailed });

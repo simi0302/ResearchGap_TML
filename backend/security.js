@@ -57,9 +57,42 @@ function createDailyCap({ max, now = Date.now }) {
   };
 }
 
+// The model can be talked into reciting its system prompt. There are no secrets in it, but the
+// internal rules shouldn't be handed out, and a prompt instruction alone is not a guarantee, so
+// this is checked deterministically on the way out: a reply containing several distinctive
+// prompt phrases is replaced, not trusted.
+const PROMPT_MARKERS = [
+  /Division of labor\s*[—-]\s*non-negotiable/i,
+  /Tables are mandatory for the two most common questions/i,
+  /Cutoff date\s*[—-]\s*governs everything else/i,
+  /One-shot rule/i,
+  /Source tiers\s*[—-]\s*search broadly/i,
+  /You are the ResearchGap Patent White-Space Assistant/i,
+  /你是「ResearchGap 專利白地分析助理」/,
+  /分工鐵律/,
+  /表格鐵律/,
+  /基準日鐵律/,
+];
+const PROMPT_LEAK_REPLY =
+  "I can't share my internal instructions. I can help with patentability opportunity scores, prior-art comparison and white-space analysis for SDN/NFV and network slicing — upload a paper or ask a question about one.";
+
+function redactPromptLeak(reply) {
+  const text = String(reply ?? "");
+  const hits = PROMPT_MARKERS.filter((re) => re.test(text)).length;
+  return hits >= 2 ? PROMPT_LEAK_REPLY : text;
+}
+
+// Azure's content-safety filter answers a jailbreak-style request with HTTP 400. Say so plainly.
+const BLOCKED_REPLY =
+  "I can't help with that request. I can only assist with patent white-space and patentability questions for SDN/NFV and network slicing.";
+function isContentFilterError(err) {
+  return err?.status === 400 && /content_filter|ResponsibleAIPolicyViolation|jailbreak/i.test(String(err.detail || ""));
+}
+
 // Baseline headers for a JSON-only API.
 function securityHeaders(_req, res, next) {
   res.set({
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "Cache-Control": "no-store",
@@ -82,4 +115,7 @@ function notFound(_req, res) {
   res.status(404).json({ error: "Not found." });
 }
 
-module.exports = { createRateLimiter, createDailyCap, securityHeaders, jsonErrorHandler, notFound, clientKey };
+module.exports = {
+  createRateLimiter, createDailyCap, securityHeaders, jsonErrorHandler, notFound, clientKey,
+  redactPromptLeak, isContentFilterError, BLOCKED_REPLY, PROMPT_LEAK_REPLY,
+};
