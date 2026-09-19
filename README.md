@@ -5,6 +5,8 @@ literature so researchers can gauge how crowded a technology area is and spot un
 "white-space" opportunities before committing to a research direction or patent filing.
 Pilot domain: **SDN / NFV / network slicing** (2,799 real patents).
 
+https://youtu.be/g3eITbFFzgY
+
 ---
 
 ## What's actually deployed
