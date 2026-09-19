@@ -88,6 +88,16 @@ test("if external lookup throws, scoring falls back to the corpus alone", async 
   assert.match(r.external_prior_art.note, /failed/);
 });
 
+test("buildQueries yields up to 3 distinct, narrower feature-pair queries", () => {
+  const f = (t) => ({ text: t });
+  assert.deepEqual(external.buildQueries([]), []);
+  assert.deepEqual(external.buildQueries([f("A")]), ["A"]);
+  const q = external.buildQueries([f("A"), f("B"), f("C"), f("D"), f("E")]);
+  assert.equal(q.length, 3);
+  assert.equal(new Set(q).size, 3);
+  assert.ok(q.every((s) => s.split(" ").length <= 2));
+});
+
 test("a caller-supplied external_patents / prior_art field is ignored", async () => {
   stub({});
   const r = await handlePatentabilityRequest({

@@ -482,9 +482,10 @@ footer .muted{opacity:.5;margin-left:auto}
   .gap-cards,.assistant-shell{grid-template-columns:1fr}
   .assistant-shell{gap:20px}
   .chat{min-height:480px;max-height:78vh}
-  /* the chat's send button and back-to-top both gravitate to bottom-right on a tall
-     mobile chat card — move back-to-top to the opposite corner so they never collide */
-  .back-to-top{left:20px;right:auto}
+  /* Left-corner placement covered left-aligned headings ("About ResearchGap", section
+     eyebrows). Right corner, smaller and slightly translucent, keeps clear of text; the chat
+     card's send button is inside the card, not fixed, so the two only meet briefly. */
+  .back-to-top{right:14px;left:auto;bottom:16px;width:40px;height:40px;font-size:18px;background:rgba(255,91,0,.88)}
 }
 @media(max-width:560px){
   .hero-content{width:90%}
@@ -499,4 +500,49 @@ footer .muted{opacity:.5;margin-left:auto}
   .score{width:82px;height:82px;font-size:28px}
   .section h3{letter-spacing:-1.5px}
   footer .muted{margin-left:0}
+}
+
+/* ===== UX fixes (user-perspective review) ===== */
+/* Chat score tables: keep short columns (factor, value, weight) on one line so "Regional" and
+   "0.15" don't break letter by letter; only the last (reason) column wraps. */
+.chat-table td{white-space:nowrap}
+.chat-table th{white-space:normal}
+.chat-table th:not(:last-child){min-width:76px;word-break:normal;overflow-wrap:normal}
+.chat-table th:last-child,.chat-table td:last-child{white-space:normal;min-width:160px}
+.chat-table td:first-child{font-weight:700}
+.chat-table th,.chat-table td{padding:6px 8px;font-size:13.5px}
+/* A wide table must scroll inside its own wrapper, never widen the grid column it sits in
+   (which squeezed the intro column and pushed the chat card sideways). */
+.assistant-shell>*,.chat,.chat-messages,.bubble,.bubble-content{min-width:0}
+.chat-table-wrap{max-width:100%}
+
+/* The gap card's count circle: let "patents 件專利" wrap inside the circle instead of spilling out */
+.score{width:124px;height:124px;text-align:center;padding:10px}
+.score small{display:block;max-width:92px;font-size:12px;line-height:1.2;margin-top:2px}
+@media(max-width:560px){.score{width:108px;height:108px;font-size:30px}.score small{max-width:80px}}
+
+/* Secondary-language text and the section description were too faint on the orange sections */
+.white-space .zh,.assistant .zh{opacity:.94}
+.section-head.light>p:not(.eyebrow):not(.section-note){color:#fff2ea}
+
+/* Brief pulse on the paperclip when a prompt needs an attachment first */
+.chat-upload-btn.attention{animation:attention-pulse 0.8s ease-in-out 2}
+@keyframes attention-pulse{0%,100%{box-shadow:0 0 0 0 rgba(255,91,0,.55)}50%{box-shadow:0 0 0 10px rgba(255,91,0,0)}}
+@media(prefers-reduced-motion:reduce){.chat-upload-btn.attention{animation:none;outline:3px solid var(--orange)}}
+
+/* Disabled input/send while a reply is loading */
+.chat-input input:disabled{opacity:.6;cursor:progress}
+.chat-input button:disabled{opacity:.55;cursor:progress}
+
+/* Phones: a 5-column score table can't fit a chat bubble, so each row becomes a labelled card
+   (labels come from the header cells via data-label) — no sideways scrolling to find the reason. */
+@media(max-width:600px){
+  .chat-table thead{display:none}
+  .chat-table,.chat-table tbody{display:block}
+  .chat-table tr{display:block;border:1px solid #f0d9c8;border-radius:10px;margin-bottom:8px;padding:6px 10px;background:#fffaf6}
+  .chat-table td{display:flex;gap:10px;border:0;padding:3px 0;white-space:normal!important;min-width:0!important}
+  .chat-table td::before{content:attr(data-label);flex:0 0 92px;font-weight:800;color:#9a6a4d;font-size:12.5px}
+  .chat-table td:first-child{font-size:15px;padding-bottom:4px}
+  .chat-table td:first-child::before{content:none}
+  .chat-table td:last-child{flex-direction:column;gap:2px;padding-top:4px;border-top:1px dashed #f0d9c8;margin-top:3px}
 }

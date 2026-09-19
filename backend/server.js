@@ -18,9 +18,22 @@ const {
   PORT = 8080,
 } = process.env;
 
+const security = require("./security");
+
 const app = express();
+app.disable("x-powered-by");
+app.set("trust proxy", 1); // Azure App Service front end — real client IP for rate limiting
+app.use(security.securityHeaders);
 app.use(cors({ origin: ALLOWED_ORIGIN }));
 app.use(express.json({ limit: "1mb" }));
+
+// Every route below spends Azure credit, and CORS does not stop scripts, so each is
+// rate-limited per client, and a global daily ceiling acts as a budget circuit breaker.
+const WINDOW_MS = 10 * 60 * 1000;
+const chatLimit = security.createRateLimiter({ windowMs: WINDOW_MS, max: Number(process.env.CHAT_LIMIT_PER_10MIN) || 30 });
+const scoreLimit = security.createRateLimiter({ windowMs: WINDOW_MS, max: Number(process.env.SCORE_LIMIT_PER_10MIN) || 20 });
+const sessionLimit = security.createRateLimiter({ windowMs: WINDOW_MS, max: 20 });
+const dailyCap = security.createDailyCap({ max: Number(process.env.DAILY_REQUEST_CAP) || 2000 });
 
 function resolveLang(body) {
   return body?.lang === "zh" ? "zh" : body?.lang === "en" ? "en" : DEFAULT_LANG === "zh" ? "zh" : "en";
@@ -86,7 +99,7 @@ app.get("/api/health", (_req, res) => {
 // Cutoff filtering, feature extraction, in-corpus prior-art retrieval, and the four-factor
 // patentability score are all computed here (backend), never by the model. See
 // patentability.js / scoring.js / corpus.js / features.js / retrieval.js.
-app.post("/api/patentability", async (req, res) => {
+app.post("/api/patentability", scoreLimit, dailyCap, async (req, res) => {
   const lang = resolveLang(req.body);
   try {
     const result = await handlePatentabilityRequest(req.body || {});
@@ -100,7 +113,7 @@ app.post("/api/patentability", async (req, res) => {
 
 // P1 item 9: re-rank a case under each weight ±5%/±10% and report whether grade/rank
 // changes — a small "weight sensitivity" check the frontend can show alongside the score.
-app.post("/api/sensitivity", async (req, res) => {
+app.post("/api/sensitivity", scoreLimit, dailyCap, async (req, res) => {
   const lang = resolveLang(req.body);
   try {
     const result = await handlePatentabilityRequest(req.body || {});
@@ -116,20 +129,33 @@ app.post("/api/sensitivity", async (req, res) => {
 // Session doc storage endpoints (P0-6 item 7) — the frontend uploads extracted text once
 // and gets a session id back, then references that id in later /api/chat turns instead of
 // re-sending (and risking losing) the full document text every time.
-app.post("/api/session/document", (req, res) => {
+const MAX_SESSIONS = 200;
+const MAX_SESSION_CHARS = 400_000;
+const SESSION_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+
+app.post("/api/session/document", sessionLimit, (req, res) => {
   const text = req.body?.text;
   if (typeof text !== "string" || !text.trim()) return res.status(400).json({ error: "Missing text." });
-  const sessionId = req.body?.session_id || `S-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  if (text.length > MAX_SESSION_CHARS) return res.status(413).json({ error: "Document too large." });
+  const requested = req.body?.session_id;
+  if (requested !== undefined && !(typeof requested === "string" && SESSION_ID_RE.test(requested))) {
+    return res.status(400).json({ error: "Invalid session_id." });
+  }
+  pruneSessions();
+  const sessionId = requested || `S-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  if (!sessionDocs.has(sessionId) && sessionDocs.size >= MAX_SESSIONS) {
+    return res.status(503).json({ error: "Too many active sessions. Please try again later." });
+  }
   sessionDocs.set(sessionId, { text, expires: Date.now() + SESSION_TTL_MS });
   res.json({ session_id: sessionId, chars: text.length });
 });
 
-app.delete("/api/session/:id", (req, res) => {
+app.delete("/api/session/:id", sessionLimit, (req, res) => {
   sessionDocs.delete(req.params.id);
   res.json({ ok: true });
 });
 
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat", chatLimit, dailyCap, async (req, res) => {
   // The website agent is English-only: ignore body.lang and DEFAULT_LANG here so neither a
   // stray client value nor a deployed DEFAULT_LANG=zh can switch the chat (or its tool
   // outputs) to Chinese. resolveLang() still serves the scoring endpoints above.
@@ -179,17 +205,11 @@ app.post("/api/chat", async (req, res) => {
     }
   }
 
-  // Optional: caller (frontend) first calls POST /api/patentability to get real backend
-  // numbers, then passes that JSON back here as `context` so the model explains/cites it
-  // instead of computing or guessing its own. (Also reachable mid-conversation via the
-  // compute_patentability tool below.)
+  // A client-supplied `context` object used to be injected here as a system message labelled
+  // "backend computation result". That let any caller present made-up numbers as if the
+  // backend had computed them, so it is gone: the only route to a score is the
+  // compute_patentability tool below, which the backend itself runs.
   const systemMessages = [{ role: "system", content: buildSystemPrompt(lang) }];
-  if (req.body?.context && typeof req.body.context === "object") {
-    systemMessages.push({
-      role: "system",
-      content: `[BACKEND COMPUTATION RESULT — JSON, do not alter, only cite/explain]\n${JSON.stringify(req.body.context)}`,
-    });
-  }
 
   // Per-turn table steering: gpt-4.1-mini reliably follows the systemPrompt's Stage rules
   // right after a tool call, but on a *second* question in the same conversation (e.g. a
@@ -343,6 +363,9 @@ app.post("/api/chat", async (req, res) => {
     res.status(500).json({ error: s.errors.azureCallFailed });
   }
 });
+
+app.use(security.notFound);
+app.use(security.jsonErrorHandler);
 
 app.listen(PORT, () => {
   console.log(`ResearchGap agent backend listening on :${PORT}`);

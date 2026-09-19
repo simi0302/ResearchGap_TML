@@ -15,10 +15,11 @@
 const webSearch = require("./webSearch");
 const corpus = require("./corpus");
 
-const MAX_CANDIDATES = 8;
+const MAX_CANDIDATES = 12;
 const FETCH_TIMEOUT_MS = 8000;
 const PATENT_URL_RE = /patents\.google\.com\/patent\/([A-Z]{2}[0-9A-Z]{4,}[A-Z0-9]*)/gi;
-const PATENT_NO_RE = /\b(US|EP|JP|TW|WO|CN|KR)[- ]?(\d{5,}[A-Z]?\d?)\b/g;
+const JUSTIA_URL_RE = /patents\.justia\.com\/patent\/(\d{7,8})\b/gi;
+const PATENT_NO_RE = /\b(US|EP|JP|TW|WO|CN|KR)[- ]?(\d[\d,]{4,}[A-Z]?\d?)\b/g;
 
 // Per-process cache keyed by query+cutoff so repeated scoring of the same case is stable and
 // doesn't re-hit the network within a session.
@@ -42,16 +43,36 @@ function baseNumber(n) {
   return normalizeNumber(n).replace(/[A-Z]\d?$/, "");
 }
 
-async function defaultFindCandidates(query, cutoffDate) {
-  const r = await webSearch.searchWeb(`patents: ${query}`, { cutoffDate });
+// One search per feature-combination query, in parallel: a single query built from four
+// generic feature labels rarely surfaces patents published before the cutoff, so several
+// narrower queries widen the candidate pool. Every candidate is still verified by fetching
+// the real page, so a wider pool cannot admit a fake or post-cutoff patent.
+async function defaultFindCandidates(queries, cutoffDate) {
+  const results = await Promise.all(queries.map((q) => webSearch.searchWeb(`patents: ${q}`, { cutoffDate })));
   const found = new Set();
   const scan = (text) => {
     for (const m of String(text || "").matchAll(PATENT_URL_RE)) found.add(normalizeNumber(m[1]));
+    // Justia patent pages carry the bare US number: patents.justia.com/patent/11831510
+    for (const m of String(text || "").matchAll(JUSTIA_URL_RE)) found.add("US" + m[1]);
   };
-  for (const item of r.results || []) scan(item.url);
-  scan(r.summary);
-  for (const m of String(r.summary || "").matchAll(PATENT_NO_RE)) found.add(normalizeNumber(m[1] + m[2]));
-  return { numbers: [...found].slice(0, MAX_CANDIDATES), note: r.note };
+  for (const r of results) {
+    for (const item of r.results || []) scan(item.url);
+    scan(r.summary);
+    // "US11831510B2", "US 11,831,510 B2", "EP3419246B1", "WO2023287808A1"
+    for (const m of String(r.summary || "").matchAll(PATENT_NO_RE)) found.add(normalizeNumber(m[1] + m[2].replace(/,/g, "")));
+  }
+  const note = results.map((r) => r.note).find(Boolean) || null;
+  return { numbers: [...found].slice(0, MAX_CANDIDATES), note };
+}
+
+// Up to three distinct feature-pair queries from the case's own canonical features.
+function buildQueries(caseFeatures) {
+  const labels = caseFeatures.map((f) => f.text).filter(Boolean);
+  if (labels.length === 0) return [];
+  const pairs = [];
+  for (let i = 0; i < labels.length && pairs.length < 3; i += 2) pairs.push(labels.slice(i, i + 2).join(" "));
+  if (pairs.length < 3 && labels.length >= 3) pairs.push(`${labels[0]} ${labels[2]}`);
+  return [...new Set(pairs)].slice(0, 3);
 }
 
 async function defaultFetchPage(number) {
@@ -102,14 +123,14 @@ function parsePatentPage(html, number) {
 
 // caseFeatures: features.js output. Returns { patents, note }.
 async function fetchExternalPatents(caseFeatures, cutoffDate) {
-  const query = caseFeatures.slice(0, 4).map((f) => f.text).join(" ").trim();
-  if (!query) return { patents: [], note: null };
-  const key = `${query}|${cutoffDate}`;
+  const queries = buildQueries(caseFeatures);
+  if (queries.length === 0) return { patents: [], note: null };
+  const key = `${queries.join("|")}|${cutoffDate}`;
   if (cache.has(key)) return cache.get(key);
 
   let out;
   try {
-    const { numbers, note } = await findCandidates(query, cutoffDate);
+    const { numbers, note } = await findCandidates(queries, cutoffDate);
     const known = new Set(corpus.loadRawCorpus().map((p) => baseNumber(p.publication_number)));
     const seen = new Set();
     const patents = [];
@@ -131,4 +152,4 @@ async function fetchExternalPatents(caseFeatures, cutoffDate) {
   return out;
 }
 
-module.exports = { fetchExternalPatents, parsePatentPage, baseNumber, _setNetwork };
+module.exports = { fetchExternalPatents, parsePatentPage, baseNumber, buildQueries, _setNetwork };

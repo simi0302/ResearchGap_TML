@@ -180,10 +180,12 @@ function renderResults(results, keyword) {
   if (!results.length) {
     countEl.textContent = "";
     pagination.hidden = true;
+    const shown = keyword ? `“${escapeHtml(keyword)}”` : "these filters";
     list.innerHTML = `<div class="results-empty">
-      No matching patents in the corpus — for this keyword/filter combination, that absence may
-      itself be a white-space signal worth validating.
-      <br><small>語料庫中沒有符合的專利——這個組合的「查無結果」本身，也可能是值得驗證的白地訊號。</small>
+      No patents match ${shown}. Check the spelling, try a broader keyword, or relax the year and country filters.
+      <br><small>找不到符合的專利。請檢查拼字、改用較廣的關鍵字，或放寬年份與國家條件。</small>
+      <br><small>If ${keyword ? "this is a real technology term" : "your filters are intentional"}, having no matches can itself be a white-space signal worth validating.
+      若這是真實的技術用語，「查無結果」本身也可能是值得驗證的白地訊號。</small>
     </div>`;
     return;
   }
@@ -312,6 +314,29 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
 
   const resultsWrap = document.getElementById("resultsWrap");
   resultsWrap.hidden = false;
+
+  // A reversed range can never match anything, so say that instead of implying a white space.
+  if (start && end && Number(start) > Number(end)) {
+    document.getElementById("resultsHeading").textContent = "Check the year range";
+    document.getElementById("resultsCount").textContent = "";
+    document.getElementById("resultsPagination").hidden = true;
+    document.getElementById("resultsList").innerHTML = `<div class="results-empty">
+      The start year (${escapeHtml(start)}) is later than the end year (${escapeHtml(end)}). Swap them, or clear one of the two fields.
+      <br><small>起始年份（${escapeHtml(start)}）晚於結束年份（${escapeHtml(end)}）。請對調，或清空其中一個欄位。</small>
+    </div>`;
+    document.getElementById("analysisSummary").textContent = "Enter a valid year range to search. 請輸入有效的年份範圍。";
+    return;
+  }
+  if (!patent && !paper) {
+    document.getElementById("resultsHeading").textContent = "Choose a type";
+    document.getElementById("resultsCount").textContent = "";
+    document.getElementById("resultsPagination").hidden = true;
+    document.getElementById("resultsList").innerHTML = `<div class="results-empty">
+      Select at least one type (Patent or Academic Paper) to search.
+      <br><small>請至少勾選一種類型（專利或學術文獻）。</small>
+    </div>`;
+    return;
+  }
   document.getElementById("resultsList").innerHTML =
     `<div class="results-loading">Searching the 2,799-patent corpus… <span class="zh">搜尋 2,799 筆專利語料庫中…</span></div>`;
 
@@ -638,6 +663,20 @@ async function sendMessageToAgent(message, history) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, history }),
     });
+    if (res.status === 429) {
+      return {
+        en: "You're sending requests a little too fast. Please wait a minute and try again.",
+        zh: "請求過於頻繁，請稍候一分鐘再試。",
+        usage: null, tool_calls: []
+      };
+    }
+    if (res.status === 503) {
+      return {
+        en: "The assistant has reached its usage limit for now. Please try again later.",
+        zh: "助理目前已達使用上限，請稍後再試。",
+        usage: null, tool_calls: []
+      };
+    }
     if (!res.ok) {
       return {
         en: `Assistant is temporarily unavailable (server returned ${res.status}). Please try again shortly.`,
@@ -724,7 +763,7 @@ function renderBotMarkdown(raw) {
         `<div class="chat-table-wrap"><table class="chat-table"><thead><tr>${headerCells
           .map((c) => `<th>${inlineFormat(escapeHtml(c))}</th>`)
           .join("")}</tr></thead><tbody>${bodyRows
-          .map((row) => `<tr>${row.map((c) => `<td>${inlineFormat(escapeHtml(c))}</td>`).join("")}</tr>`)
+          .map((row) => `<tr>${row.map((c, j) => `<td data-label="${escapeHtml(headerCells[j] || "")}">${inlineFormat(escapeHtml(c))}</td>`).join("")}</tr>`)
           .join("")}</tbody></table></div>`
       );
       continue;
@@ -776,6 +815,13 @@ function addBotBubble(en, zh, usage) {
     : "";
   bubble.innerHTML = `<span>RG</span><div class="bubble-content">${renderBotMarkdown(en)}${zhBlock}${usageBlock}</div>`;
   chatMessages.appendChild(bubble);
+  return bubble;
+}
+
+// Bring the START of a new reply into view. Jumping to the bottom of a long analysis lands the
+// reader on the references/disclaimer and hides the conclusion and table they asked for.
+function scrollToBubbleStart(bubble) {
+  chatMessages.scrollTop += bubble.getBoundingClientRect().top - chatMessages.getBoundingClientRect().top - 8;
 }
 
 function addTypingBubble() {
@@ -794,6 +840,7 @@ function addTypingBubble() {
  */
 const MAX_ATTACHMENT_CHARS = 12000;
 const MAX_PDF_PAGES = 40;
+const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 let attachedDocText = "";
 let attachedDocName = "";
 
@@ -805,7 +852,9 @@ const chatAttachmentRemove = document.getElementById("chatAttachmentRemove");
 async function extractPdfText(file) {
   if (!window.pdfjsLib) throw new Error("PDF reader is still loading, please try again in a moment");
   const buf = await file.arrayBuffer();
-  const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
+  // isEvalSupported:false is the official mitigation for CVE-2024-4367 (pdf.js < 4.2.67
+  // could run script from a crafted PDF font) — this build is 3.11.174, so it must stay off.
+  const pdf = await window.pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
   const pageCount = Math.min(pdf.numPages, MAX_PDF_PAGES);
   const parts = [];
   for (let i = 1; i <= pageCount; i++) {
@@ -834,6 +883,7 @@ chatFile.addEventListener("change", async () => {
   chatAttachmentName.textContent = `Reading ${file.name}...`;
 
   try {
+    if (file.size > MAX_UPLOAD_BYTES) throw new Error(`file is larger than ${MAX_UPLOAD_BYTES / 1024 / 1024} MB`);
     const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
     const rawText = isPdf ? await extractPdfText(file) : await file.text();
     const text = rawText.replace(/\s+/g, " ").trim();
@@ -846,7 +896,9 @@ chatFile.addEventListener("change", async () => {
     const suspicious = isPdf && text.length < 200;
     chatAttachmentName.textContent = suspicious
       ? `${file.name}: only ${text.length} characters extracted — this may be a scanned PDF with no text layer; try pasting the text directly instead`
-      : `${file.name} (${text.length.toLocaleString()} characters extracted)`;
+      : text.length > MAX_ATTACHMENT_CHARS
+        ? `${file.name} (${text.length.toLocaleString()} characters — the first ${MAX_ATTACHMENT_CHARS.toLocaleString()} will be analyzed)`
+        : `${file.name} (${text.length.toLocaleString()} characters extracted)`;
   } catch (err) {
     attachedDocText = "";
     attachedDocName = "";
@@ -976,8 +1028,20 @@ function answerFor(text) {
   };
 }
 
+// True while a request is in flight: a second submit would start a parallel analysis (more
+// cost, replies arriving out of order), so extra submits are ignored until the reply lands.
+let chatBusy = false;
+const chatSendBtn = document.querySelector("#chatForm button[type=submit]");
+function setChatBusy(busy) {
+  chatBusy = busy;
+  chatText.disabled = busy;
+  if (chatSendBtn) chatSendBtn.disabled = busy;
+  if (!busy) chatText.focus({ preventScroll: true });
+}
+
 document.getElementById("chatForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (chatBusy) return;
   const typed = chatText.value.trim();
   if (!typed && !attachedDocText) return;
 
@@ -1003,14 +1067,16 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
 
   const typingBubble = addTypingBubble();
   chatMessages.scrollTop = chatMessages.scrollHeight;
+  setChatBusy(true);
 
   if (AGENT_API_URL) {
     const { en, zh, usage, tool_calls } = await sendMessageToAgent(text, chatHistory);
     chatHistory = [...chatHistory, { role: "user", content: text }, { role: "assistant", content: en }];
     typingBubble.remove();
-    addBotBubble(en, zh, usage);
+    const botBubble = addBotBubble(en, zh, usage);
     document.getElementById("aiResponse").textContent = en;
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    scrollToBubbleStart(botBubble);
+    setChatBusy(false);
 
     const scoreResult = tool_calls
       ?.filter((c) => c.tool === "compute_patentability" && typeof c.result?.score === "number")
@@ -1026,14 +1092,28 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
   window.setTimeout(() => {
     const { en, zh } = answerFor(text);
     typingBubble.remove();
-    addBotBubble(en, zh);
+    const botBubble = addBotBubble(en, zh);
     document.getElementById("aiResponse").textContent = en;
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    scrollToBubbleStart(botBubble);
+    setChatBusy(false);
   }, prefersReducedMotion ? 0 : 550);
 });
 
+// Both suggested questions are about "my paper". Without one attached (and none analysed earlier
+// in this chat) the assistant used to ask for a publication year — a confusing answer to a
+// question with nothing to answer it about — so say what to do instead, without a round trip.
 document.querySelectorAll(".chat-suggestion").forEach(btn => {
   btn.addEventListener("click", () => {
+    if (chatBusy) return;
+    const hasDocument = Boolean(attachedDocText) || chatHistory.some((m) => m.role === "user" && m.content.includes("Uploaded document:"));
+    if (!hasDocument) {
+      addUserBubble(btn.textContent.trim());
+      const bubble = addBotBubble("Please attach your paper or patent draft first (PDF or TXT) with the paperclip button below, then ask this question again.");
+      scrollToBubbleStart(bubble);
+      document.querySelector(".chat-upload-btn")?.classList.add("attention");
+      window.setTimeout(() => document.querySelector(".chat-upload-btn")?.classList.remove("attention"), 2200);
+      return;
+    }
     chatText.value = btn.textContent.trim();
     document.getElementById("chatForm").requestSubmit();
   });

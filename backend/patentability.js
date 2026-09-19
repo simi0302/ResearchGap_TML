@@ -67,8 +67,11 @@ async function handlePatentabilityRequest(body) {
   // real document text and score in one shot whenever there's real signal — only stops to
   // ask when detection is truly empty (nothing real to auto-pick). See README for why this
   // isn't a multi-round-trip confirmation flow.
-  const text = body.text || "";
-  let cutoffYear = body.publication_year;
+  const text = typeof body.text === "string" ? body.text : "";
+  // Only a plausible patent-era year counts as a user-supplied cutoff; anything else falls
+  // back to auto-detection instead of producing an "NaN-12-31" cutoff date.
+  const requestedYear = Number(body.publication_year);
+  let cutoffYear = Number.isInteger(requestedYear) && requestedYear >= 1990 && requestedYear <= 2030 ? requestedYear : undefined;
   let autoDetectedCutoffYear = false;
   let yearConfidence = "user";
   let yearSource = "user";
@@ -90,7 +93,14 @@ async function handlePatentabilityRequest(body) {
   const cutoffDate = toCutoffDateFromYear(cutoffYear);
   const yearCandidates = features.suggestPublicationYears(text);
 
-  let feats = body.features;
+  // User-confirmed features are free text that later reaches web-search queries, so bound
+  // their count and length and drop anything that isn't a plain {id, text} string pair.
+  let feats = Array.isArray(body.features)
+    ? body.features
+        .filter((f) => f && typeof f.id === "string" && typeof f.text === "string" && f.text.trim())
+        .slice(0, 12)
+        .map((f) => ({ ...f, id: f.id.slice(0, 16), text: f.text.slice(0, 120) }))
+    : undefined;
   let autoDetectedFeatures = false;
   if (!feats || feats.length === 0) {
     const extracted = features.extractFeatures(text);

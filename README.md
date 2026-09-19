@@ -156,6 +156,25 @@ chat widget end to end.
   comparison against corpus prior art, not a claim-by-claim legal novelty or inventive-step
   judgment — that remains a patent attorney's job.
 
+## Security notes
+
+- **Cost/abuse protection** (`backend/security.js`): every `/api` route that spends Azure credit
+  is rate-limited per client (chat 30 / scoring 20 per 10 minutes, tunable via
+  `CHAT_LIMIT_PER_10MIN` / `SCORE_LIMIT_PER_10MIN`), and a global daily ceiling
+  (`DAILY_REQUEST_CAP`, default 2000) acts as a budget circuit breaker. CORS is restricted to the
+  deployed frontend, but CORS only stops browsers, hence the limits.
+- **No client-supplied "backend results".** `/api/chat` no longer accepts a `context` object
+  (it used to be injected as a system message, letting a caller present made-up numbers as if the
+  backend had computed them). Scores only ever come from the `compute_patentability` tool.
+- **Input validation:** publication year must be 1990–2030, user-supplied features are capped in
+  count/length, `text` must be a string, session ids are validated and session storage is bounded
+  (count, size, 1-hour expiry, no database). Errors return JSON with no stack traces.
+- **Secrets:** `.env` is git-ignored and was never committed; the Azure key lives only in App
+  Service settings. The app is HTTPS-only (TLS 1.2+, FTPS-only).
+- **Frontend:** every model/patent string is escaped before it reaches the DOM; the pdf.js
+  script is pinned with a Subresource Integrity hash and loaded with `isEvalSupported: false`
+  (the official mitigation for CVE-2024-4367 in this pdf.js version); uploads are capped at 15 MB.
+
 ## Compliance note
 
 This project is entered in a track with an anonymity requirement (no institution name, logo, or
