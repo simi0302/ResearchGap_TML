@@ -90,6 +90,11 @@
             <button type="button" class="tag">NFV</button>
           </div>
 
+          <details class="filter-panel" id="filterPanel">
+            <summary>
+              <span class="filter-panel__title">Filters <span class="zh">篩選條件</span></span>
+              <span class="filter-panel__state" id="filterState">All years · All countries · Patent + Paper</span>
+            </summary>
           <div class="filters">
             <label>
               <span>Year Start <span class="zh">起始年份</span></span>
@@ -128,6 +133,7 @@
               </label>
             </fieldset>
           </div>
+          </details>
         </form>
 
         <div class="scroll-cue">
@@ -165,14 +171,11 @@
         <div class="assistant-intro">
           <p class="eyebrow">AI RESEARCH GAP ASSISTANT</p>
           <h3>AI Research Gap Assistant <span>/ AI 研究白地助手</span></h3>
-          <p>Ask about research gaps, relevant patents, or possible research questions in natural language.</p>
-          <p class="zh">用自然語言詢問研究缺口、相關專利與可能的研究問題。</p>
-          <p>You can also upload a paper or patent draft (PDF or TXT) and ask whether it's patentable.</p>
-          <p class="zh">你也可以上傳論文或專利草稿（PDF 或 TXT），詢問這份研究是否具有可專利性。</p>
+          <p>Ask about research gaps and relevant patents in natural language, or upload a paper or patent draft (PDF or TXT) to check whether it's patentable.</p>
+          <p class="zh">用自然語言詢問研究缺口與相關專利，或上傳論文、專利草稿（PDF／TXT），評估是否具可專利性。</p>
           <p class="status-pill">
-            <span class="status-dot"></span>Live · Powered by Azure OpenAI
+            <span class="status-dot"></span>Live · Azure OpenAI <span class="zh">已上線</span>
           </p>
-          <p class="status-pill zh">已上線 · 由 Azure OpenAI 驅動</p>
         </div>
 
         <div class="chat">
@@ -227,7 +230,7 @@
 
     <!-- WHITE SPACE -->
     <section class="section white-space" id="white-space">
-      <div class="section-head light">
+      <div class="section-head">
         <p class="eyebrow">WHITE SPACE ANALYSIS</p>
         <h3>Technology White-Space Matrix <span>/ 技術白地矩陣</span></h3>
         <p>Compare research and patent density across technology combinations. <span class="zh">比較研究與專利密度，找出尚未被充分探索的技術組合。</span></p>
@@ -299,26 +302,32 @@
       </div>
 
       <div class="about-copy">
-        <p>
+        <p class="about-lead">
           ResearchGap cross-analyzes patents and academic literature so researchers can quickly gauge how crowded a technology area is and spot underexplored "white-space" opportunities before committing to a research direction or patent filing.
-          <span class="zh">ResearchGap 是一套專利與學術文獻白地分析平台，協助研發人員在投入研究或申請專利前，快速掌握技術主題目前的競爭與研究密度，找出尚未被充分探索的「白地」方向。</span>
+          <span class="zh">ResearchGap 是一套專利與學術文獻白地分析平台，協助研發人員在投入研究或申請專利前，快速掌握技術主題的競爭與研究密度，找出尚未被充分探索的「白地」方向。</span>
         </p>
-        <p>
-          Traditional searches rely on manually combing databases and journals — slow and easy to miss things. An interactive white-space matrix makes crowded, developing, and gap areas visible at a glance, computed from the real patent corpus.
-          <span class="zh">現行做法多仰賴人工逐篇檢索專利庫與期刊論文，憑經驗判斷哪些交叉領域仍有機會，過程耗時且易遺漏。ResearchGap 將專利與文獻數據交叉比對，以互動式矩陣呈現各技術組合的研究與專利密度，讓使用者一眼看出高密度區、發展中區與潛在白地，數字均來自真實母體專利計算。</span>
-        </p>
-        <p>
-          An AI research assistant answers natural-language questions about gaps, patents, and possible research questions. Numbers always come from real backend computation — the AI only explains and suggests, never fabricates figures.
-          <span class="zh">系統另搭載 AI 研究助手，可用自然語言詢問特定組合是否存在白地、相關專利或研究問題。平台採「數據與判讀分離」設計：白地分數與統計數字皆由後端程式計算得出，AI 僅負責解釋與提出建議問題，不自行生成或臆測數量指標，避免生成式 AI 的幻覺風險。</span>
-        </p>
-        <p>
-          The prototype validates this approach on SDN/NFV networking, cross-analyzing over two thousand patents and papers, with a bilingual, fully responsive interface.
-          <span class="zh">原型以 SDN／NFV 網路技術為案例，交叉比對逾兩千筆專利與文獻，驗證白地矩陣在真實資料上的可用性，介面採中英雙語，並完成響應式排版。</span>
-        </p>
-        <p>
-          The goal: turn finding research gaps from a task that depends on senior researchers' experience into a self-service, data-driven tool for anyone — speeding up technology selection and patent strategy.
-          <span class="zh">ResearchGap 的目標，是把「找研究缺口」從仰賴資深研究者經驗與大量人工檢索，轉變為任何研究者都能自助使用的資料驅動工具，加速技術選題與專利佈局決策效率。</span>
-        </p>
+        <div class="about-grid">
+          <article class="about-card">
+            <h4>The problem <span class="zh">現況痛點</span></h4>
+            <p>Finding gaps today means manually combing patent databases and journals — slow, and easy to miss things.</p>
+            <p class="zh">現行做法多仰賴人工逐篇檢索專利庫與期刊，憑經驗判斷，耗時且易遺漏。</p>
+          </article>
+          <article class="about-card">
+            <h4>White-space matrix <span class="zh">白地矩陣</span></h4>
+            <p>Crowded, developing and gap areas become visible at a glance, computed from the real patent corpus.</p>
+            <p class="zh">以互動矩陣呈現各技術組合的專利密度，一眼看出高密度區、發展中區與潛在白地，數字均來自真實專利計算。</p>
+          </article>
+          <article class="about-card">
+            <h4>AI that explains, not invents <span class="zh">數據與判讀分離</span></h4>
+            <p>Scores and counts come from backend computation; the AI assistant only explains them and suggests next questions.</p>
+            <p class="zh">分數與統計皆由後端程式計算，AI 只負責解釋與提出建議問題，不自行生成數字，避免幻覺風險。</p>
+          </article>
+          <article class="about-card">
+            <h4>Case &amp; goal <span class="zh">案例與目標</span></h4>
+            <p>Validated on SDN/NFV networking with over two thousand patents and papers — aiming to make gap-finding a self-service, data-driven tool.</p>
+            <p class="zh">以 SDN／NFV 為案例、交叉比對逾兩千筆專利與文獻，目標是讓「找研究缺口」成為人人可自助使用的資料驅動工具。</p>
+          </article>
+        </div>
       </div>
     </section>
 
@@ -326,8 +335,10 @@
       <a class="logo footer-logo" href="#explore">
         <img src="logo.png" alt="ResearchGap" />
       </a>
+      <div class="footer-text">
       <p>Patent &amp; Literature White-Space Analysis Platform <span class="zh">· 專利文獻白地分析平台</span></p>
       <p class="muted">Real patent search, White-Space Matrix (2,799 patents) &amp; AI assistant — no placeholder data. <span class="zh">真實專利搜尋、白地矩陣（2,799 筆）與 AI 助手——沒有示意資料。</span></p>
+      </div>
     </footer>
 
     <button class="back-to-top" id="backToTop" aria-label="Back to top / 回到頂端">↑</button>

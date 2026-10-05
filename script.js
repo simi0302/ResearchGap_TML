@@ -202,7 +202,7 @@ const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)
 
 if (!prefersReducedMotion) {
   const revealTargets = document.querySelectorAll(
-    ".section-head, .gap-card, .about-copy p"
+    ".section-head, .gap-card, .about-lead, .about-card"
   );
   revealTargets.forEach((el, i) => {
     el.classList.add("reveal");
@@ -302,6 +302,27 @@ function popValue(el) {
   el.classList.add("pop");
 }
 
+// The filters sit in a collapsed <details> panel; its summary line always shows the
+// current filter values so nothing is hidden from the user while it's closed.
+function updateFilterState() {
+  const start = document.getElementById("yearStart").value;
+  const end = document.getElementById("yearEnd").value;
+  const country = document.getElementById("country");
+  const types = [
+    document.getElementById("patent").checked && "Patent",
+    document.getElementById("paper").checked && "Paper",
+  ].filter(Boolean).join(" + ") || "No type";
+  const years = start && end ? `${start}–${end}` : start ? `From ${start}` : end ? `Until ${end}` : "All years";
+  const place = country.value === "All" ? "All countries" : country.options[country.selectedIndex].text.split(" / ")[0];
+  document.getElementById("filterState").textContent = `${years} · ${place} · ${types}`;
+}
+["yearStart", "yearEnd", "country", "patent", "paper"].forEach((id) => {
+  const el = document.getElementById(id);
+  el.addEventListener("input", updateFilterState);
+  el.addEventListener("change", updateFilterState);
+});
+updateFilterState();
+
 document.getElementById("searchForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
@@ -321,6 +342,7 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
 
   // A reversed range can never match anything, so say that instead of implying a white space.
   if (start && end && Number(start) > Number(end)) {
+    document.getElementById("filterPanel").open = true;
     document.getElementById("resultsHeading").textContent = "Check the year range";
     document.getElementById("resultsCount").textContent = "";
     document.getElementById("resultsPagination").hidden = true;
@@ -332,6 +354,7 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
     return;
   }
   if (!patent && !paper) {
+    document.getElementById("filterPanel").open = true;
     document.getElementById("resultsHeading").textContent = "Choose a type";
     document.getElementById("resultsCount").textContent = "";
     document.getElementById("resultsPagination").hidden = true;
