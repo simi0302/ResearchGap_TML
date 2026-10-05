@@ -64,9 +64,12 @@ const patentCorpusPromise = fetch("data/patents.json")
     console.error("Failed to load patent corpus:", err);
   });
 
+// Keyword matching lives in query-match.js (shared with the backend): synonyms, per-concept
+// AND, word boundaries for short terms, and relevance ranking — see that file's header.
 function searchCorpus({ keyword, yearStart, yearEnd, jurisdiction, patentType }) {
   if (!patentCorpus || !patentType) return [];
-  const kw = keyword.trim().toLowerCase();
+  const concepts = keyword.trim() ? QueryMatch.parseQuery(keyword) : [];
+  const scores = new Map();
   const startY = yearStart ? parseInt(yearStart, 10) : null;
   const endY = yearEnd ? parseInt(yearEnd, 10) : null;
   return patentCorpus
@@ -78,14 +81,132 @@ function searchCorpus({ keyword, yearStart, yearEnd, jurisdiction, patentType })
         if (startY && y < startY) return false;
         if (endY && y > endY) return false;
       }
-      if (kw) {
-        const haystack = `${p.title || ""} ${p.abstract || ""} ${p.category || ""}`.toLowerCase();
-        if (!haystack.includes(kw)) return false;
+      if (concepts.length) {
+        const score = QueryMatch.scorePatent(concepts, p, keyword);
+        if (!score) return false;
+        scores.set(p, score);
       }
       return true;
     })
-    .sort((a, b) => (b.publication_date || "").localeCompare(a.publication_date || ""));
+    .sort((a, b) =>
+      (scores.get(b) || 0) - (scores.get(a) || 0) ||
+      (b.publication_date || "").localeCompare(a.publication_date || ""));
 }
+
+/* ===== Search extras: how the query was understood, AI-suggested related terms, and live
+   academic papers. Each async response checks searchToken so a slow reply from an older
+   search never overwrites a newer one. */
+const SEARCH_API_BASE = "https://researchgap-agent-api.azurewebsites.net";
+let searchToken = 0;
+
+function resetSearchExtras() {
+  document.getElementById("queryInterpretation").hidden = true;
+  document.getElementById("aiSuggest").hidden = true;
+  document.getElementById("paperResults").hidden = true;
+  document.getElementById("patentBlock").hidden = false;
+}
+
+function renderQueryInterpretation(keyword, results) {
+  const el = document.getElementById("queryInterpretation");
+  const concepts = keyword ? QueryMatch.parseQuery(keyword) : [];
+  if (!concepts.length) { el.hidden = true; return; }
+  const parts = concepts.map((c) => {
+    const extra = c.fromDictionary ? c.variants.filter((v) => v !== QueryMatch.normalize(c.label)) : [];
+    const syn = extra.length
+      ? ` <span class="qi-syn">+ ${extra.slice(0, 2).map(escapeHtml).join(", ")}${extra.length > 2 ? ` +${extra.length - 2}` : ""}</span>`
+      : "";
+    return `<span class="qi-term">${escapeHtml(c.label)}${syn}</span>`;
+  });
+  const viaSynonyms = results.filter((p) => !QueryMatch.literalMatch(p, keyword)).length;
+  el.innerHTML = `<span class="qi-label">Searched as <span class="zh">搜尋條件</span></span>
+    ${parts.join(' <span class="qi-and">AND</span> ')}
+    ${viaSynonyms ? `<span class="qi-gain">${viaSynonyms.toLocaleString()} found only via synonyms <span class="zh">筆僅靠同義詞找到</span></span>` : ""}`;
+  el.hidden = false;
+}
+
+async function loadAiSuggestions(keyword, token) {
+  const el = document.getElementById("aiSuggest");
+  el.hidden = false;
+  el.innerHTML = `<p class="ai-suggest__head"><span class="ai-badge">AI</span> Finding related terms… <span class="zh">AI 正在找相關詞…</span></p>`;
+  try {
+    const res = await fetch(`${SEARCH_API_BASE}/api/expand-query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: keyword }),
+    });
+    if (token !== searchToken) return;
+    if (!res.ok) { el.hidden = true; return; }
+    const data = await res.json();
+    if (token !== searchToken) return;
+    const terms = Array.isArray(data.terms) ? data.terms : [];
+    if (!terms.length) {
+      el.innerHTML = `<p class="ai-suggest__head"><span class="ai-badge">AI</span> No AI-suggested term matched the corpus. <span class="zh">AI 提出的相關詞在語料庫中皆查無結果。</span></p>`;
+      return;
+    }
+    const proposed = Number(data.proposed) || terms.length;
+    el.innerHTML = `
+      <p class="ai-suggest__head"><span class="ai-badge">AI</span> Related terms <span class="zh">相關詞</span></p>
+      <div class="ai-suggest__chips">${terms.map((t) =>
+        `<button type="button" class="ai-chip" data-term="${escapeHtml(String(t.term))}">${escapeHtml(String(t.term))} <span class="ai-chip__count">${Number(t.count).toLocaleString()}</span></button>`
+      ).join("")}</div>
+      <p class="ai-suggest__note">AI suggested ${proposed} terms; the backend kept the ${terms.length} that exist in the ${Number(data.corpus_size || 2799).toLocaleString()}-patent corpus (number = matching patents).
+        <span class="zh">AI 提出 ${proposed} 個詞，後端核對語料庫後保留 ${terms.length} 個（數字＝符合的專利數）。</span></p>`;
+  } catch {
+    if (token === searchToken) el.hidden = true;
+  }
+}
+
+document.getElementById("aiSuggest").addEventListener("click", (e) => {
+  const chip = e.target.closest(".ai-chip");
+  if (!chip) return;
+  document.getElementById("keyword").value = chip.dataset.term;
+  document.getElementById("searchForm").requestSubmit();
+});
+
+async function loadPaperResults(keyword, { start, end }, token) {
+  const el = document.getElementById("paperResults");
+  const query = QueryMatch.englishQuery(QueryMatch.parseQuery(keyword)) || keyword;
+  el.hidden = false;
+  const head = `<div class="results-head">
+      <h4>Academic papers <span class="zh">學術文獻</span></h4>
+      <span class="paper-source">Live · Semantic Scholar, Crossref, arXiv</span>
+    </div>`;
+  const countryNote = document.getElementById("country").value !== "All"
+    ? `<p class="paper-note">The country filter applies to patents only. <span class="zh">國家條件僅適用於專利。</span></p>` : "";
+  el.innerHTML = `${head}${countryNote}<div class="results-loading">Searching paper databases for “${escapeHtml(query)}” — about 10–15 s… <span class="zh">查詢論文資料庫中，約需 10–15 秒…</span></div>`;
+  const unavailable = (extra) => `<div class="results-empty">Paper search is unavailable right now${extra || ""}.
+      <br><small>論文搜尋暫時無法使用。</small></div>`;
+  try {
+    const res = await fetch(`${SEARCH_API_BASE}/api/literature`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query, year_start: start || undefined, year_end: end || undefined }),
+    });
+    if (token !== searchToken) return;
+    const data = res.ok ? await res.json() : null;
+    if (token !== searchToken) return;
+    const papers = Array.isArray(data?.papers) ? data.papers : null;
+    let body;
+    if (!papers) {
+      body = unavailable(res.status === 429 ? " (too many requests — wait a minute)" : "");
+    } else if (!papers.length) {
+      body = `<div class="results-empty">No papers found for “${escapeHtml(query)}” in this year range.
+        <br><small>此年份範圍內查無相關論文。</small></div>`;
+    } else {
+      body = `<div class="results-list">${papers.map((p) => `
+        <article class="result-card paper-card">
+          <div class="result-head"><span class="result-jurisdiction">${escapeHtml(p.source || "Paper")}</span><span>${p.year ? escapeHtml(String(p.year)) : "year unknown"}</span></div>
+          <h5>${escapeHtml(p.title || "(untitled)")}</h5>
+          ${p.venue ? `<p class="result-meta">${escapeHtml(p.venue)}</p>` : ""}
+          ${p.url ? `<a class="result-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">View paper <span aria-hidden="true">↗</span></a>` : ""}
+        </article>`).join("")}</div>`;
+    }
+    el.innerHTML = `${head}${countryNote}${body}`;
+  } catch {
+    if (token === searchToken) el.innerHTML = `${head}${countryNote}${unavailable()}`;
+  }
+}
+
 
 const googlePatentsUrl = (publicationNumber) =>
   `https://patents.google.com/patent/${encodeURIComponent(publicationNumber)}/en`;
@@ -339,6 +460,8 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
 
   const resultsWrap = document.getElementById("resultsWrap");
   resultsWrap.hidden = false;
+  const token = ++searchToken;
+  resetSearchExtras();
 
   // A reversed range can never match anything, so say that instead of implying a white space.
   if (start && end && Number(start) > Number(end)) {
@@ -368,8 +491,23 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
     `<div class="results-loading">Searching the 2,799-patent corpus… <span class="zh">搜尋 2,799 筆專利語料庫中…</span></div>`;
 
   await patentCorpusPromise;
+  if (token !== searchToken) return;
   const results = searchCorpus({ keyword: keywordInput, yearStart: start, yearEnd: end, jurisdiction, patentType: patent });
-  renderResults(results, keywordInput);
+  if (patent) {
+    renderResults(results, keywordInput);
+    if (!corpusLoadError) renderQueryInterpretation(keywordInput, results);
+  } else {
+    document.getElementById("patentBlock").hidden = true;
+  }
+  if (keywordInput) {
+    loadAiSuggestions(keywordInput, token);
+    if (paper) loadPaperResults(keywordInput, { start, end }, token);
+  } else if (paper && !patent) {
+    const el = document.getElementById("paperResults");
+    el.hidden = false;
+    el.innerHTML = `<div class="results-empty">Enter a keyword to search academic papers.
+      <br><small>請輸入關鍵字以搜尋學術文獻。</small></div>`;
+  }
 
   document.getElementById("analysisSummary").textContent =
     `${keywordInput || "All patents"} · ${start || "All"}—${end || "2026"} · ${jurisdiction} · ${types}`;

@@ -152,6 +152,9 @@
       </div>
 
       <div class="results-wrap" id="resultsWrap" hidden>
+        <p class="query-interpretation" id="queryInterpretation" hidden></p>
+        <div class="ai-suggest" id="aiSuggest" hidden></div>
+        <div id="patentBlock">
         <div class="results-head">
           <h4 id="resultsHeading">Search results</h4>
           <span id="resultsCount"></span>
@@ -162,6 +165,8 @@
           <span id="resultsPageInfo"></span>
           <button type="button" class="page-btn" id="resultsNext">Next <span class="zh">下一頁</span> ›</button>
         </div>
+        </div>
+        <div class="paper-results" id="paperResults" hidden></div>
       </div>
     </section>
 
@@ -345,6 +350,7 @@
   </main>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="query-match.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

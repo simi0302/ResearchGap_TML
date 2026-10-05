@@ -608,3 +608,26 @@ footer .muted{opacity:.55;font-size:13.5px}
   .site-nav .nav{position:static;display:flex;flex-direction:row;align-items:stretch;background:none;padding:0;top:auto}
   .site-nav .nav a{display:flex;align-items:center;justify-content:center;flex:1;text-align:center}
 }
+
+/* ===== Search extras: query interpretation, AI-suggested terms, live papers ===== */
+.query-interpretation{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 10px;margin:0 0 18px;font-size:14px;line-height:1.6;color:#4a352b}
+.query-interpretation[hidden],.ai-suggest[hidden],.paper-results[hidden],#patentBlock[hidden]{display:none}
+.qi-label{font-weight:800;color:#a17557;margin-right:2px}
+.qi-term{background:#fff;border:1px solid #f3dccb;border-radius:999px;padding:3px 12px;font-weight:700}
+.qi-syn{font-weight:500;color:#9a7a68;font-size:13px}
+.qi-and{font-size:11px;font-weight:900;letter-spacing:1px;color:#c0a08e}
+.qi-gain{flex-basis:100%;font-size:13px;color:#e85b20;font-weight:700}
+.ai-suggest{background:#fff;border-radius:20px;padding:18px 22px;margin:0 0 28px;box-shadow:0 10px 28px rgba(120,40,0,.06)}
+.ai-suggest__head{margin:0;display:flex;align-items:center;gap:10px;font-size:14px;font-weight:800;color:var(--ink)}
+.ai-badge{display:inline-grid;place-items:center;min-width:30px;height:22px;padding:0 6px;border-radius:7px;background:linear-gradient(130deg,#ff6a00,#ffb13d);color:#fff;font-size:11px;font-weight:900;letter-spacing:.5px}
+.ai-suggest__chips{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0 12px}
+.ai-chip{border:1px solid #ffd2b3;background:#fff6ef;color:#c84a10;border-radius:999px;padding:8px 14px;font-size:13.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:40px}
+.ai-chip:hover{background:#ffe9d9}
+.ai-chip:focus-visible{outline:3px solid var(--orange);outline-offset:2px}
+.ai-chip__count{font-size:12px;font-weight:800;color:#fff;background:#ff8a3d;border-radius:999px;padding:1px 8px}
+.ai-suggest__note{margin:0;font-size:12.5px;line-height:1.6;color:#8c6a54}
+.ai-suggest__note .zh{display:block}
+.paper-results{margin-top:44px}
+.paper-source{font-size:12.5px;font-weight:800;color:#a17557}
+.paper-note{margin:0 0 12px;font-size:13px;color:#8c6a54}
+@media(max-width:560px){.ai-suggest{padding:16px}.ai-chip{font-size:13px}}

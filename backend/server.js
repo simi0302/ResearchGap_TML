@@ -6,6 +6,9 @@ const { handlePatentabilityRequest } = require("./patentability");
 const { TOOL_DEFINITIONS, executeTool } = require("./tools");
 const scoring = require("./scoring");
 const { t } = require("./i18n");
+const { expandQuery, cleanQuery } = require("./queryExpansion");
+const { loadRawCorpus } = require("./corpus");
+const literature = require("./literature");
 
 const {
   AZURE_OPENAI_ENDPOINT,
@@ -33,6 +36,7 @@ const WINDOW_MS = 10 * 60 * 1000;
 const chatLimit = security.createRateLimiter({ windowMs: WINDOW_MS, max: Number(process.env.CHAT_LIMIT_PER_10MIN) || 30 });
 const scoreLimit = security.createRateLimiter({ windowMs: WINDOW_MS, max: Number(process.env.SCORE_LIMIT_PER_10MIN) || 20 });
 const sessionLimit = security.createRateLimiter({ windowMs: WINDOW_MS, max: 20 });
+const searchLimit = security.createRateLimiter({ windowMs: WINDOW_MS, max: Number(process.env.SEARCH_LIMIT_PER_10MIN) || 40 });
 const dailyCap = security.createDailyCap({ max: Number(process.env.DAILY_REQUEST_CAP) || 2000 });
 
 function resolveLang(body) {
@@ -364,6 +368,82 @@ app.post("/api/chat", chatLimit, dailyCap, async (req, res) => {
     console.error("Chat handler failed", err, err.detail || "");
     if (err.status) return res.status(502).json({ error: s.errors.azureError(err.status) });
     res.status(500).json({ error: s.errors.azureCallFailed });
+  }
+});
+
+// Hero search bar: AI-suggested related terms, each verified against the corpus before it is
+// returned (see queryExpansion.js). Cached per normalized query so repeat searches don't spend
+// Azure credit again.
+const EXPAND_TTL_MS = 30 * 60 * 1000;
+const expandCache = new Map();
+app.post("/api/expand-query", searchLimit, dailyCap, async (req, res) => {
+  const query = cleanQuery(req.body?.query);
+  if (!query) return res.status(400).json({ error: "Query must be 1-100 characters." });
+  if (!AZURE_OPENAI_ENDPOINT || !AZURE_OPENAI_API_KEY || !AZURE_OPENAI_DEPLOYMENT) {
+    return res.status(503).json({ error: "AI suggestions are not configured." });
+  }
+  const key = query.toLowerCase();
+  const hit = expandCache.get(key);
+  if (hit && hit.expires > Date.now()) return res.json(hit.value);
+  try {
+    const result = await expandQuery(query, {
+      corpus: loadRawCorpus(),
+      callModel: async (messages) => {
+        const url = `${AZURE_OPENAI_ENDPOINT.replace(/\/$/, "")}/openai/deployments/${AZURE_OPENAI_DEPLOYMENT}/chat/completions?api-version=${AZURE_OPENAI_API_VERSION}`;
+        const r = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "api-key": AZURE_OPENAI_API_KEY },
+          body: JSON.stringify({ messages, temperature: 0.2, max_tokens: 300, response_format: { type: "json_object" } }),
+        });
+        if (!r.ok) {
+          const err = new Error(`Azure OpenAI error (${r.status})`);
+          err.status = r.status;
+          err.detail = await r.text();
+          throw err;
+        }
+        const data = await r.json();
+        return data.choices?.[0]?.message?.content || "";
+      },
+    });
+    if (expandCache.size > 500) expandCache.clear();
+    expandCache.set(key, { value: result, expires: Date.now() + EXPAND_TTL_MS });
+    res.json(result);
+  } catch (err) {
+    if (security.isContentFilterError(err)) return res.json({ query, terms: [], proposed: 0, rejected_not_in_corpus: 0 });
+    console.error("Query expansion failed", err, err.detail || "");
+    res.status(502).json({ error: "AI suggestions are temporarily unavailable." });
+  }
+});
+
+// Hero search bar, "Academic Paper" type: live results from Semantic Scholar, Crossref and
+// arXiv (keyless; same sources the assistant cites). No AI involved.
+const YEAR_RE = /^\d{4}$/;
+app.post("/api/literature", searchLimit, dailyCap, async (req, res) => {
+  const query = cleanQuery(req.body?.query);
+  if (!query) return res.status(400).json({ error: "Query must be 1-100 characters." });
+  const yearStart = YEAR_RE.test(String(req.body?.year_start ?? "")) ? Number(req.body.year_start) : null;
+  const yearEnd = YEAR_RE.test(String(req.body?.year_end ?? "")) ? Number(req.body.year_end) : null;
+  try {
+    const { literature: items, notes } = await literature.searchLiteratureAllSources(query, {
+      cutoffYear: yearEnd || undefined,
+      cutoffDate: yearEnd ? `${yearEnd}-12-31` : undefined,
+    });
+    const seen = new Set();
+    const papers = items
+      // Crossref also indexes single figures/tables of papers as their own DOIs; skip those.
+      .filter((p) => p.title && !/^(fig(ure)?|table|supplementary)[\s.]*\w*\s*[:.]/i.test(p.title))
+      .filter((p) => p.title && (!yearStart || (p.year && p.year >= yearStart)) && (!yearEnd || !p.year || p.year <= yearEnd))
+      .filter((p) => {
+        const k = p.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+      .map((p) => ({ title: p.title, year: p.year ?? null, venue: p.venue || null, url: /^https?:\/\//.test(p.url || "") ? p.url : null, source: p.source }));
+    res.json({ query, papers, sources_failed: notes.length });
+  } catch (err) {
+    console.error("Literature search failed", err);
+    res.status(502).json({ error: "Literature search is temporarily unavailable." });
   }
 });
 
