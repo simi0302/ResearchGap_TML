@@ -21,6 +21,10 @@ npm run dev
 ```
 
 Health check: `GET http://localhost:8080/api/health`
+
+Search-bar endpoints (rate-limited, 40 per 10 min per client):
+- `POST /api/expand-query` with `{ "query": "NFV" }` → `{ terms: [{ term, count }], proposed, rejected_not_in_corpus, corpus_size }`. The model proposes related terms; `queryExpansion.js` keeps only those matching patents in the corpus under `queryMatch.js`'s rules. Cached 30 min per query.
+- `POST /api/literature` with `{ "query": "...", "year_start"?, "year_end"? }` → `{ papers: [{ title, year, venue, url, source }], sources_failed }` from Semantic Scholar, Crossref and arXiv. No model call.
 Chat endpoint: `POST http://localhost:8080/api/chat` with body `{ "message": "...", "history": [...] }` (or `{ "history": [...including the latest turn] }`), returns `{ "reply": "...", "tool_calls": [...], "usage": {...} }`. `tool_calls` is a full trace of every tool the model invoked this turn (name, args, result) — useful for debugging, the frontend mostly uses it to pull out a completed `compute_patentability` result and render the White-Space section from it. `usage` is the real Azure OpenAI token count for the turn (`prompt_tokens`/`completion_tokens`/`total_tokens`).
 
 `lang` (`"en"` default, or `"zh"`) can be passed in the body of `/api/chat`, `/api/patentability`,
@@ -103,7 +107,7 @@ Two modes via `POST /api/patentability` (also reachable mid-conversation via the
 grade would change under each of the four weights shifted ±5%/±10% (rescaling the other three
 proportionally) — a robustness check the frontend/team can show alongside a headline score.
 
-Run `npm test` for the full suite (`node --test`, 22 tests across `smoke.test.js` and
+Run `npm test` for the full suite (`node --test`, 52 tests across `*.test.js`, including
 `fixtures.test.js`) — cutoff filtering, auto-detection, the "backend always recomputes even if
 the caller injects a score or a prior-art claim" guarantees, prompt-injection resistance, and
 acceptance criteria against 7 real fixture documents in `fixtures/` (distinct topics score

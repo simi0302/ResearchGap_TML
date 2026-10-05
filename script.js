@@ -99,6 +99,12 @@ function searchCorpus({ keyword, yearStart, yearEnd, jurisdiction, patentType })
 const SEARCH_API_BASE = "https://researchgap-agent-api.azurewebsites.net";
 let searchToken = 0;
 
+function fetchWithTimeout(url, options, ms) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+}
+
 function resetSearchExtras() {
   document.getElementById("queryInterpretation").hidden = true;
   document.getElementById("aiSuggest").hidden = true;
@@ -129,11 +135,11 @@ async function loadAiSuggestions(keyword, token) {
   el.hidden = false;
   el.innerHTML = `<p class="ai-suggest__head"><span class="ai-badge">AI</span> Finding related terms… <span class="zh">AI 正在找相關詞…</span></p>`;
   try {
-    const res = await fetch(`${SEARCH_API_BASE}/api/expand-query`, {
+    const res = await fetchWithTimeout(`${SEARCH_API_BASE}/api/expand-query`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query: keyword }),
-    });
+    }, 30000);
     if (token !== searchToken) return;
     if (!res.ok) { el.hidden = true; return; }
     const data = await res.json();
@@ -177,11 +183,11 @@ async function loadPaperResults(keyword, { start, end }, token) {
   const unavailable = (extra) => `<div class="results-empty">Paper search is unavailable right now${extra || ""}.
       <br><small>論文搜尋暫時無法使用。</small></div>`;
   try {
-    const res = await fetch(`${SEARCH_API_BASE}/api/literature`, {
+    const res = await fetchWithTimeout(`${SEARCH_API_BASE}/api/literature`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query, year_start: start || undefined, year_end: end || undefined }),
-    });
+    }, 45000);
     if (token !== searchToken) return;
     const data = res.ok ? await res.json() : null;
     if (token !== searchToken) return;
@@ -211,10 +217,14 @@ async function loadPaperResults(keyword, { start, end }, token) {
 const googlePatentsUrl = (publicationNumber) =>
   `https://patents.google.com/patent/${encodeURIComponent(publicationNumber)}/en`;
 
-const formatCategory = (category) =>
-  category
-    ? category.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
-    : "Uncategorized";
+
+// Primary IPC main group, with its curated scope label when known (WS_IPC_LABELS below),
+// e.g. "Network Management (IPC H04L 41)"; otherwise just the code.
+function ipcLabelForPatent(p) {
+  const group = wsPrimaryGroup(p);
+  if (!group) return "IPC unknown";
+  return WS_IPC_LABELS[group] ? `${WS_IPC_LABELS[group]} (IPC ${group})` : `IPC ${group}`;
+}
 
 const RESULTS_PAGE_SIZE = 5;
 let currentResults = [];
@@ -230,7 +240,7 @@ function renderResultCards(pageResults) {
           <span>${escapeHtml(p.publication_date || "date unknown")}</span>
         </div>
         <h5>${escapeHtml(p.title || "(untitled)")}</h5>
-        <p class="result-meta">${escapeHtml(applicant)} · ${escapeHtml(formatCategory(p.category))}</p>
+        <p class="result-meta">${escapeHtml(applicant)} · ${escapeHtml(ipcLabelForPatent(p))}</p>
         <a class="result-link" href="${googlePatentsUrl(p.publication_number)}" target="_blank" rel="noopener noreferrer">
           View on Google Patents <span aria-hidden="true">↗</span>
         </a>

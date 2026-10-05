@@ -28,7 +28,9 @@ separate build step and no framework: what's in `index.html` is what's live.
 - HTML5 / CSS3 (Flexbox + Grid, CSS keyframe animations, `prefers-reduced-motion`-aware) / JavaScript (ES6+)
 - [pdf.js](https://mozilla.github.io/pdf.js/) (loaded from a CDN) for client-side PDF text extraction on upload — the extracted text never leaves the browser except as part of the user's own chat message
 - `IntersectionObserver` for scroll-reveal animations, nav scrollspy, and an auto-drawn White-Space Matrix scroll hint on narrow viewports
-- **Real client-side patent search** — `data/patents.json` (2,799 patents) is fetched once and filtered entirely in the browser. No backend round-trip, no database query.
+- **Real client-side patent search** — `data/patents.json` (2,799 patents) is fetched once and filtered entirely in the browser. Queries go through `query-match.js` (shared with the backend): abbreviations, spelled-out forms and Chinese/English names of the same concept match each other (e.g. NFV ↔ network function virtualization ↔ 網路功能虛擬化), every concept in a multi-word query must appear in the title or abstract, and results are ranked by where they matched. The results show how the query was interpreted and how many hits came only from synonyms.
+- **AI-suggested related terms, verified by the backend** — `POST /api/expand-query`: the model proposes related search terms, and the backend keeps only those that match patents in the corpus under the same rules, returning each with its match count. The model can't add a term that leads to an empty search, and its terms never reach any score.
+- **Live academic-paper search** — with "Academic Paper" ticked, `POST /api/literature` queries Semantic Scholar, Crossref and arXiv (no AI involved); Chinese queries are sent as their English concepts.
 - **Real client-side White-Space Matrix** — a 4×4 click-to-explore grid (rows/columns = the corpus's 8 most frequent IPC classification groups) computed from the same fetched JSON, with row/column labels grounded in real IPC classification scope (not algorithm-guessed words). Clicking a cell shows its real patent count and evidence.
 - Requires being served over http(s) — opening `index.html` via `file://` blocks the `fetch()` of `data/patents.json` under Chrome's CORS rules (search/matrix silently return nothing; everything else still works).
 
@@ -37,7 +39,7 @@ separate build step and no framework: what's in `index.html` is what's live.
 - **In-corpus prior-art retrieval is fully backend-side**: `retrieval.js` runs a deterministic BM25 search over the corpus (title + abstract, cutoff-filtered), and the feature-overlap between a case and each matched patent is computed by the backend's own word-boundary text matcher — never supplied or judged by the model.
 - `search_prior_art`'s literature search queries three independent, free, **keyless** sources in parallel (`literature.js`) — [Semantic Scholar](https://www.semanticscholar.org/product/api), [Crossref](https://api.crossref.org/), and [arXiv](https://arxiv.org/help/api/) — so real citations (including most IEEE Xplore/ACM-indexed papers, via DOI) work with zero API keys. Real per-year publication counts (for the Temporal factor) come from [OpenAlex](https://openalex.org/), also free/keyless. `search_prior_art` also runs a real general-web/patent-office search (`webSearch.js`) via Azure OpenAI's Responses API `web_search` tool — Bing-grounded, reaching Google Patents/USPTO/EPO and general engineering sources, billed per call (~$0.014/search) on the same Azure OpenAI resource already in use, no separate resource or credential needed. This replaced the old standalone Bing Search v7 dependency, which Microsoft retired in August 2025.
 - `compute_patentability` auto-detects the cutoff year (first-page copyright/publication/conference patterns, checked against citation-stripped text so a cited earlier work doesn't win) and technical features (a canonical 17-feature SDN/NFV/5G/6G/cloud-native taxonomy, matched with word-boundary + case-sensitive-acronym rules) directly from an uploaded document's real text — deterministic extraction, never a model guess — and scores in one shot whenever there's real signal to work with. Out-of-scope input (too few matched features, or a dominant classification the corpus doesn't recognize) is refused with a reason instead of returned as a diluted score.
-- Node's built-in test runner (`node --test`) — 22 tests across `backend/smoke.test.js` and `backend/fixtures.test.js`, covering the scoring engine, cutoff filtering, anti-fabrication guarantees, and acceptance criteria on 7 real fixture documents (distinct topics score distinctly, a mature/well-established technique scores lower Novelty than genuinely novel work, off-domain/nonsense input is never scored, a citation-year trap still resolves to the paper's own year).
+- Node's built-in test runner (`node --test`) — 52 tests across `backend/*.test.js`, covering the search matcher and AI-term verification, security limits, external prior art, the scoring engine, cutoff filtering, anti-fabrication guarantees, and acceptance criteria on 7 real fixture documents (distinct topics score distinctly, a mature/well-established technique scores lower Novelty than genuinely novel work, off-domain/nonsense input is never scored, a citation-year trap still resolves to the paper's own year).
 
 ## Data, and why there's no database
 
@@ -96,6 +98,7 @@ confident number.
 ```
 .
 ├── index.html, styles.css, script.js, logo.png   # the deployed static site
+├── query-match.js                                # search query matcher (byte-identical copy of backend/queryMatch.js)
 ├── data/patents.json                             # the 2,799-patent corpus (frontend copy)
 ├── backend/                                       # Express API
 │   ├── server.js            # routes, Azure OpenAI tool-calling loop, per-turn table steering
@@ -109,10 +112,11 @@ confident number.
 │   ├── features.js            # canonical feature taxonomy, keyword/cutoff-year extraction
 │   ├── systemPrompt.js        # the agent's system instructions (English default, `lang=zh` for Chinese)
 │   ├── i18n.js                 # bilingual score-note/label strings
+│   ├── queryMatch.js          # search-bar matcher: synonyms, per-concept AND, ranking (shared with the site)
+│   ├── queryExpansion.js      # /api/expand-query: AI proposes terms, corpus check keeps real ones
 │   ├── fixtures/               # real test documents used by fixtures.test.js
 │   ├── data/patents.json      # the backend's own copy of the corpus (self-contained deploy unit)
-│   ├── smoke.test.js          # `npm test`
-│   └── fixtures.test.js       # acceptance tests against the real fixture documents
+│   ├── *.test.js              # `npm test` — smoke, fixtures, security, external prior art, search matcher
 └── frontend/                                       # unused React scaffold — see table above
 ```
 
@@ -130,7 +134,7 @@ cd backend
 npm install
 cp .env.example .env   # fill in Azure OpenAI credentials
 npm run dev             # http://localhost:8080
-npm test                 # run the full test suite (22 tests)
+npm test                 # run the full test suite (52 tests)
 ```
 
 Then point the frontend's `AGENT_API_URL` (in `script.js`) at your local backend to test the
