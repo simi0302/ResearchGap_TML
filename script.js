@@ -155,8 +155,8 @@ async function loadAiSuggestions(keyword, token) {
       <div class="ai-suggest__chips">${terms.map((t) =>
         `<button type="button" class="ai-chip" data-term="${escapeHtml(String(t.term))}">${escapeHtml(String(t.term))} <span class="ai-chip__count">${Number(t.count).toLocaleString()}</span></button>`
       ).join("")}</div>
-      <p class="ai-suggest__note">AI suggested ${proposed} terms; the backend kept the ${terms.length} that exist in the ${Number(data.corpus_size || 2799).toLocaleString()}-patent corpus (number = matching patents).
-        <span class="zh">AI 提出 ${proposed} 個詞，後端核對語料庫後保留 ${terms.length} 個（數字＝符合的專利數）。</span></p>`;
+      <p class="ai-suggest__note">AI suggested ${proposed} terms; after removing synonyms of each other and terms with no match in the ${Number(data.corpus_size || 2799).toLocaleString()}-patent corpus, the backend kept ${terms.length} (number = matching patents).
+        <span class="zh">AI 提出 ${proposed} 個詞，後端去除彼此同義與語料庫查無結果的詞後保留 ${terms.length} 個（數字＝符合的專利數）。</span></p>`;
   } catch {
     if (token === searchToken) el.hidden = true;
   }

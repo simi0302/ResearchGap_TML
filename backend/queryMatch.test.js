@@ -76,6 +76,19 @@ test("expandQuery keeps only model terms that exist in the corpus", async () => 
   assert.equal(r.rejected_not_in_corpus >= 1, true);
 });
 
+test("expandQuery keeps one term per concept (synonyms of each other return the same results)", async () => {
+  const r = await expandQuery("NFV", {
+    corpus,
+    callModel: async () => JSON.stringify({
+      terms: ["SDN", "Software Defined Networking", "VNF", "Virtual Network Functions", "Virtualized Network Functions", "network virtualization"],
+    }),
+  });
+  const terms = r.terms.map((t) => t.term);
+  assert.deepEqual(terms.filter((t) => /sdn|software defined/i.test(t)).length, 1);
+  assert.deepEqual(terms.filter((t) => /vnf|virtual(ized)? network function/i.test(t)).length, 1);
+  assert.ok(terms.includes("network virtualization"));
+});
+
 test("expandQuery rejects an invalid query without calling the model", async () => {
   let called = false;
   const r = await expandQuery("", { corpus, callModel: async () => { called = true; return "{}"; } });

@@ -62,6 +62,7 @@ async function expandQuery(rawQuery, { callModel, corpus }) {
   // isn't suggested for "SDN" — the search bar already includes it as a synonym.
   const queryConcepts = new Set(parseQuery(query).filter((c) => c.fromDictionary).map((c) => c.label));
   const seen = new Set();
+  const seenConcepts = new Set();
   const verified = [];
   let rejected = 0;
   for (const raw of proposed) {
@@ -71,6 +72,11 @@ async function expandQuery(rawQuery, { callModel, corpus }) {
     seen.add(norm);
     const concepts = parseQuery(term);
     if (concepts.length && concepts.every((c) => c.fromDictionary && queryConcepts.has(c.label))) continue;
+    // "VNF", "Virtual Network Functions" and "Virtualized Network Functions" are one concept to
+    // the search bar (same results), so only the first of them is worth a chip.
+    const conceptKey = concepts.map((c) => (c.fromDictionary ? `#${c.label}` : c.variants[0])).sort().join("|");
+    if (seenConcepts.has(conceptKey)) continue;
+    seenConcepts.add(conceptKey);
     const count = countTermMatches(corpus, term);
     if (count > 0) verified.push({ term, count });
     else rejected += 1;
