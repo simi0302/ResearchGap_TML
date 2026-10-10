@@ -186,7 +186,10 @@ async function scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, ca
   // POST /api/patentability and the compute_patentability tool call go through the exact
   // same deterministic pipeline, regardless of whether the model remembered to search first.
   const query = feats.slice(0, 4).map((f) => f.text).join(" ");
-  const literatureYearCounts = await literature.fetchYearlyLiteratureCounts(query, cutoffYear - 4, cutoffYear);
+  const [literatureYearCounts, fieldYearCounts] = await Promise.all([
+    literature.fetchYearlyLiteratureCounts(query, cutoffYear - 4, cutoffYear),
+    literature.fetchFieldBaselineCounts(cutoffYear - 4, cutoffYear),
+  ]);
 
   const targetJurisdiction = typeof body.target_jurisdiction === "string" ? body.target_jurisdiction.toUpperCase() : undefined;
 
@@ -208,6 +211,7 @@ async function scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, ca
     subtechLabel,
     features: feats,
     literatureYearCounts,
+    fieldYearCounts,
     targetJurisdiction,
     lang,
     docTerms,

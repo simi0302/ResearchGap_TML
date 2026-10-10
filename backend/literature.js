@@ -163,4 +163,13 @@ async function fetchYearlyLiteratureCounts(query, y0, y1) {
   }
 }
 
-module.exports = { searchSemanticScholar, searchCrossref, searchArxiv, searchLiteratureAllSources, searchWithKnowledge, fetchYearlyLiteratureCounts };
+// Field baseline for the Temporal factor: per-year counts for the whole SDN / NFV / network
+// slicing field. Comparing a topic's growth with the field's growth is what gives Temporal its
+// discriminating power — in the 2026-10-10 scenario test, absolute growth was >= 100% for every
+// one of 12 papers (the whole field roughly doubled), so every paper got the maximum 1.0.
+const FIELD_BASELINE_QUERY = '"software defined networking" OR "network function virtualization" OR "network slicing"';
+async function fetchFieldBaselineCounts(y0, y1) {
+  return fetchYearlyLiteratureCounts(FIELD_BASELINE_QUERY, y0, y1);
+}
+
+module.exports = { searchSemanticScholar, searchCrossref, searchArxiv, searchLiteratureAllSources, searchWithKnowledge, fetchYearlyLiteratureCounts, fetchFieldBaselineCounts, FIELD_BASELINE_QUERY };

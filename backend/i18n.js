@@ -49,8 +49,11 @@ const STRINGS = {
     },
     temporal: {
       fallback: "No real per-year publication trend was available for this case, so Temporal falls back to a neutral 0.5.",
-      note: (y0, y1, litFirst, litLast, halved, patCount, litCount) =>
+      thin: (y0, y1, n, min) => `Only ${n} publications matched this feature combination in ${y0}–${y1} (fewer than ${min}), too few to measure a trend, so Temporal is a neutral 0.5.`,
+      note: (y0, y1, litFirst, litLast, halved, patCount, litCount, field) =>
         `Real publication counts for ${y0}–${y1} moved from ${litFirst} to ${litLast}${
+          field ? `, against ${field.first} to ${field.last} for the whole SDN/NFV/slicing field (growth is scored relative to the field)` : " (field baseline unavailable, so absolute growth is used)"
+        }${
           halved ? `; matched-set patent filings in the same window (${patCount}) outnumber publications (${litCount}), so the score is halved.` : "."
         }`,
     },
@@ -101,8 +104,11 @@ const STRINGS = {
     },
     temporal: {
       fallback: "本次未能取得真實逐年文獻成長數據，時間差採中性估計值 0.5。",
-      note: (y0, y1, litFirst, litLast, halved, patCount, litCount) =>
+      thin: (y0, y1, n, min) => `${y0}–${y1} 年間符合此技術組合的文獻僅 ${n} 篇（少於 ${min} 篇），不足以判斷趨勢，時間差採中性值 0.5。`,
+      note: (y0, y1, litFirst, litLast, halved, patCount, litCount, field) =>
         `${y0}–${y1} 年間真實文獻篇數由 ${litFirst} 變化至 ${litLast}${
+          field ? `，同期整個 SDN/NFV/網路切片領域由 ${field.first} 變化至 ${field.last}（以相對於領域的成長率計分）` : "（未能取得領域基準，改以絕對成長率計分）"
+        }${
           halved ? `；同期比對集合內專利申請數（${patCount}）多於文獻數（${litCount}），分數折半。` : "。"
         }`,
     },

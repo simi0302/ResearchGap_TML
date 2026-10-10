@@ -183,7 +183,19 @@ function regionalFactor(matchedPatents, targetJurisdiction, lang) {
 // see P0-1 root cause (d)); halved if the matched-set patent count in the same window
 // exceeds the literature count. Falls back to neutral 0.5, flagged is_fallback, only when no
 // real per-year data could be fetched at all.
-function temporalFactor(literatureYearCounts, matchedPatents, cutoffYear, lang) {
+// fieldYearCounts: the same per-year counts for the whole SDN/NFV/slicing field. When present,
+// Temporal compares the topic's growth multiple with the field's on a log scale:
+//   g = (last + 1) / (first + 1)   (add-one smoothing: a topic going 0 → 12 is not "infinite")
+//   value = 0.5 + 0.25 × log2(g_topic / g_field), clamped to [0, 1]
+// so growing as fast as the field scores 0.5, four times faster 1.0, four times slower 0.
+// Why: on absolute growth all 12 scenario-test papers (2026-10-10) scored the maximum 1.0,
+// because the whole field roughly doubled in every window. Fewer than MIN_TEMPORAL_EVIDENCE
+// publications in the window is too thin to call a trend: neutral 0.5, flagged as fallback.
+// Without a field baseline the old absolute rule is used and the note says so.
+const MIN_TEMPORAL_EVIDENCE = 20;
+const growthOf = (first, last) => (first > 0 ? (last - first) / first : last > 0 ? 1 : 0);
+const smoothedMultiple = (first, last) => (last + 1) / (first + 1);
+function temporalFactor(literatureYearCounts, matchedPatents, cutoffYear, lang, fieldYearCounts) {
   const s = t(lang);
   if (!literatureYearCounts || Object.keys(literatureYearCounts).length === 0) {
     return { value: 0.5, note: s.temporal.fallback, is_fallback: true, evidence_count: 0 };
@@ -193,26 +205,43 @@ function temporalFactor(literatureYearCounts, matchedPatents, cutoffYear, lang) 
   const years = [];
   for (let y = y0; y <= y1; y++) years.push(y);
   const litByYear = years.map((y) => literatureYearCounts[y] || 0);
-  if (litByYear.every((v) => v === 0)) {
+  const litTotal = litByYear.reduce((a, b) => a + b, 0);
+  if (litTotal === 0) {
     return { value: 0.5, note: s.temporal.fallback, is_fallback: true, evidence_count: 0 };
   }
   const first = litByYear[0];
   const last = litByYear[litByYear.length - 1];
-  const growth = first > 0 ? (last - first) / first : last > 0 ? 1 : 0;
-  let value = clamp01(0.5 + growth / 2);
+  if (litTotal < MIN_TEMPORAL_EVIDENCE) {
+    return { value: 0.5, note: s.temporal.thin(y0, y1, litTotal, MIN_TEMPORAL_EVIDENCE), is_fallback: true, evidence_count: litTotal };
+  }
+  const growth = growthOf(first, last);
+  const fieldFirst = fieldYearCounts ? fieldYearCounts[y0] || 0 : 0;
+  const fieldLast = fieldYearCounts ? fieldYearCounts[y1] || 0 : 0;
+  const hasBaseline = fieldFirst > 0 && fieldLast > 0;
+  const fieldGrowth = hasBaseline ? growthOf(fieldFirst, fieldLast) : null;
+  let value = hasBaseline
+    ? clamp01(0.5 + 0.25 * Math.log2(smoothedMultiple(first, last) / smoothedMultiple(fieldFirst, fieldLast)))
+    : clamp01(0.5 + growth / 2);
 
   const patByYear = years.map(
     (y) => matchedPatents.filter((p) => Number(String(p.publication_date || "").slice(0, 4)) === y).length
   );
-  const litSum = litByYear.reduce((a, b) => a + b, 0);
+  const litSum = litTotal;
   const patSum = patByYear.reduce((a, b) => a + b, 0);
   let halved = false;
   if (patSum > litSum) {
     value *= 0.5;
     halved = true;
   }
-  const note = s.temporal.note(y0, y1, first, last, halved, patSum, litSum);
-  return { value, note, is_fallback: false, evidence_count: litSum };
+  const note = s.temporal.note(y0, y1, first, last, halved, patSum, litSum, hasBaseline ? { first: fieldFirst, last: fieldLast } : null);
+  return {
+    value,
+    note,
+    is_fallback: false,
+    evidence_count: litSum,
+    topic_growth: Math.round(growth * 1000) / 1000,
+    field_growth: fieldGrowth == null ? null : Math.round(fieldGrowth * 1000) / 1000,
+  };
 }
 
 function gradeFor(score, lang) {
@@ -236,7 +265,7 @@ function outOfScopeReason(caseFeatures, subtechLabel) {
 
 // Main entry point. `caseFeatures` must already be confirmed/extracted (features.js) and
 // pass the outOfScopeReason() gate — this function just computes.
-function computeScore({ cutoffDate, cutoffYear, subtechLabel, features: caseFeatures, literatureYearCounts, targetJurisdiction, lang, externalPatents = [], docTerms = [] }) {
+function computeScore({ cutoffDate, cutoffYear, subtechLabel, features: caseFeatures, literatureYearCounts, fieldYearCounts, targetJurisdiction, lang, externalPatents = [], docTerms = [] }) {
   const all = corpus.loadRawCorpus();
   const cutoffPatents = corpus.filterByCutoff(all, cutoffDate);
 
@@ -248,7 +277,7 @@ function computeScore({ cutoffDate, cutoffYear, subtechLabel, features: caseFeat
   const novelty = noveltyFactor(caseFeatures, priorArt, lang);
   const crowding = crowdingFactor(caseFeatureIds, cutoffDate, cutoffPatents, lang);
   const regional = regionalFactor(crowding.matchedPatents, targetJurisdiction, lang);
-  const temporal = temporalFactor(literatureYearCounts, crowding.matchedPatents, cutoffYear, lang);
+  const temporal = temporalFactor(literatureYearCounts, crowding.matchedPatents, cutoffYear, lang, fieldYearCounts);
 
   const s = t(lang);
   const factorDefs = [
@@ -270,6 +299,7 @@ function computeScore({ cutoffDate, cutoffYear, subtechLabel, features: caseFeat
       note: f.note,
       is_fallback: Boolean(f.is_fallback),
       evidence_count: f.evidence_count || 0,
+      ...(f.factor === "temporal" && f.topic_growth !== undefined ? { topic_growth: f.topic_growth, field_growth: f.field_growth } : {}),
     };
   });
 
@@ -334,4 +364,4 @@ function sensitivityAnalysis(breakdown, lang) {
   };
 }
 
-module.exports = { computeScore, outOfScopeReason, sensitivityAnalysis, WEIGHTS, VALID_JURISDICTIONS, DEFAULT_TARGET_JURISDICTION };
+module.exports = { computeScore, outOfScopeReason, sensitivityAnalysis, temporalFactor, WEIGHTS, VALID_JURISDICTIONS, DEFAULT_TARGET_JURISDICTION };
