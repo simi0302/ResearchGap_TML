@@ -17,6 +17,7 @@
 const { handlePatentabilityRequest } = require("./patentability");
 const literature = require("./literature");
 const webSearch = require("./webSearch");
+const { topicLandscape } = require("./landscape");
 
 const TOOL_DEFINITIONS = [
   {
@@ -63,6 +64,22 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "topic_landscape",
+      description:
+        "Deterministic landscape of a technology topic, for questions like 'is X crowded?', 'who files patents on X?', 'is research on X growing faster than patents?' when the user has NOT uploaded a document. Returns counts over the fixed 2,799-patent corpus (by year, jurisdiction, IPC group, applicant HHI, example patents with links) and over the ResearchGap knowledge base of papers (by year, most-cited papers), plus the research-to-patent ratio. Every number is computed by the backend; quote them, never estimate.",
+      parameters: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "The topic in the user's words, e.g. 'network slicing digital twin' (Chinese or English; synonyms are handled)." },
+          cutoff_year: { type: "number", description: "Optional: count only documents published on/before Dec 31 of this year." },
+        },
+        required: ["query"],
+      },
+    },
+  },
 ];
 
 async function executeTool(name, args) {
@@ -75,18 +92,30 @@ async function executeTool(name, args) {
     if (!query) return { error: "Missing query." };
     const cutoffYear = cutoffDate ? Number(String(cutoffDate).slice(0, 4)) : undefined;
     const [litResult, webResult] = await Promise.all([
-      literature.searchLiteratureAllSources(query, { cutoffYear, cutoffDate }),
+      literature.searchWithKnowledge(query, { cutoffYear, cutoffDate }),
       webSearch.searchWeb(query, { cutoffDate }),
     ]);
     const notes = [...litResult.notes];
     if (webResult.note) notes.push(webResult.note);
+    const brief = (p) => ({ title: p.title, year: p.year, venue: p.venue, url: p.url, source: p.source, tier: p.tier, abstract: p.abstract ? String(p.abstract).slice(0, 300) : undefined });
     return {
       query,
-      literature: litResult.literature,
+      // Retrieved from ResearchGap's persistent knowledge base (stored from earlier searches
+      // and the offline crawl) — available even when the live sources fail.
+      knowledge_base: litResult.local.map((p) => ({ ...brief(p), type: p.type, relevance: p.relevance })),
+      literature: litResult.live.map(brief),
+      knowledge_base_update: litResult.learned,
       web: webResult.results,
       web_summary: webResult.summary || undefined,
       notes,
     };
+  }
+
+  if (name === "topic_landscape") {
+    const { query, cutoff_year: cutoffYear } = args || {};
+    if (!query) return { error: "Missing query." };
+    const y = Number(cutoffYear);
+    return topicLandscape(query, { cutoffYear: Number.isInteger(y) && y >= 1990 && y <= 2030 ? y : undefined });
   }
 
   return { error: `Unknown tool: ${name}` };

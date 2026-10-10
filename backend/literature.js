@@ -7,6 +7,9 @@
 // fetched, not filtered out afterward. Results are cached per (source, query, cutoff) with a
 // TTL so the same document + same settings reproduces the same score (P1 item 8).
 const CACHE_TTL_MS = 30 * 60 * 1000;
+// OpenAlex is usage-billed: keyless requests share a small free daily budget per IP, so a free
+// API key (OPENALEX_API_KEY) keeps the Temporal factor's yearly counts available.
+const OPENALEX_KEY_PARAM = process.env.OPENALEX_API_KEY ? `&api_key=${encodeURIComponent(process.env.OPENALEX_API_KEY)}` : "";
 const _cache = new Map();
 
 function cacheKey(parts) {
@@ -27,7 +30,7 @@ async function searchSemanticScholar(query, { limit = 5, cutoffYear } = {}) {
   const cached = getCached(key);
   if (cached) return cached;
   const yearParam = cutoffYear ? `&year=-${cutoffYear}` : "";
-  const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=${limit}&fields=title,year,venue,url,abstract${yearParam}`;
+  const url = `https://api.semanticscholar.org/graph/v1/paper/search?query=${encodeURIComponent(query)}&limit=${limit}&fields=title,year,venue,url,abstract,externalIds,authors,publicationDate${yearParam}`;
   const res = await fetch(url, { headers: { Accept: "application/json" } });
   if (!res.ok) throw new Error(`Semantic Scholar ${res.status}`);
   const data = await res.json();
@@ -38,6 +41,10 @@ async function searchSemanticScholar(query, { limit = 5, cutoffYear } = {}) {
     url: p.url || (p.paperId ? `https://www.semanticscholar.org/paper/${p.paperId}` : null),
     source: "Semantic Scholar",
     tier: "L2",
+    abstract: p.abstract || "",
+    doi: p.externalIds?.DOI || null,
+    date: /^\d{4}-\d{2}-\d{2}$/.test(p.publicationDate || "") ? p.publicationDate : null,
+    authors: (p.authors || []).map((a) => a.name).filter(Boolean),
   }));
   return setCached(key, results);
 }
@@ -63,6 +70,9 @@ async function searchCrossref(query, { limit = 5, cutoffDate } = {}) {
       url: p.URL || (p.DOI ? `https://doi.org/${p.DOI}` : null),
       source: "Crossref",
       tier: "L2",
+      abstract: p.abstract || "",
+      doi: p.DOI || null,
+      authors: (p.author || []).map((a) => [a.given, a.family].filter(Boolean).join(" ")).filter(Boolean),
     }))
     .filter((p) => p.title);
   return setCached(key, results);
@@ -76,7 +86,7 @@ async function searchArxiv(query, { limit = 5, cutoffDate } = {}) {
   if (cached) return cached;
   const upper = cutoffDate ? cutoffDate.replace(/-/g, "") : "20301231";
   const dateFilter = `+AND+submittedDate:[19000101+TO+${upper}]`;
-  const url = `http://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(query)}${dateFilter}&start=0&max_results=${limit}`;
+  const url = `https://export.arxiv.org/api/query?search_query=all:${encodeURIComponent(query)}${dateFilter}&start=0&max_results=${limit}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`arXiv ${res.status}`);
   const xml = await res.text();
@@ -85,8 +95,10 @@ async function searchArxiv(query, { limit = 5, cutoffDate } = {}) {
     .map((e) => {
       const title = e.match(/<title>([\s\S]*?)<\/title>/)?.[1]?.replace(/\s+/g, " ").trim() || null;
       const published = e.match(/<published>(\d{4})-/)?.[1];
-      const id = e.match(/<id>([\s\S]*?)<\/id>/)?.[1]?.trim() || null;
-      return { title, year: published ? Number(published) : null, venue: "arXiv preprint", url: id, source: "arXiv", tier: "L3" };
+      const id = e.match(/<id>([\s\S]*?)<\/id>/)?.[1]?.trim().replace(/^http:/, "https:") || null;
+      const abstract = e.match(/<summary>([\s\S]*?)<\/summary>/)?.[1]?.replace(/\s+/g, " ").trim() || "";
+      const date = e.match(/<published>(\d{4}-\d{2}-\d{2})/)?.[1] || null;
+      return { title, year: published ? Number(published) : null, venue: "arXiv preprint", url: id, source: "arXiv", tier: "L3", abstract, date };
     })
     .filter((p) => p.title);
   return setCached(key, results);
@@ -112,6 +124,19 @@ async function searchLiteratureAllSources(query, { cutoffYear, cutoffDate } = {}
   return { literature, notes };
 }
 
+// Retrieval-augmented literature search: the persistent knowledge base first, then the three
+// live sources, then write-back — every in-scope live result is stored (knowledgeStore.js) so
+// the next search for a related topic retrieves it locally even if the live sources fail.
+// Returns { local, live, learned, notes }; `learned` reports exactly what was written back.
+async function searchWithKnowledge(query, { cutoffYear, cutoffDate, localLimit = 8 } = {}) {
+  const store = require("./knowledgeStore").getStore();
+  const kbCutoff = cutoffDate || (cutoffYear ? `${cutoffYear}-12-31` : undefined);
+  const local = store.search(query, { type: "paper", cutoffDate: kbCutoff, limit: localLimit });
+  const { literature: live, notes } = await searchLiteratureAllSources(query, { cutoffYear, cutoffDate });
+  const learned = store.addMany(live, { origin: "live-search", query });
+  return { local, live, learned: { added: learned.added, already_known: learned.skipped_duplicate, rejected_out_of_scope: learned.rejected, kb_total: store.stats().total }, notes };
+}
+
 // Real per-year publication counts for [y0, y1] from OpenAlex's group_by=publication_year
 // (free, keyless — no API key or registration required as of this writing). This is what
 // backs the Temporal factor: an actual yearly trend, not the size of a handful of
@@ -123,7 +148,7 @@ async function fetchYearlyLiteratureCounts(query, y0, y1) {
   const cached = getCached(key);
   if (cached) return cached;
   try {
-    const url = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&filter=publication_year:${y0}-${y1}&group_by=publication_year&mailto=researchgap-tool@example.org`;
+    const url = `https://api.openalex.org/works?search=${encodeURIComponent(query)}&filter=publication_year:${y0}-${y1}&group_by=publication_year&mailto=researchgap-tool@example.org${OPENALEX_KEY_PARAM}`;
     const res = await fetch(url, { headers: { Accept: "application/json" } });
     if (!res.ok) throw new Error(`OpenAlex ${res.status}`);
     const data = await res.json();
@@ -138,4 +163,4 @@ async function fetchYearlyLiteratureCounts(query, y0, y1) {
   }
 }
 
-module.exports = { searchSemanticScholar, searchCrossref, searchArxiv, searchLiteratureAllSources, fetchYearlyLiteratureCounts };
+module.exports = { searchSemanticScholar, searchCrossref, searchArxiv, searchLiteratureAllSources, searchWithKnowledge, fetchYearlyLiteratureCounts };

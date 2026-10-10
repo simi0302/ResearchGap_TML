@@ -149,10 +149,12 @@
         <p class="eyebrow">ANALYSIS DASHBOARD</p>
         <h3>Research Topic Overview <span>/ 研究主題概覽</span></h3>
         <p id="analysisSummary">Enter a keyword to start the analysis. <span class="zh">輸入關鍵字後開始分析。</span></p>
+        <p class="kb-pill" id="kbPill" hidden></p>
       </div>
 
       <div class="results-wrap" id="resultsWrap" hidden>
         <p class="query-interpretation" id="queryInterpretation" hidden></p>
+        <div class="landscape" id="landscapePanel" hidden></div>
         <div class="ai-suggest" id="aiSuggest" hidden></div>
         <div id="patentBlock">
         <div class="results-head">
@@ -178,6 +180,14 @@
           <h3>AI Research Gap Assistant <span>/ AI 研究白地助手</span></h3>
           <p>Ask about research gaps and relevant patents in natural language, or upload a paper or patent draft (PDF or TXT) to check whether it's patentable.</p>
           <p class="zh">用自然語言詢問研究缺口與相關專利，或上傳論文、專利草稿（PDF／TXT），評估是否具可專利性。</p>
+          <ul class="diff-list">
+            <li><strong>Computed, not generated</strong> — scores and counts come from deterministic code; the same input always gives the same number.
+              <span class="zh">數字由程式計算而非生成，同樣輸入永遠得到同樣結果。</span></li>
+            <li><strong>Bounded by your cutoff date</strong> — nothing published after your paper counts as prior art.
+              <span class="zh">以你的發表年為基準日，之後才公開的資料一律不算前案。</span></li>
+            <li><strong>Grounded and remembered</strong> — answers cite 2,799 patents and a knowledge base that keeps every verified paper and patent it finds.
+              <span class="zh">回答引用 2,799 筆專利與持續累積的知識庫，每次查到並驗證的論文、專利都會存回。</span></li>
+          </ul>
           <p class="status-pill">
             <span class="status-dot"></span>Live · Azure OpenAI <span class="zh">已上線</span>
           </p>
@@ -187,18 +197,19 @@
           <div class="chat-messages" id="chatMessages" aria-live="polite" aria-atomic="false">
             <div class="bubble bot">
               <span>RG</span>
-              <p>Hi! What research direction would you like to explore?<br><small>嗨！你想探索哪個研究方向？</small></p>
-            </div>
-            <div class="bubble bot sample">
-              <span>RG</span>
-              <p id="aiResponse">Upload your paper or patent draft, then try one of the prompts below.</p>
+              <div class="bubble-content">
+                <p>Hi! Ask me how crowded a topic is, or attach your paper or patent draft for a full patentability check. Every number I give is computed by the backend over a named population — 2,799 patents plus a knowledge base of <strong id="kbChatCount">thousands of</strong> papers and verified patents — and every patent or paper I name comes with a link you can check.</p>
+                <p><small>嗨！可以問我某個技術主題擁不擁擠，或上傳論文／專利草稿做完整的可專利性分析。我給的每個數字都由後端在明確的母體上計算（2,799 筆專利＋<span id="kbChatCountZh">數千</span>筆論文與驗證專利的知識庫），提到的每篇專利或論文都附可查證連結。</small></p>
+              </div>
             </div>
           </div>
 
           <div class="chat-suggestions">
             <span class="chat-suggestions__label">Try asking:</span>
-            <button type="button" class="tag chat-suggestion">What's my research's patentability opportunity score?</button>
-            <button type="button" class="tag chat-suggestion">What white-space opportunities exist for my research?</button>
+            <button type="button" class="tag chat-suggestion">Is network slicing with digital twin a crowded area?</button>
+            <button type="button" class="tag chat-suggestion">Who is patenting NFV, and how concentrated is it?</button>
+            <button type="button" class="tag chat-suggestion" data-needs-doc>What's my research's patentability opportunity score?</button>
+            <button type="button" class="tag chat-suggestion" data-needs-doc>What white-space opportunities exist for my research?</button>
           </div>
 
           <div class="chat-attachment" id="chatAttachment" hidden>
@@ -342,7 +353,7 @@
       </a>
       <div class="footer-text">
       <p>Patent &amp; Literature White-Space Analysis Platform <span class="zh">· 專利文獻白地分析平台</span></p>
-      <p class="muted">Real patent search, White-Space Matrix (2,799 patents) &amp; AI assistant — no placeholder data. <span class="zh">真實專利搜尋、白地矩陣（2,799 筆）與 AI 助手——沒有示意資料。</span></p>
+      <p class="muted">Real patent search, White-Space Matrix (2,799 patents), a growing knowledge base &amp; AI assistant — no placeholder data. <span class="zh">真實專利搜尋、白地矩陣（2,799 筆）、持續成長的知識庫與 AI 助手——沒有示意資料。</span></p>
       </div>
     </footer>
 

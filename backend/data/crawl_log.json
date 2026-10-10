@@ -1,0 +1,1061 @@
+{
+  "totals": {
+    "stored": 8115,
+    "by_source": {
+      "arXiv": 1569,
+      "Crossref": 6546
+    },
+    "by_year": {
+      "2008": 10,
+      "2009": 6,
+      "2010": 13,
+      "2011": 14,
+      "2012": 48,
+      "2013": 65,
+      "2014": 126,
+      "2015": 166,
+      "2016": 254,
+      "2017": 316,
+      "2018": 429,
+      "2019": 524,
+      "2020": 576,
+      "2021": 610,
+      "2022": 653,
+      "2023": 829,
+      "2024": 908,
+      "2025": 1273,
+      "2026": 1294,
+      "2027": 1
+    }
+  },
+  "passes": [
+    {
+      "planner": "ai:gpt-4.1-mini (reused 2026-10-10T13:28:52.023Z)",
+      "sources": [
+        "arxiv",
+        "crossref"
+      ],
+      "finished_at": "2026-10-10T14:03:54.645Z",
+      "per_query": [
+        {
+          "query": "software-defined networking orchestration",
+          "added": 204,
+          "rejected": 84,
+          "dup": 0,
+          "arxiv": 88,
+          "crossref": 200
+        },
+        {
+          "query": "NFV network slicing",
+          "added": 168,
+          "rejected": 63,
+          "dup": 12,
+          "arxiv": 43,
+          "crossref": 200
+        },
+        {
+          "query": "service function chaining programmable switch",
+          "added": 191,
+          "rejected": 11,
+          "dup": 1,
+          "arxiv": 3,
+          "crossref": 200
+        },
+        {
+          "query": "network slicing 5G core functions",
+          "added": 200,
+          "rejected": 10,
+          "dup": 15,
+          "arxiv": 25,
+          "crossref": 200
+        },
+        {
+          "query": "O-RAN AI orchestration",
+          "added": 165,
+          "rejected": 63,
+          "dup": 3,
+          "arxiv": 31,
+          "crossref": 200
+        },
+        {
+          "query": "openflow traffic engineering",
+          "added": 146,
+          "rejected": 62,
+          "dup": 1,
+          "arxiv": 9,
+          "crossref": 200
+        },
+        {
+          "query": "cloud-native NFV lifecycle",
+          "added": 103,
+          "rejected": 88,
+          "dup": 9,
+          "arxiv": 0,
+          "crossref": 200
+        },
+        {
+          "query": "MEC 5G latency",
+          "added": 279,
+          "rejected": 5,
+          "dup": 16,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "6G beamforming mobility management",
+          "added": 176,
+          "rejected": 35,
+          "dup": 0,
+          "arxiv": 11,
+          "crossref": 200
+        },
+        {
+          "query": "AI machine learning network security",
+          "added": 120,
+          "rejected": 178,
+          "dup": 2,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "VNF placement orchestration",
+          "added": 199,
+          "rejected": 5,
+          "dup": 8,
+          "arxiv": 12,
+          "crossref": 200
+        },
+        {
+          "query": "software defined network zero trust",
+          "added": 72,
+          "rejected": 114,
+          "dup": 26,
+          "arxiv": 12,
+          "crossref": 200
+        },
+        {
+          "query": "network slicing intent based networking",
+          "added": 139,
+          "rejected": 71,
+          "dup": 15,
+          "arxiv": 25,
+          "crossref": 200
+        },
+        {
+          "query": "SFC network exposure function",
+          "added": 162,
+          "rejected": 28,
+          "dup": 12,
+          "arxiv": 2,
+          "crossref": 200
+        },
+        {
+          "query": "open ran microservice architecture",
+          "added": 54,
+          "rejected": 146,
+          "dup": 3,
+          "arxiv": 3,
+          "crossref": 200
+        },
+        {
+          "query": "programmable data plane QoS",
+          "added": 179,
+          "rejected": 25,
+          "dup": 6,
+          "arxiv": 10,
+          "crossref": 200
+        },
+        {
+          "query": "containerized infrastructure NFV",
+          "added": 74,
+          "rejected": 41,
+          "dup": 87,
+          "arxiv": 2,
+          "crossref": 200
+        },
+        {
+          "query": "MEC fog computing orchestration",
+          "added": 95,
+          "rejected": 92,
+          "dup": 15,
+          "arxiv": 2,
+          "crossref": 200
+        },
+        {
+          "query": "5G core AMF SMF integration",
+          "added": 112,
+          "rejected": 88,
+          "dup": 2,
+          "arxiv": 2,
+          "crossref": 200
+        },
+        {
+          "query": "massive mimo mmwave 5G",
+          "added": 169,
+          "rejected": 92,
+          "dup": 1,
+          "arxiv": 62,
+          "crossref": 200
+        },
+        {
+          "query": "handover URLLC management",
+          "added": 80,
+          "rejected": 121,
+          "dup": 0,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "agentic AI network orchestration",
+          "added": 163,
+          "rejected": 100,
+          "dup": 37,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "traffic engineering SLA enforcement",
+          "added": 13,
+          "rejected": 188,
+          "dup": 0,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "network security encryption SDN",
+          "added": 82,
+          "rejected": 127,
+          "dup": 10,
+          "arxiv": 19,
+          "crossref": 200
+        },
+        {
+          "query": "vnf migration provisioning",
+          "added": 114,
+          "rejected": 41,
+          "dup": 48,
+          "arxiv": 3,
+          "crossref": 200
+        },
+        {
+          "query": "software defined networking NFV",
+          "added": 90,
+          "rejected": 118,
+          "dup": 92,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "network slicing digital twin",
+          "added": 88,
+          "rejected": 142,
+          "dup": 9,
+          "arxiv": 39,
+          "crossref": 200
+        },
+        {
+          "query": "SFC P4 data plane",
+          "added": 153,
+          "rejected": 11,
+          "dup": 36,
+          "arxiv": 0,
+          "crossref": 200
+        },
+        {
+          "query": "O-RAN xApps orchestration",
+          "added": 107,
+          "rejected": 46,
+          "dup": 72,
+          "arxiv": 25,
+          "crossref": 200
+        },
+        {
+          "query": "intent based network slicing",
+          "added": 80,
+          "rejected": 40,
+          "dup": 105,
+          "arxiv": 25,
+          "crossref": 200
+        },
+        {
+          "query": "SD-WAN QoS traffic control",
+          "added": 76,
+          "rejected": 122,
+          "dup": 3,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "container microservice orchestration",
+          "added": 203,
+          "rejected": 28,
+          "dup": 9,
+          "arxiv": 40,
+          "crossref": 200
+        },
+        {
+          "query": "MEC edge computing 5G",
+          "added": 152,
+          "rejected": 54,
+          "dup": 94,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "6G network slicing AI",
+          "added": 169,
+          "rejected": 25,
+          "dup": 65,
+          "arxiv": 59,
+          "crossref": 200
+        },
+        {
+          "query": "5G core UPF orchestration",
+          "added": 130,
+          "rejected": 38,
+          "dup": 36,
+          "arxiv": 4,
+          "crossref": 200
+        },
+        {
+          "query": "beamforming mobility management",
+          "added": 61,
+          "rejected": 175,
+          "dup": 21,
+          "arxiv": 57,
+          "crossref": 200
+        },
+        {
+          "query": "handover EMBB optimization",
+          "added": 65,
+          "rejected": 129,
+          "dup": 6,
+          "arxiv": 0,
+          "crossref": 200
+        },
+        {
+          "query": "machine learning network management",
+          "added": 67,
+          "rejected": 220,
+          "dup": 13,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "QoS latency traffic engineering",
+          "added": 82,
+          "rejected": 148,
+          "dup": 19,
+          "arxiv": 49,
+          "crossref": 200
+        },
+        {
+          "query": "network security zero trust",
+          "added": 80,
+          "rejected": 202,
+          "dup": 18,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "vnf placement NFV orchestration",
+          "added": 70,
+          "rejected": 11,
+          "dup": 126,
+          "arxiv": 7,
+          "crossref": 200
+        },
+        {
+          "query": "software defined networking AI",
+          "added": 59,
+          "rejected": 106,
+          "dup": 135,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "network slicing SMF orchestration",
+          "added": 75,
+          "rejected": 26,
+          "dup": 99,
+          "arxiv": 0,
+          "crossref": 200
+        },
+        {
+          "query": "SFC network slice orchestration",
+          "added": 76,
+          "rejected": 33,
+          "dup": 93,
+          "arxiv": 2,
+          "crossref": 200
+        },
+        {
+          "query": "open ran cloud ran",
+          "added": 177,
+          "rejected": 77,
+          "dup": 46,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "openflow programmable switch",
+          "added": 133,
+          "rejected": 57,
+          "dup": 25,
+          "arxiv": 15,
+          "crossref": 200
+        },
+        {
+          "query": "containerization NFV lifecycle",
+          "added": 26,
+          "rejected": 80,
+          "dup": 94,
+          "arxiv": 0,
+          "crossref": 200
+        },
+        {
+          "query": "multi-access edge computing orchestration",
+          "added": 97,
+          "rejected": 97,
+          "dup": 40,
+          "arxiv": 34,
+          "crossref": 200
+        },
+        {
+          "query": "5G core network exposure",
+          "added": 61,
+          "rejected": 96,
+          "dup": 49,
+          "arxiv": 6,
+          "crossref": 200
+        },
+        {
+          "query": "massive mimo mmwave beamforming",
+          "added": 42,
+          "rejected": 216,
+          "dup": 42,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "handover mobility management URLLC",
+          "added": 52,
+          "rejected": 128,
+          "dup": 21,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "AI orchestration intent based",
+          "added": 71,
+          "rejected": 119,
+          "dup": 90,
+          "arxiv": 80,
+          "crossref": 200
+        },
+        {
+          "query": "traffic engineering packet loss",
+          "added": 42,
+          "rejected": 213,
+          "dup": 8,
+          "arxiv": 63,
+          "crossref": 200
+        },
+        {
+          "query": "network security authentication zero trust",
+          "added": 22,
+          "rejected": 176,
+          "dup": 49,
+          "arxiv": 47,
+          "crossref": 200
+        },
+        {
+          "query": "vnf migration provisioning NFV",
+          "added": 47,
+          "rejected": 7,
+          "dup": 147,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "software defined networking network slicing",
+          "added": 121,
+          "rejected": 50,
+          "dup": 88,
+          "arxiv": 59,
+          "crossref": 200
+        },
+        {
+          "query": "network slicing 6G AI",
+          "added": 0,
+          "rejected": 25,
+          "dup": 234,
+          "arxiv": 59,
+          "crossref": 200
+        },
+        {
+          "query": "SFC programmable data plane",
+          "added": 14,
+          "rejected": 13,
+          "dup": 174,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "O-RAN microservice orchestration",
+          "added": 18,
+          "rejected": 42,
+          "dup": 140,
+          "arxiv": 0,
+          "crossref": 200
+        },
+        {
+          "query": "intent based NFV orchestration",
+          "added": 39,
+          "rejected": 39,
+          "dup": 122,
+          "arxiv": 0,
+          "crossref": 200
+        },
+        {
+          "query": "SD-WAN traffic control QoS",
+          "added": 0,
+          "rejected": 122,
+          "dup": 79,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "container orchestration MEC",
+          "added": 45,
+          "rejected": 3,
+          "dup": 155,
+          "arxiv": 3,
+          "crossref": 200
+        },
+        {
+          "query": "MEC 5G core integration",
+          "added": 66,
+          "rejected": 24,
+          "dup": 115,
+          "arxiv": 5,
+          "crossref": 200
+        },
+        {
+          "query": "6G beamforming AI",
+          "added": 61,
+          "rejected": 61,
+          "dup": 112,
+          "arxiv": 34,
+          "crossref": 200
+        },
+        {
+          "query": "5G core AMF UPF",
+          "added": 8,
+          "rejected": 113,
+          "dup": 81,
+          "arxiv": 2,
+          "crossref": 200
+        },
+        {
+          "query": "massive mimo beamforming optimization",
+          "added": 59,
+          "rejected": 216,
+          "dup": 25,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "handover EMBB URLLC",
+          "added": 115,
+          "rejected": 65,
+          "dup": 22,
+          "arxiv": 2,
+          "crossref": 200
+        },
+        {
+          "query": "machine learning network orchestration",
+          "added": 117,
+          "rejected": 107,
+          "dup": 76,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "QoS SLA traffic engineering",
+          "added": 11,
+          "rejected": 155,
+          "dup": 37,
+          "arxiv": 3,
+          "crossref": 200
+        },
+        {
+          "query": "network security encryption zero trust",
+          "added": 8,
+          "rejected": 170,
+          "dup": 45,
+          "arxiv": 23,
+          "crossref": 200
+        },
+        {
+          "query": "vnf placement lifecycle management",
+          "added": 21,
+          "rejected": 19,
+          "dup": 161,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "software defined networking SD-WAN",
+          "added": 42,
+          "rejected": 65,
+          "dup": 108,
+          "arxiv": 15,
+          "crossref": 200
+        },
+        {
+          "query": "network slicing service chain",
+          "added": 119,
+          "rejected": 35,
+          "dup": 69,
+          "arxiv": 23,
+          "crossref": 200
+        },
+        {
+          "query": "SFC network slice selection",
+          "added": 56,
+          "rejected": 48,
+          "dup": 99,
+          "arxiv": 3,
+          "crossref": 200
+        },
+        {
+          "query": "open ran VRAN orchestration",
+          "added": 20,
+          "rejected": 50,
+          "dup": 131,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "openflow flow table management",
+          "added": 159,
+          "rejected": 1,
+          "dup": 47,
+          "arxiv": 7,
+          "crossref": 200
+        },
+        {
+          "query": "container microservice NFV",
+          "added": 10,
+          "rejected": 67,
+          "dup": 124,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "multi-access edge computing fog computing",
+          "added": 18,
+          "rejected": 168,
+          "dup": 34,
+          "arxiv": 20,
+          "crossref": 200
+        },
+        {
+          "query": "5G core SMF orchestration",
+          "added": 11,
+          "rejected": 16,
+          "dup": 173,
+          "arxiv": 0,
+          "crossref": 200
+        },
+        {
+          "query": "beamforming mmwave 6G",
+          "added": 101,
+          "rejected": 114,
+          "dup": 41,
+          "arxiv": 56,
+          "crossref": 200
+        },
+        {
+          "query": "handover mobility management EMBB",
+          "added": 1,
+          "rejected": 128,
+          "dup": 71,
+          "arxiv": 0,
+          "crossref": 200
+        },
+        {
+          "query": "AI deep learning network management",
+          "added": 56,
+          "rejected": 222,
+          "dup": 22,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "traffic engineering latency optimization",
+          "added": 66,
+          "rejected": 201,
+          "dup": 33,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "network security zero trust authentication",
+          "added": 0,
+          "rejected": 176,
+          "dup": 71,
+          "arxiv": 47,
+          "crossref": 200
+        },
+        {
+          "query": "vnf migration orchestration",
+          "added": 10,
+          "rejected": 46,
+          "dup": 146,
+          "arxiv": 2,
+          "crossref": 200
+        },
+        {
+          "query": "software defined networking NFV orchestration",
+          "added": 0,
+          "rejected": 111,
+          "dup": 108,
+          "arxiv": 19,
+          "crossref": 200
+        },
+        {
+          "query": "network slicing AI orchestration",
+          "added": 32,
+          "rejected": 41,
+          "dup": 153,
+          "arxiv": 26,
+          "crossref": 200
+        },
+        {
+          "query": "SFC programmable switch P4",
+          "added": 99,
+          "rejected": 50,
+          "dup": 51,
+          "arxiv": 0,
+          "crossref": 200
+        },
+        {
+          "query": "O-RAN cloud ran orchestration",
+          "added": 8,
+          "rejected": 58,
+          "dup": 146,
+          "arxiv": 12,
+          "crossref": 200
+        },
+        {
+          "query": "intent based AI network management",
+          "added": 35,
+          "rejected": 139,
+          "dup": 70,
+          "arxiv": 44,
+          "crossref": 200
+        },
+        {
+          "query": "SD-WAN QoS latency",
+          "added": 53,
+          "rejected": 88,
+          "dup": 61,
+          "arxiv": 2,
+          "crossref": 200
+        },
+        {
+          "query": "container orchestration kubernetes",
+          "added": 134,
+          "rejected": 45,
+          "dup": 121,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "MEC edge computing fog orchestration",
+          "added": 0,
+          "rejected": 145,
+          "dup": 56,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "6G network slicing orchestration",
+          "added": 29,
+          "rejected": 10,
+          "dup": 197,
+          "arxiv": 36,
+          "crossref": 200
+        },
+        {
+          "query": "5G core UPF network exposure",
+          "added": 0,
+          "rejected": 85,
+          "dup": 117,
+          "arxiv": 2,
+          "crossref": 200
+        },
+        {
+          "query": "massive mimo beamforming mmwave",
+          "added": 0,
+          "rejected": 216,
+          "dup": 84,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "handover URLLC mobility management",
+          "added": 0,
+          "rejected": 128,
+          "dup": 73,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "traffic engineering packet loss QoS",
+          "added": 3,
+          "rejected": 183,
+          "dup": 26,
+          "arxiv": 12,
+          "crossref": 200
+        },
+        {
+          "query": "network security zero trust encryption",
+          "added": 0,
+          "rejected": 170,
+          "dup": 53,
+          "arxiv": 23,
+          "crossref": 200
+        },
+        {
+          "query": "vnf placement provisioning NFV",
+          "added": 10,
+          "rejected": 6,
+          "dup": 198,
+          "arxiv": 14,
+          "crossref": 200
+        },
+        {
+          "query": "software defined networking network function virtualization",
+          "added": 46,
+          "rejected": 117,
+          "dup": 137,
+          "arxiv": 100,
+          "crossref": 200
+        },
+        {
+          "query": "network slicing digital twin AI",
+          "added": 26,
+          "rejected": 94,
+          "dup": 93,
+          "arxiv": 13,
+          "crossref": 200
+        },
+        {
+          "query": "SFC P4 programmable data plane",
+          "added": 2,
+          "rejected": 15,
+          "dup": 183,
+          "arxiv": 0,
+          "crossref": 200
+        },
+        {
+          "query": "O-RAN xApps AI orchestration",
+          "added": 0,
+          "rejected": 51,
+          "dup": 164,
+          "arxiv": 15,
+          "crossref": 200
+        },
+        {
+          "query": "intent based network slicing orchestration",
+          "added": 2,
+          "rejected": 37,
+          "dup": 170,
+          "arxiv": 9,
+          "crossref": 200
+        },
+        {
+          "query": "SD-WAN traffic engineering QoS",
+          "added": 10,
+          "rejected": 103,
+          "dup": 87,
+          "arxiv": 0,
+          "crossref": 200
+        },
+        {
+          "query": "container microservice orchestration kubernetes",
+          "added": 9,
+          "rejected": 51,
+          "dup": 166,
+          "arxiv": 26,
+          "crossref": 200
+        },
+        {
+          "query": "MEC 5G core network integration",
+          "added": 18,
+          "rejected": 66,
+          "dup": 120,
+          "arxiv": 4,
+          "crossref": 200
+        },
+        {
+          "query": "6G beamforming AI orchestration",
+          "added": 26,
+          "rejected": 63,
+          "dup": 112,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "5G core AMF SMF UPF",
+          "added": 0,
+          "rejected": 74,
+          "dup": 127,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "massive mimo beamforming optimization AI",
+          "added": 3,
+          "rejected": 157,
+          "dup": 50,
+          "arxiv": 10,
+          "crossref": 200
+        },
+        {
+          "query": "handover EMBB URLLC mobility",
+          "added": 1,
+          "rejected": 66,
+          "dup": 135,
+          "arxiv": 2,
+          "crossref": 200
+        },
+        {
+          "query": "machine learning AI network orchestration",
+          "added": 23,
+          "rejected": 127,
+          "dup": 120,
+          "arxiv": 70,
+          "crossref": 200
+        },
+        {
+          "query": "QoS SLA traffic engineering latency",
+          "added": 5,
+          "rejected": 141,
+          "dup": 55,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "network security zero trust authentication encryption",
+          "added": 4,
+          "rejected": 155,
+          "dup": 41,
+          "arxiv_error": "fetch failed",
+          "crossref": 200
+        },
+        {
+          "query": "vnf placement lifecycle management orchestration",
+          "added": 0,
+          "rejected": 0,
+          "dup": 0,
+          "arxiv_error": "fetch failed",
+          "crossref_error": "fetch failed"
+        },
+        {
+          "query": "software defined networking SD-WAN QoS",
+          "added": 0,
+          "rejected": 0,
+          "dup": 0,
+          "arxiv_error": "fetch failed",
+          "crossref_error": "fetch failed"
+        },
+        {
+          "query": "network slicing service chain orchestration",
+          "added": 0,
+          "rejected": 0,
+          "dup": 0,
+          "arxiv_error": "fetch failed",
+          "crossref_error": "fetch failed"
+        },
+        {
+          "query": "SFC network slice selection orchestration",
+          "added": 0,
+          "rejected": 38,
+          "dup": 162,
+          "arxiv_error": "fetch failed",
+          "crossref": 200
+        },
+        {
+          "query": "open ran VRAN cloud ran orchestration",
+          "added": 0,
+          "rejected": 44,
+          "dup": 156,
+          "arxiv_error": "fetch failed",
+          "crossref": 200
+        }
+      ]
+    },
+    {
+      "planner": "ai:gpt-4.1-mini (reused 2026-10-10T13:28:52.023Z)",
+      "sources": [
+        "arxiv",
+        "crossref"
+      ],
+      "finished_at": "2026-10-10T14:06:22.059Z",
+      "per_query": [
+        {
+          "query": "network security zero trust authentication encryption",
+          "added": 2,
+          "rejected": 155,
+          "dup": 50,
+          "arxiv": 7,
+          "crossref": 200
+        },
+        {
+          "query": "vnf placement lifecycle management orchestration",
+          "added": 3,
+          "rejected": 7,
+          "dup": 191,
+          "arxiv": 1,
+          "crossref": 200
+        },
+        {
+          "query": "software defined networking SD-WAN QoS",
+          "added": 48,
+          "rejected": 60,
+          "dup": 96,
+          "arxiv": 4,
+          "crossref": 200
+        },
+        {
+          "query": "network slicing service chain orchestration",
+          "added": 0,
+          "rejected": 0,
+          "dup": 3,
+          "arxiv": 3,
+          "crossref_error": "fetch failed"
+        },
+        {
+          "query": "SFC network slice selection orchestration",
+          "added": 0,
+          "rejected": 38,
+          "dup": 162,
+          "arxiv_error": "fetch failed",
+          "crossref": 200
+        },
+        {
+          "query": "open ran VRAN cloud ran orchestration",
+          "added": 0,
+          "rejected": 45,
+          "dup": 156,
+          "arxiv": 1,
+          "crossref": 200
+        }
+      ]
+    }
+  ]
+}

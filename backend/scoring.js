@@ -236,13 +236,13 @@ function outOfScopeReason(caseFeatures, subtechLabel) {
 
 // Main entry point. `caseFeatures` must already be confirmed/extracted (features.js) and
 // pass the outOfScopeReason() gate — this function just computes.
-function computeScore({ cutoffDate, cutoffYear, subtechLabel, features: caseFeatures, literatureYearCounts, targetJurisdiction, lang, externalPatents = [] }) {
+function computeScore({ cutoffDate, cutoffYear, subtechLabel, features: caseFeatures, literatureYearCounts, targetJurisdiction, lang, externalPatents = [], docTerms = [] }) {
   const all = corpus.loadRawCorpus();
   const cutoffPatents = corpus.filterByCutoff(all, cutoffDate);
 
   // externalPatents (backend-fetched, see externalPriorArt.js) join the corpus for Novelty's
   // prior-art search only; Crowding/Temporal/Regional/white-space stay on the fixed corpus.
-  const priorArt = retrieval.searchPriorArt(caseFeatures, cutoffDate, 5, externalPatents);
+  const priorArt = retrieval.searchPriorArt(caseFeatures, cutoffDate, 5, externalPatents, docTerms);
   const caseFeatureIds = [...new Set(caseFeatures.map((f) => f.feature_id).filter(Boolean))];
 
   const novelty = noveltyFactor(caseFeatures, priorArt, lang);

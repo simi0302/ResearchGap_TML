@@ -1,0 +1,586 @@
+{
+  "planner": "ai:gpt-4.1-mini",
+  "created_at": "2026-10-10T13:28:52.023Z",
+  "queries": [
+    {
+      "query": "software-defined networking orchestration",
+      "why": "Combines SDN with network orchestration to explore automated control in programmable networks."
+    },
+    {
+      "query": "NFV network slicing",
+      "why": "Links NFV with network slicing to investigate virtualization for slice deployment."
+    },
+    {
+      "query": "service function chaining programmable switch",
+      "why": "Explores SFC implementation on programmable data planes like P4 switches."
+    },
+    {
+      "query": "network slicing 5G core functions",
+      "why": "Studies interaction of network slicing with 5G core elements such as AMF and SMF."
+    },
+    {
+      "query": "O-RAN AI orchestration",
+      "why": "Examines AI-driven orchestration in Open RAN architectures."
+    },
+    {
+      "query": "openflow traffic engineering",
+      "why": "Focuses on OpenFlow's role in QoS and traffic management."
+    },
+    {
+      "query": "cloud-native NFV lifecycle",
+      "why": "Combines containerization with NFV lifecycle management."
+    },
+    {
+      "query": "MEC 5G latency",
+      "why": "Studies edge computing impact on latency in 5G networks."
+    },
+    {
+      "query": "6G beamforming mobility management",
+      "why": "Investigates beamforming and mobility in future 6G systems."
+    },
+    {
+      "query": "AI machine learning network security",
+      "why": "Explores ML techniques for enhancing network security."
+    },
+    {
+      "query": "VNF placement orchestration",
+      "why": "Examines orchestration strategies for VNF placement."
+    },
+    {
+      "query": "software defined network zero trust",
+      "why": "Studies zero trust security models in SDN environments."
+    },
+    {
+      "query": "network slicing intent based networking",
+      "why": "Combines network slicing with intent-based orchestration."
+    },
+    {
+      "query": "SFC network exposure function",
+      "why": "Links service chaining with 5G core network exposure."
+    },
+    {
+      "query": "open ran microservice architecture",
+      "why": "Examines microservices in Open RAN deployments."
+    },
+    {
+      "query": "programmable data plane QoS",
+      "why": "Studies QoS enforcement via programmable switches."
+    },
+    {
+      "query": "containerized infrastructure NFV",
+      "why": "Explores containerization technologies applied to NFV."
+    },
+    {
+      "query": "MEC fog computing orchestration",
+      "why": "Investigates orchestration between MEC and fog computing."
+    },
+    {
+      "query": "5G core AMF SMF integration",
+      "why": "Studies integration of AMF and SMF in 5G core."
+    },
+    {
+      "query": "massive mimo mmwave 5G",
+      "why": "Focuses on beamforming and mmWave in 5G massive MIMO."
+    },
+    {
+      "query": "handover URLLC management",
+      "why": "Examines handover mechanisms for ultra-reliable low latency communications."
+    },
+    {
+      "query": "agentic AI network orchestration",
+      "why": "Explores autonomous AI agents for network orchestration."
+    },
+    {
+      "query": "traffic engineering SLA enforcement",
+      "why": "Studies enforcing SLAs via traffic engineering."
+    },
+    {
+      "query": "network security encryption SDN",
+      "why": "Focuses on encryption techniques for SDN security."
+    },
+    {
+      "query": "vnf migration provisioning",
+      "why": "Examines VNF migration and provisioning strategies."
+    },
+    {
+      "query": "software defined networking NFV",
+      "why": "Combines SDN and NFV for flexible network virtualization."
+    },
+    {
+      "query": "network slicing digital twin",
+      "why": "Explores digital twin models for network slicing."
+    },
+    {
+      "query": "SFC P4 data plane",
+      "why": "Studies service function chaining on P4 programmable data planes."
+    },
+    {
+      "query": "O-RAN xApps orchestration",
+      "why": "Investigates orchestration of O-RAN xApps."
+    },
+    {
+      "query": "intent based network slicing",
+      "why": "Combines intent-based networking with network slicing."
+    },
+    {
+      "query": "SD-WAN QoS traffic control",
+      "why": "Focuses on SD-WAN for quality of service and traffic control."
+    },
+    {
+      "query": "container microservice orchestration",
+      "why": "Studies orchestration of containerized microservices."
+    },
+    {
+      "query": "MEC edge computing 5G",
+      "why": "Explores edge computing integration with 5G MEC."
+    },
+    {
+      "query": "6G network slicing AI",
+      "why": "Examines AI applications in 6G network slicing."
+    },
+    {
+      "query": "5G core UPF orchestration",
+      "why": "Studies orchestration of User Plane Function in 5G core."
+    },
+    {
+      "query": "beamforming mobility management",
+      "why": "Focuses on beamforming techniques for mobility management."
+    },
+    {
+      "query": "handover EMBB optimization",
+      "why": "Optimizes handover for enhanced mobile broadband."
+    },
+    {
+      "query": "machine learning network management",
+      "why": "Explores ML-driven approaches for network management."
+    },
+    {
+      "query": "QoS latency traffic engineering",
+      "why": "Studies latency optimization in traffic engineering."
+    },
+    {
+      "query": "network security zero trust",
+      "why": "Focuses on zero trust models for network security."
+    },
+    {
+      "query": "vnf placement NFV orchestration",
+      "why": "Combines VNF placement with NFV orchestration."
+    },
+    {
+      "query": "software defined networking AI",
+      "why": "Explores AI applications in SDN control."
+    },
+    {
+      "query": "network slicing SMF orchestration",
+      "why": "Studies slice management via SMF orchestration."
+    },
+    {
+      "query": "SFC network slice orchestration",
+      "why": "Combines service chaining with slice orchestration."
+    },
+    {
+      "query": "open ran cloud ran",
+      "why": "Examines cloud RAN implementations in Open RAN."
+    },
+    {
+      "query": "openflow programmable switch",
+      "why": "Focuses on OpenFlow control of programmable switches."
+    },
+    {
+      "query": "containerization NFV lifecycle",
+      "why": "Studies containerization impact on NFV lifecycle."
+    },
+    {
+      "query": "multi-access edge computing orchestration",
+      "why": "Explores orchestration in MEC environments."
+    },
+    {
+      "query": "5G core network exposure",
+      "why": "Focuses on 5G core network exposure function."
+    },
+    {
+      "query": "massive mimo mmwave beamforming",
+      "why": "Studies mmWave beamforming in massive MIMO systems."
+    },
+    {
+      "query": "handover mobility management URLLC",
+      "why": "Examines handover for URLLC scenarios."
+    },
+    {
+      "query": "AI orchestration intent based",
+      "why": "Combines AI-driven orchestration with intent-based networking."
+    },
+    {
+      "query": "traffic engineering packet loss",
+      "why": "Focuses on minimizing packet loss via traffic engineering."
+    },
+    {
+      "query": "network security authentication zero trust",
+      "why": "Studies authentication in zero trust network security."
+    },
+    {
+      "query": "vnf migration provisioning NFV",
+      "why": "Examines VNF migration and provisioning in NFV."
+    },
+    {
+      "query": "software defined networking network slicing",
+      "why": "Combines SDN with network slicing for flexible networks."
+    },
+    {
+      "query": "network slicing 6G AI",
+      "why": "Explores AI-driven network slicing in 6G."
+    },
+    {
+      "query": "SFC programmable data plane",
+      "why": "Studies SFC implementation on programmable data planes."
+    },
+    {
+      "query": "O-RAN microservice orchestration",
+      "why": "Examines microservice orchestration in Open RAN."
+    },
+    {
+      "query": "intent based NFV orchestration",
+      "why": "Combines intent-based networking with NFV orchestration."
+    },
+    {
+      "query": "SD-WAN traffic control QoS",
+      "why": "Focuses on QoS in SD-WAN traffic control."
+    },
+    {
+      "query": "container orchestration MEC",
+      "why": "Studies container orchestration in MEC environments."
+    },
+    {
+      "query": "MEC 5G core integration",
+      "why": "Explores integration of MEC with 5G core network."
+    },
+    {
+      "query": "6G beamforming AI",
+      "why": "Examines AI-enhanced beamforming in 6G."
+    },
+    {
+      "query": "5G core AMF UPF",
+      "why": "Studies AMF and UPF functions in 5G core."
+    },
+    {
+      "query": "massive mimo beamforming optimization",
+      "why": "Focuses on optimizing beamforming in massive MIMO."
+    },
+    {
+      "query": "handover EMBB URLLC",
+      "why": "Studies handover for EMBB and URLLC services."
+    },
+    {
+      "query": "machine learning network orchestration",
+      "why": "Explores ML techniques for network orchestration."
+    },
+    {
+      "query": "QoS SLA traffic engineering",
+      "why": "Studies SLA enforcement via traffic engineering."
+    },
+    {
+      "query": "network security encryption zero trust",
+      "why": "Focuses on encryption in zero trust security models."
+    },
+    {
+      "query": "vnf placement lifecycle management",
+      "why": "Examines VNF placement and lifecycle management."
+    },
+    {
+      "query": "software defined networking SD-WAN",
+      "why": "Combines SDN principles with SD-WAN."
+    },
+    {
+      "query": "network slicing service chain",
+      "why": "Links network slicing with service function chaining."
+    },
+    {
+      "query": "SFC network slice selection",
+      "why": "Studies network slice selection via SFC."
+    },
+    {
+      "query": "open ran VRAN orchestration",
+      "why": "Focuses on VRAN orchestration in Open RAN."
+    },
+    {
+      "query": "openflow flow table management",
+      "why": "Examines flow table management using OpenFlow."
+    },
+    {
+      "query": "container microservice NFV",
+      "why": "Studies microservices in containerized NFV."
+    },
+    {
+      "query": "multi-access edge computing fog computing",
+      "why": "Explores MEC and fog computing integration."
+    },
+    {
+      "query": "5G core SMF orchestration",
+      "why": "Focuses on SMF orchestration in 5G core."
+    },
+    {
+      "query": "beamforming mmwave 6G",
+      "why": "Studies mmWave beamforming for 6G networks."
+    },
+    {
+      "query": "handover mobility management EMBB",
+      "why": "Examines handover for enhanced mobile broadband."
+    },
+    {
+      "query": "AI deep learning network management",
+      "why": "Explores deep learning for network management."
+    },
+    {
+      "query": "traffic engineering latency optimization",
+      "why": "Focuses on latency reduction via traffic engineering."
+    },
+    {
+      "query": "network security zero trust authentication",
+      "why": "Studies authentication in zero trust networks."
+    },
+    {
+      "query": "vnf migration orchestration",
+      "why": "Examines orchestration of VNF migration."
+    },
+    {
+      "query": "software defined networking NFV orchestration",
+      "why": "Combines SDN and NFV orchestration."
+    },
+    {
+      "query": "network slicing AI orchestration",
+      "why": "Explores AI orchestration in network slicing."
+    },
+    {
+      "query": "SFC programmable switch P4",
+      "why": "Studies SFC on P4 programmable switches."
+    },
+    {
+      "query": "O-RAN cloud ran orchestration",
+      "why": "Focuses on orchestration of cloud RAN in O-RAN."
+    },
+    {
+      "query": "intent based AI network management",
+      "why": "Combines intent-based networking with AI management."
+    },
+    {
+      "query": "SD-WAN QoS latency",
+      "why": "Studies QoS and latency in SD-WAN."
+    },
+    {
+      "query": "container orchestration kubernetes",
+      "why": "Examines Kubernetes for container orchestration."
+    },
+    {
+      "query": "MEC edge computing fog orchestration",
+      "why": "Explores orchestration across MEC and fog."
+    },
+    {
+      "query": "6G network slicing orchestration",
+      "why": "Studies orchestration for 6G network slicing."
+    },
+    {
+      "query": "5G core UPF network exposure",
+      "why": "Focuses on UPF and network exposure function."
+    },
+    {
+      "query": "massive mimo beamforming mmwave",
+      "why": "Studies mmWave beamforming in massive MIMO."
+    },
+    {
+      "query": "handover URLLC mobility management",
+      "why": "Examines handover for URLLC mobility."
+    },
+    {
+      "query": "traffic engineering packet loss QoS",
+      "why": "Focuses on packet loss reduction in traffic engineering."
+    },
+    {
+      "query": "network security zero trust encryption",
+      "why": "Studies encryption in zero trust security."
+    },
+    {
+      "query": "vnf placement provisioning NFV",
+      "why": "Examines VNF placement and provisioning."
+    },
+    {
+      "query": "software defined networking network function virtualization",
+      "why": "Combines SDN and NFV for network virtualization."
+    },
+    {
+      "query": "network slicing digital twin AI",
+      "why": "Explores AI-driven digital twins for network slicing."
+    },
+    {
+      "query": "SFC P4 programmable data plane",
+      "why": "Studies SFC on P4 programmable data planes."
+    },
+    {
+      "query": "O-RAN xApps AI orchestration",
+      "why": "Examines AI orchestration of O-RAN xApps."
+    },
+    {
+      "query": "intent based network slicing orchestration",
+      "why": "Combines intent-based networking with slicing orchestration."
+    },
+    {
+      "query": "SD-WAN traffic engineering QoS",
+      "why": "Focuses on QoS in SD-WAN traffic engineering."
+    },
+    {
+      "query": "container microservice orchestration kubernetes",
+      "why": "Studies Kubernetes orchestration of container microservices."
+    },
+    {
+      "query": "MEC 5G core network integration",
+      "why": "Explores MEC and 5G core network integration."
+    },
+    {
+      "query": "6G beamforming AI orchestration",
+      "why": "Examines AI orchestration of beamforming in 6G."
+    },
+    {
+      "query": "5G core AMF SMF UPF",
+      "why": "Studies integration of AMF, SMF, and UPF."
+    },
+    {
+      "query": "massive mimo beamforming optimization AI",
+      "why": "Focuses on AI optimization of beamforming in massive MIMO."
+    },
+    {
+      "query": "handover EMBB URLLC mobility",
+      "why": "Examines handover for EMBB and URLLC mobility."
+    },
+    {
+      "query": "machine learning AI network orchestration",
+      "why": "Explores ML and AI for network orchestration."
+    },
+    {
+      "query": "QoS SLA traffic engineering latency",
+      "why": "Studies latency-aware SLA enforcement via traffic engineering."
+    },
+    {
+      "query": "network security zero trust authentication encryption",
+      "why": "Focuses on authentication and encryption in zero trust."
+    },
+    {
+      "query": "vnf placement lifecycle management orchestration",
+      "why": "Examines orchestration of VNF placement and lifecycle."
+    },
+    {
+      "query": "software defined networking SD-WAN QoS",
+      "why": "Combines SDN and SD-WAN for QoS."
+    },
+    {
+      "query": "network slicing service chain orchestration",
+      "why": "Links network slicing with service chaining orchestration."
+    },
+    {
+      "query": "SFC network slice selection orchestration",
+      "why": "Studies orchestration of slice selection via SFC."
+    },
+    {
+      "query": "open ran VRAN cloud ran orchestration",
+      "why": "Focuses on orchestration of VRAN and cloud RAN."
+    },
+    {
+      "query": "openflow flow table programmable switch",
+      "why": "Examines flow table management on programmable switches."
+    },
+    {
+      "query": "container microservice NFV orchestration",
+      "why": "Studies orchestration of microservices in NFV."
+    },
+    {
+      "query": "multi-access edge computing fog computing orchestration",
+      "why": "Explores orchestration between MEC and fog computing."
+    },
+    {
+      "query": "5G core SMF UPF orchestration",
+      "why": "Focuses on orchestration of SMF and UPF."
+    },
+    {
+      "query": "beamforming mmwave massive mimo 6G",
+      "why": "Studies mmWave beamforming for massive MIMO in 6G."
+    },
+    {
+      "query": "handover mobility management EMBB URLLC",
+      "why": "Examines handover for EMBB and URLLC mobility management."
+    },
+    {
+      "query": "AI deep learning network orchestration",
+      "why": "Explores deep learning for AI-driven network orchestration."
+    },
+    {
+      "query": "traffic engineering latency packet loss QoS",
+      "why": "Focuses on latency and packet loss optimization in traffic engineering."
+    },
+    {
+      "query": "network security zero trust authentication encryption protocols",
+      "why": "Studies protocols for authentication and encryption in zero trust."
+    },
+    {
+      "query": "vnf migration provisioning lifecycle management",
+      "why": "Examines VNF migration, provisioning, and lifecycle."
+    },
+    {
+      "query": "software defined networking NFV orchestration lifecycle",
+      "why": "Combines SDN and NFV orchestration with lifecycle management."
+    },
+    {
+      "query": "network slicing AI orchestration agentic AI",
+      "why": "Explores agentic AI for network slicing orchestration."
+    },
+    {
+      "query": "SFC programmable switch P4 data plane",
+      "why": "Studies SFC on P4 programmable switches and data planes."
+    },
+    {
+      "query": "O-RAN cloud ran microservice orchestration",
+      "why": "Focuses on microservice orchestration in cloud RAN."
+    },
+    {
+      "query": "intent based AI network slicing orchestration",
+      "why": "Combines intent-based AI orchestration with network slicing."
+    },
+    {
+      "query": "SD-WAN QoS traffic engineering latency",
+      "why": "Studies latency-aware QoS in SD-WAN traffic engineering."
+    },
+    {
+      "query": "container orchestration kubernetes microservice",
+      "why": "Examines Kubernetes orchestration of microservices."
+    },
+    {
+      "query": "MEC edge computing fog computing orchestration",
+      "why": "Explores orchestration across MEC and fog computing environments."
+    },
+    {
+      "query": "6G network slicing AI orchestration",
+      "why": "Studies AI orchestration for 6G network slicing."
+    },
+    {
+      "query": "5G core UPF network exposure function orchestration",
+      "why": "Focuses on orchestration of UPF and network exposure function."
+    },
+    {
+      "query": "massive mimo beamforming mmwave AI optimization",
+      "why": "Studies AI optimization of mmWave beamforming in massive MIMO."
+    },
+    {
+      "query": "handover URLLC mobility management EMBB",
+      "why": "Examines handover for URLLC and EMBB mobility management."
+    },
+    {
+      "query": "agentic AI machine learning network orchestration",
+      "why": "Explores agentic AI and ML for network orchestration."
+    },
+    {
+      "query": "traffic engineering packet loss latency QoS SLA",
+      "why": "Focuses on SLA-driven packet loss and latency optimization."
+    },
+    {
+      "query": "vnf placement provisioning lifecycle management orchestration",
+      "why": "Examines orchestration of VNF placement, provisioning, and lifecycle."
+    }
+  ]
+}

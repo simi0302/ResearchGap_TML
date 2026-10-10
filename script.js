@@ -109,6 +109,7 @@ function resetSearchExtras() {
   document.getElementById("queryInterpretation").hidden = true;
   document.getElementById("aiSuggest").hidden = true;
   document.getElementById("paperResults").hidden = true;
+  document.getElementById("landscapePanel").hidden = true;
   document.getElementById("patentBlock").hidden = false;
 }
 
@@ -175,11 +176,11 @@ async function loadPaperResults(keyword, { start, end }, token) {
   el.hidden = false;
   const head = `<div class="results-head">
       <h4>Academic papers <span class="zh">學術文獻</span></h4>
-      <span class="paper-source">Live · Semantic Scholar, Crossref, arXiv</span>
+      <span class="paper-source">Knowledge base + live · Semantic Scholar, Crossref, arXiv</span>
     </div>`;
   const countryNote = document.getElementById("country").value !== "All"
     ? `<p class="paper-note">The country filter applies to patents only. <span class="zh">國家條件僅適用於專利。</span></p>` : "";
-  el.innerHTML = `${head}${countryNote}<div class="results-loading">Searching paper databases for “${escapeHtml(query)}” — about 10–15 s… <span class="zh">查詢論文資料庫中，約需 10–15 秒…</span></div>`;
+  el.innerHTML = `${head}${countryNote}<div class="results-loading">Searching the knowledge base and paper databases for “${escapeHtml(query)}” — about 10–15 s… <span class="zh">查詢論文資料庫中，約需 10–15 秒…</span></div>`;
   const unavailable = (extra) => `<div class="results-empty">Paper search is unavailable right now${extra || ""}.
       <br><small>論文搜尋暫時無法使用。</small></div>`;
   try {
@@ -199,9 +200,16 @@ async function loadPaperResults(keyword, { start, end }, token) {
       body = `<div class="results-empty">No papers found for “${escapeHtml(query)}” in this year range.
         <br><small>此年份範圍內查無相關論文。</small></div>`;
     } else {
-      body = `<div class="results-list">${papers.map((p) => `
+      const kb = data.knowledge_base;
+      const fromKb = papers.filter((p) => p.from === "knowledge_base").length;
+      const kbNote = kb
+        ? `<p class="paper-note kb-note"><span class="kb-dot" aria-hidden="true"></span><span>${fromKb} from the knowledge base · ${papers.length - fromKb} live${kb.added ? ` · <strong>${kb.added} new</strong> saved to the knowledge base (now ${Number(kb.kb_total).toLocaleString()} records)` : ""}.
+            <span class="zh">知識庫 ${fromKb} 筆・即時 ${papers.length - fromKb} 筆${kb.added ? `・本次新增 <strong>${kb.added}</strong> 筆寫回知識庫（共 ${Number(kb.kb_total).toLocaleString()} 筆）` : ""}。</span></span></p>`
+        : "";
+      if (kb?.added) loadKnowledgeStats();
+      body = `${kbNote}<div class="results-list">${papers.map((p) => `
         <article class="result-card paper-card">
-          <div class="result-head"><span class="result-jurisdiction">${escapeHtml(p.source || "Paper")}</span><span>${p.year ? escapeHtml(String(p.year)) : "year unknown"}</span></div>
+          <div class="result-head"><span class="result-jurisdiction">${escapeHtml(p.source || "Paper")}</span>${p.from === "knowledge_base" ? `<span class="kb-tag">Knowledge base <span class="zh">知識庫</span></span>` : ""}<span>${p.year ? escapeHtml(String(p.year)) : "year unknown"}</span></div>
           <h5>${escapeHtml(p.title || "(untitled)")}</h5>
           ${p.venue ? `<p class="result-meta">${escapeHtml(p.venue)}</p>` : ""}
           ${p.url ? `<a class="result-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">View paper <span aria-hidden="true">↗</span></a>` : ""}
@@ -212,6 +220,83 @@ async function loadPaperResults(keyword, { start, end }, token) {
     if (token === searchToken) el.innerHTML = `${head}${countryNote}${unavailable()}`;
   }
 }
+
+/* ===== Topic landscape: the same deterministic numbers the assistant's topic_landscape tool
+   uses (POST /api/landscape) — corpus patents vs knowledge-base papers per year, applicant
+   concentration, and the research-to-patent ratio. */
+function fmtPct(v) {
+  return v == null ? "—" : `${v > 0 ? "+" : ""}${v}%`;
+}
+function landscapeBars(patentsByYear, papersByYear) {
+  const years = Object.keys(patentsByYear);
+  const maxP = Math.max(1, ...years.map((y) => patentsByYear[y]));
+  const maxR = Math.max(1, ...years.map((y) => papersByYear[y] || 0));
+  return `<div class="ls-bars" role="img" aria-label="Patents and papers per year">${years.map((y) => `
+    <div class="ls-col" title="${y}: ${patentsByYear[y]} patents, ${papersByYear[y] || 0} papers">
+      <div class="ls-pair">
+        <i class="ls-bar ls-bar--patent" style="height:${Math.round((patentsByYear[y] / maxP) * 100)}%"></i>
+        <i class="ls-bar ls-bar--paper" style="height:${Math.round(((papersByYear[y] || 0) / maxR) * 100)}%"></i>
+      </div>
+      <span>${String(y).slice(2)}</span>
+    </div>`).join("")}</div>`;
+}
+async function loadLandscape(keyword, { end }, token) {
+  const el = document.getElementById("landscapePanel");
+  el.hidden = true;
+  try {
+    const res = await fetchWithTimeout(`${SEARCH_API_BASE}/api/landscape`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: keyword, cutoff_year: end ? Number(end) : undefined }),
+    }, 20000);
+    if (token !== searchToken || !res.ok) return;
+    const d = await res.json();
+    if (token !== searchToken || !d.patents) return;
+    const top = d.patents.top_applicants?.[0];
+    const ratio = d.research_to_patent_ratio_last5;
+    el.innerHTML = `
+      <div class="ls-head">
+        <h4>Topic landscape <span class="zh">主題全景</span></h4>
+        <span class="ls-src">Computed by the backend · the same numbers the AI assistant cites <span class="zh">後端計算・與 AI 助手引用的數字相同</span></span>
+      </div>
+      <div class="ls-grid">
+        <div class="ls-stat"><strong>${d.patents.matched.toLocaleString()}</strong><span>corpus patents <span class="zh">語料庫專利</span></span><small>${d.patents.share_of_corpus_pct}% of N=2,799 · 5-yr ${fmtPct(d.patents.growth_last5_vs_prev5_pct)}</small></div>
+        <div class="ls-stat"><strong>${d.papers.matched.toLocaleString()}</strong><span>knowledge-base papers <span class="zh">知識庫論文</span></span><small>5-yr ${fmtPct(d.papers.growth_last5_vs_prev5_pct)}</small></div>
+        <div class="ls-stat"><strong>${ratio == null ? "—" : ratio}</strong><span>papers per patent, last 5 yrs <span class="zh">近五年論文／專利比</span></span><small>${ratio == null ? "no patents in this window" : ratio >= 5 ? "research ahead of filings" : "filings keep pace"}</small></div>
+        <div class="ls-stat"><strong>${d.patents.applicant_hhi ?? "—"}</strong><span>applicant HHI <span class="zh">申請人集中度</span></span><small>${top ? `${escapeHtml(d.patents.applicant_concentration)} · top: ${escapeHtml(top.name)} ${top.share_pct}%` : "no applicants"}</small></div>
+      </div>
+      ${landscapeBars(d.patents.by_year, d.papers.by_year)}
+      <p class="ls-legend"><i class="ls-key ls-bar--patent"></i>Patents per year <span class="zh">每年專利</span> <i class="ls-key ls-bar--paper"></i>Papers per year <span class="zh">每年論文</span> <span class="ls-scale">(each scaled to its own maximum <span class="zh">各自以最大值為基準</span>)</span></p>`;
+    el.hidden = false;
+  } catch {
+    if (token === searchToken) el.hidden = true;
+  }
+}
+
+/* ===== Knowledge base size (RAG write-back), shown on the dashboard and in the chat greeting. */
+async function loadKnowledgeStats() {
+  try {
+    const res = await fetchWithTimeout(`${SEARCH_API_BASE}/api/knowledge/stats`, {}, 15000);
+    if (!res.ok) return;
+    const st = await res.json();
+    if (!st.total) return;
+    const pill = document.getElementById("kbPill");
+    const learned = st.learned || 0;
+    const papers = (st.by_type?.paper || 0).toLocaleString();
+    const patents = (st.by_type?.patent || 0).toLocaleString();
+    pill.innerHTML = `<span class="kb-dot" aria-hidden="true"></span><span><strong>Knowledge base: ${st.total.toLocaleString()} records</strong> — ${papers} papers, ${patents} verified patents; ${learned.toLocaleString()} saved back from live searches${st.last_learned_at ? `, latest ${new Date(st.last_learned_at).toLocaleDateString()}` : ""}.
+      <span class="zh">知識庫共 ${st.total.toLocaleString()} 筆（論文 ${papers}、驗證專利 ${patents}），其中 ${learned.toLocaleString()} 筆由即時搜尋寫回，每次搜尋都會持續累積。</span></span>`;
+    pill.hidden = false;
+    const n = st.total.toLocaleString();
+    const c = document.getElementById("kbChatCount");
+    const cz = document.getElementById("kbChatCountZh");
+    if (c) c.textContent = n;
+    if (cz) cz.textContent = n;
+  } catch {
+    // stats are informational; the page works without them
+  }
+}
+loadKnowledgeStats();
 
 
 const googlePatentsUrl = (publicationNumber) =>
@@ -510,6 +595,7 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
     document.getElementById("patentBlock").hidden = true;
   }
   if (keywordInput) {
+    loadLandscape(keywordInput, { end }, token);
     loadAiSuggestions(keywordInput, token);
     if (paper) loadPaperResults(keywordInput, { start, end }, token);
   } else if (paper && !patent) {
@@ -906,8 +992,12 @@ function splitTableCells(line) {
 }
 function inlineFormat(escapedText) {
   // Operates on already-escaped text, so this only ever adds our own tags — never
-  // interprets characters the model produced as HTML.
-  return escapedText.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  // interprets characters the model produced as HTML. Links: only http(s) URLs become <a>;
+  // quotes are already escaped (&quot;), so a URL cannot break out of the href attribute.
+  return escapedText
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/(^|[\s(])(https?:\/\/[^\s<)]+[^\s<).,;:])/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
 }
 function renderBotMarkdown(raw) {
   const lines = raw.replace(/\r\n/g, "\n").split("\n");
@@ -981,14 +1071,61 @@ function addUserBubble(text) {
   chatMessages.appendChild(bubble);
 }
 
-function addBotBubble(en, zh, usage) {
+// "How this answer was built": the tools the backend actually ran for this reply, with the
+// populations and counts they returned — the visible difference from a general chatbot, whose
+// answer has no inspectable trail. Built only from tool_calls in the API response.
+function evidenceItems(toolCalls) {
+  const items = [];
+  for (const call of toolCalls || []) {
+    const r = call.result || {};
+    if (call.tool === "compute_patentability") {
+      if (typeof r.score === "number") {
+        const ext = r.external_prior_art || {};
+        const kbN = (ext.knowledge_base || []).length;
+        items.push({
+          en: `Patentability scored by the backend: POS ${r.score} (${r.grade}), cutoff ${r.cutoff_year}, ${r.features?.length || 0} features detected, prior art from ${r.corpus_meta?.n_before_cutoff ?? "?"} corpus patents published by the cutoff${ext.count ? ` + ${ext.count} verified online` : ""}${kbN ? ` + ${kbN} from the knowledge base` : ""}.`,
+          zh: `後端計算可專利性：POS ${r.score}（${r.grade}），基準年 ${r.cutoff_year}，偵測到 ${r.features?.length || 0} 個技術特徵；前案來自基準日前 ${r.corpus_meta?.n_before_cutoff ?? "?"} 筆語料庫專利${ext.count ? `＋線上驗證 ${ext.count} 筆` : ""}${kbN ? `＋知識庫 ${kbN} 筆` : ""}。`,
+        });
+      } else if (r.out_of_scope) {
+        items.push({ en: "The backend found this document outside the SDN/NFV scope, so no score was produced.", zh: "後端判定文件超出 SDN／NFV 範圍，因此不給分數。" });
+      } else if (r.needs_confirmation) {
+        items.push({ en: `The backend needs the ${r.needs_confirmation === "cutoff_year" ? "publication year" : "technical features"} before it can score.`, zh: `後端需要先確認${r.needs_confirmation === "cutoff_year" ? "發表年份" : "技術特徵"}才能計分。` });
+      }
+    } else if (call.tool === "topic_landscape" && r.patents) {
+      items.push({
+        en: `Topic landscape computed by the backend for “${r.query}”: ${r.patents.matched.toLocaleString()} of ${Number(r.patents.population.match(/N=(\d+)/)?.[1] || 2799).toLocaleString()} corpus patents, ${r.papers.matched} knowledge-base papers${r.patents.applicant_hhi != null ? `, applicant HHI ${r.patents.applicant_hhi}` : ""}.`,
+        zh: `後端計算「${r.query}」主題全景：語料庫專利 ${r.patents.matched} 筆、知識庫論文 ${r.papers.matched} 筆${r.patents.applicant_hhi != null ? `，申請人 HHI ${r.patents.applicant_hhi}` : ""}。`,
+      });
+    } else if (call.tool === "search_prior_art") {
+      const kb = (r.knowledge_base || []).length;
+      const live = (r.literature || []).length;
+      const web = (r.web || []).length;
+      const upd = r.knowledge_base_update;
+      items.push({
+        en: `Literature search “${r.query}”: ${kb} retrieved from the knowledge base, ${live} live from Semantic Scholar / Crossref / arXiv, ${web} web sources${upd ? `; ${upd.added} new record${upd.added === 1 ? "" : "s"} saved to the knowledge base` : ""}.`,
+        zh: `文獻搜尋「${r.query}」：知識庫檢索 ${kb} 筆、即時來源 ${live} 筆、網路來源 ${web} 筆${upd ? `；新增 ${upd.added} 筆寫回知識庫` : ""}。`,
+      });
+    }
+  }
+  return items;
+}
+
+function evidenceBlock(toolCalls) {
+  const items = evidenceItems(toolCalls);
+  if (!items.length) return "";
+  return `<details class="evidence"><summary>How this answer was built <span class="zh">本回答的依據</span> · ${items.length}</summary><ul>${items
+    .map((i) => `<li>${escapeHtml(i.en)}<span class="zh">${escapeHtml(i.zh)}</span></li>`)
+    .join("")}</ul><p class="evidence-note">Numbers above come from backend code, not from the language model. <span class="zh">以上數字皆由後端程式產生，而非語言模型。</span></p></details>`;
+}
+
+function addBotBubble(en, zh, usage, toolCalls) {
   const bubble = document.createElement("div");
   bubble.className = "bubble bot";
   const zhBlock = zh ? `<p class="bubble-zh"><small>${escapeHtml(zh)}</small></p>` : "";
   const usageBlock = usage
     ? `<p class="bubble-usage"><small>Tokens used: ${usage.total_tokens.toLocaleString()} (prompt ${usage.prompt_tokens.toLocaleString()} + completion ${usage.completion_tokens.toLocaleString()}) <span class="zh">・已使用 ${usage.total_tokens.toLocaleString()} tokens</span></small></p>`
     : "";
-  bubble.innerHTML = `<span>RG</span><div class="bubble-content">${renderBotMarkdown(en)}${zhBlock}${usageBlock}</div>`;
+  bubble.innerHTML = `<span>RG</span><div class="bubble-content">${evidenceBlock(toolCalls)}${renderBotMarkdown(en)}${zhBlock}${usageBlock}</div>`;
   chatMessages.appendChild(bubble);
   return bubble;
 }
@@ -1153,6 +1290,7 @@ backtestRun?.addEventListener("click", async () => {
       body: JSON.stringify({
         mode: "upload",
         features: lastScoredCase.features,
+        doc_terms: lastScoredCase.doc_terms,
         publication_year: year,
         target_jurisdiction: lastScoredCase.target_jurisdiction,
       }),
@@ -1248,10 +1386,10 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
     const { en, zh, usage, tool_calls } = await sendMessageToAgent(text, chatHistory);
     chatHistory = [...chatHistory, { role: "user", content: text }, { role: "assistant", content: en }];
     typingBubble.remove();
-    const botBubble = addBotBubble(en, zh, usage);
-    document.getElementById("aiResponse").textContent = en;
+    const botBubble = addBotBubble(en, zh, usage, tool_calls);
     scrollToBubbleStart(botBubble);
     setChatBusy(false);
+    if (tool_calls?.some((c) => c.tool === "search_prior_art" || c.tool === "compute_patentability")) loadKnowledgeStats();
 
     const scoreResult = tool_calls
       ?.filter((c) => c.tool === "compute_patentability" && typeof c.result?.score === "number")
@@ -1268,20 +1406,19 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
     const { en, zh } = answerFor(text);
     typingBubble.remove();
     const botBubble = addBotBubble(en, zh);
-    document.getElementById("aiResponse").textContent = en;
     scrollToBubbleStart(botBubble);
     setChatBusy(false);
   }, prefersReducedMotion ? 0 : 550);
 });
 
-// Both suggested questions are about "my paper". Without one attached (and none analysed earlier
+// The data-needs-doc suggestions are about "my paper". Without one attached (and none analysed earlier
 // in this chat) the assistant used to ask for a publication year — a confusing answer to a
 // question with nothing to answer it about — so say what to do instead, without a round trip.
 document.querySelectorAll(".chat-suggestion").forEach(btn => {
   btn.addEventListener("click", () => {
     if (chatBusy) return;
     const hasDocument = Boolean(attachedDocText) || chatHistory.some((m) => m.role === "user" && m.content.includes("Uploaded document:"));
-    if (!hasDocument) {
+    if (btn.hasAttribute("data-needs-doc") && !hasDocument) {
       addUserBubble(btn.textContent.trim());
       const bubble = addBotBubble("Please attach your paper or patent draft first (PDF or TXT) with the paperclip button below, then ask this question again.");
       scrollToBubbleStart(bubble);

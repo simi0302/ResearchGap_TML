@@ -80,7 +80,8 @@ const FEATURE_DEFS = [
       "network monitoring", "network telemetry", "resource allocation", "resource scheduling",
     ], acronyms: ["QOS", "SLA"] },
   { id: "security", label: "Network Security & Access Control",
-    phrases: ["network security", "authentication", "zero trust", "encryption", "access control", "multi-tenant", "isolation"],
+    // "zero-trust": spelling variant added after the 2026-10-10 scenario test missed a 5G zero-trust paper.
+    phrases: ["network security", "authentication", "zero trust", "zero-trust", "encryption", "access control", "multi-tenant", "isolation"],
     acronyms: [] },
   { id: "vnf_lifecycle", label: "VNF Placement & Lifecycle Management",
     phrases: ["network function placement", "vnf placement", "vnf migration", "provisioning", "self-service"],

@@ -91,6 +91,36 @@ function queryTokensForFeatures(caseFeatures) {
   return tokens;
 }
 
+// The case document's own distinctive vocabulary: its top-K terms by TF-IDF, with IDF taken
+// over the whole patent corpus. Feature labels alone ("SDN", "network slicing") describe a
+// technology CLASS, so a feature-only query ranks any patent rich in those generic words first;
+// the known-item experiment (scratch/report/exp/e4) found the case's own patent ranked first
+// 0/40 times that way. Adding the document's distinctive terms makes retrieval favour patents
+// that are about the same specific thing. Deterministic: same text → same terms.
+const DOC_TERMS_K = 20;
+let _corpusDf = null;
+function corpusDf() {
+  if (_corpusDf) return _corpusDf;
+  const df = new Map();
+  for (const d of buildDocVectors()) for (const t of d.tf.keys()) df.set(t, (df.get(t) || 0) + 1);
+  _corpusDf = df;
+  return df;
+}
+function documentTerms(text, k = DOC_TERMS_K) {
+  const tokens = tokenize(text);
+  if (!tokens.length) return [];
+  const tf = new Map();
+  for (const t of tokens) tf.set(t, (tf.get(t) || 0) + 1);
+  const df = corpusDf();
+  const N = buildDocVectors().length;
+  return [...tf.entries()]
+    .filter(([t]) => t.length >= 3 && (df.get(t) || 0) > 0) // a term no patent uses can't help retrieval
+    .map(([t, f]) => [t, (1 + Math.log(f)) * Math.log(N / (df.get(t) || 1))])
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, k)
+    .map(([t]) => t);
+}
+
 // Which of the case's own feature ids (F1, F2, ...) are actually present in a given
 // patent's real text — computed with the same word-boundary matcher as the case
 // document, so this can never be inflated by a model-supplied claim.
@@ -106,8 +136,9 @@ function matchedFeatureIdsForPatent(patent, caseFeatures) {
 // flagging is_fallback in that case.
 // extraPatents: backend-fetched external patents (externalPriorArt.js), searched together
 // with the corpus. Each result carries source: "corpus" | "external".
-function searchPriorArt(caseFeatures, cutoffDate, limit = 5, extraPatents = []) {
-  const queryTokens = queryTokensForFeatures(caseFeatures);
+// docTerms: documentTerms() of the case text (or [] when only features are known).
+function searchPriorArt(caseFeatures, cutoffDate, limit = 5, extraPatents = [], docTerms = []) {
+  const queryTokens = [...queryTokensForFeatures(caseFeatures), ...docTerms];
   const hits = bm25Search(queryTokens, cutoffDate, limit, extraPatents);
   return hits.map((h) => ({
     patent_no: h.patent.publication_number,
@@ -120,4 +151,4 @@ function searchPriorArt(caseFeatures, cutoffDate, limit = 5, extraPatents = []) 
   }));
 }
 
-module.exports = { searchPriorArt, matchedFeatureIdsForPatent, tokenize };
+module.exports = { searchPriorArt, matchedFeatureIdsForPatent, tokenize, documentTerms };

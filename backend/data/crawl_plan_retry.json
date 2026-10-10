@@ -1,0 +1,30 @@
+{
+ "planner": "ai:gpt-4.1-mini",
+ "created_at": "2026-10-10T13:28:52.023Z",
+ "queries": [
+  {
+   "query": "network security zero trust authentication encryption",
+   "why": "Focuses on authentication and encryption in zero trust."
+  },
+  {
+   "query": "vnf placement lifecycle management orchestration",
+   "why": "Examines orchestration of VNF placement and lifecycle."
+  },
+  {
+   "query": "software defined networking SD-WAN QoS",
+   "why": "Combines SDN and SD-WAN for QoS."
+  },
+  {
+   "query": "network slicing service chain orchestration",
+   "why": "Links network slicing with service chaining orchestration."
+  },
+  {
+   "query": "SFC network slice selection orchestration",
+   "why": "Studies orchestration of slice selection via SFC."
+  },
+  {
+   "query": "open ran VRAN cloud ran orchestration",
+   "why": "Focuses on orchestration of VRAN and cloud RAN."
+  }
+ ]
+}

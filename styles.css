@@ -631,3 +631,51 @@ footer .muted{opacity:.55;font-size:13.5px}
 .paper-source{font-size:12.5px;font-weight:800;color:#a17557}
 .paper-note{margin:0 0 12px;font-size:13px;color:#8c6a54}
 @media(max-width:560px){.ai-suggest{padding:16px}.ai-chip{font-size:13px}}
+
+/* ===== Knowledge base (RAG write-back) ===== */
+.kb-pill{display:inline-flex;align-items:flex-start;gap:10px;margin-top:14px!important;font-size:13px!important;line-height:1.6;color:#5b3d2c!important;background:#fff;border:1px solid #f3dccb;border-radius:16px;padding:10px 16px;max-width:860px!important}
+.kb-pill[hidden]{display:none}
+.kb-pill .zh{display:block;color:#8c6a54;font-size:12.5px}
+.kb-dot{width:8px;height:8px;border-radius:50%;background:#22a06b;box-shadow:0 0 0 3px rgba(34,160,107,.18);flex-shrink:0;margin-top:6px;display:inline-block}
+.kb-note{display:flex;gap:10px;align-items:flex-start;line-height:1.6}
+.kb-note .zh{display:block}
+.kb-tag{background:#e8f6ef;color:#17784f;border-radius:999px;padding:2px 9px;font-size:11.5px}
+.kb-tag .zh{margin-left:2px}
+
+/* ===== Topic landscape ===== */
+.landscape{background:#fff;border-radius:20px;padding:20px 22px;margin:0 0 24px;box-shadow:0 10px 28px rgba(120,40,0,.06)}
+.landscape[hidden]{display:none}
+.ls-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px 16px;flex-wrap:wrap;margin-bottom:14px}
+.ls-head h4{margin:0;font-size:18px}
+.ls-head h4 .zh{font-size:14px;opacity:.6;margin-left:4px}
+.ls-src{font-size:12px;font-weight:800;color:#a17557}
+.ls-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.ls-stat{background:#fff8f2;border:1px solid #f6e3d4;border-radius:14px;padding:12px 14px;display:grid;gap:2px;min-width:0}
+.ls-stat strong{font-size:26px;line-height:1.1;color:var(--orange);letter-spacing:-.5px}
+.ls-stat span{font-size:13px;font-weight:800;color:var(--ink)}
+.ls-stat span .zh{display:block;font-weight:700;color:#8c6a54;font-size:12px}
+.ls-stat small{font-size:12px;color:#8c6a54;overflow-wrap:anywhere}
+.ls-bars{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:6px;align-items:end;height:110px;margin:18px 0 6px;padding:0 2px;border-bottom:1px solid #f0e0d2}
+.ls-col{display:grid;grid-template-rows:1fr auto;height:100%;gap:4px;text-align:center}
+.ls-col span{font-size:11px;color:#a17557;font-weight:700}
+.ls-pair{display:flex;align-items:flex-end;justify-content:center;gap:3px;height:100%}
+.ls-bar{display:block;width:40%;max-width:14px;min-height:2px;border-radius:4px 4px 0 0}
+.ls-bar--patent{background:var(--orange)}
+.ls-bar--paper{background:#22a06b}
+.ls-legend{margin:8px 0 0;font-size:12px;color:#8c6a54;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.ls-key{display:inline-block;width:10px;height:10px;border-radius:3px}
+.ls-scale{opacity:.8}
+@media(max-width:760px){.ls-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ls-stat strong{font-size:22px}}
+
+/* ===== Assistant: what differs from a general chatbot, evidence trail, links ===== */
+.diff-list{list-style:none;padding:0;margin:16px 0 18px;display:grid;gap:10px}
+.diff-list li{position:relative;padding-left:22px;font-size:14px;line-height:1.55;color:#fff}
+.diff-list li::before{content:"";position:absolute;left:4px;top:8px;width:8px;height:8px;border-radius:50%;background:#fff}
+.diff-list .zh{display:block;font-size:13px;color:#fff3e8;opacity:.9}
+.evidence{margin:0 0 10px;background:#f3fbf7;border:1px solid #cfeedd;border-radius:12px;padding:8px 12px;font-size:13px}
+.evidence summary{cursor:pointer;font-weight:800;color:#17784f;list-style-position:inside}
+.evidence summary .zh{font-weight:700;opacity:.8}
+.evidence ul{margin:8px 0 4px;padding-left:18px;display:grid;gap:6px;color:#2e4a3c;line-height:1.5}
+.evidence li .zh{display:block;color:#5a7a69;font-size:12.5px}
+.evidence-note{margin:4px 0 0!important;font-size:11.5px!important;color:#5a7a69}
+.bubble-content a{color:var(--orange);font-weight:700;text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}

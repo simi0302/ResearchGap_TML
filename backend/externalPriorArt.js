@@ -145,6 +145,17 @@ async function fetchExternalPatents(caseFeatures, cutoffDate) {
       patents.push(p);
     }
     out = { patents, note: patents.length ? null : note || "No additional external patents were found." };
+    // Write-back: each patent here was fetched and parsed by the backend itself, so it is
+    // remembered in the knowledge base and can serve as prior art for later cases even when
+    // the live web search finds nothing.
+    if (patents.length) {
+      require("./knowledgeStore")
+        .getStore()
+        .addMany(
+          patents.map((p) => ({ ...p, type: "patent", date: p.publication_date, year: Number(p.publication_date.slice(0, 4)), url: `https://patents.google.com/patent/${p.publication_number}/en`, source: "Google Patents" })),
+          { origin: "external-verified", query: queries.join(" | ") }
+        );
+    }
   } catch (err) {
     out = { patents: [], note: `External patent lookup failed: ${err.message}` };
   }

@@ -7,6 +7,7 @@ const path = require("path");
 const { handlePatentabilityRequest } = require("./patentability");
 const external = require("./externalPriorArt");
 const corpus = require("./corpus");
+const knowledgeStore = require("./knowledgeStore");
 
 const TEXT = fs.readFileSync(path.join(__dirname, "fixtures", "oran-federated-ric.txt"), "utf-8");
 
@@ -27,6 +28,9 @@ function stub(pages, numbers = Object.keys(pages)) {
   });
 }
 
+// Each test starts from an empty knowledge base: a verified patent is written back (RAG), so
+// without this one test's patent would legitimately resurface as prior art in the next.
+test.beforeEach(() => knowledgeStore._setStore(null));
 test.afterEach(() => external._setNetwork());
 
 async function run() {
@@ -107,4 +111,27 @@ test("a caller-supplied external_patents / prior_art field is ignored", async ()
     prior_art: [{ patent_no: "FAKE-2", matched_features: [] }],
   });
   assert.ok(!r.prior_art.some((p) => /FAKE/.test(p.patent_no)));
+});
+
+test("write-back: a verified external patent is remembered and reused when the live search later finds nothing", async () => {
+  stub({ US99000003B2: OVERLAP });
+  const first = await run();
+  assert.equal(first.external_prior_art.count, 1);
+  assert.ok(knowledgeStore.getStore().has("patent:US99000003"), "verified patent should be stored");
+
+  stub({}); // live search now returns nothing
+  const second = await run();
+  assert.equal(second.external_prior_art.count, 0);
+  assert.deepEqual(second.external_prior_art.knowledge_base, ["US99000003B2"]);
+  assert.ok(second.prior_art.some((p) => p.patent_no === "US99000003B2"), "remembered patent should be retrieved as prior art");
+  assert.equal(second.score, first.score, "same evidence, same score");
+});
+
+test("write-back respects the cutoff: a remembered patent is not used for an earlier cutoff", async () => {
+  stub({ US99000004B2: OVERLAP }); // published 2019-06-04
+  await run();
+  stub({});
+  const r = await handlePatentabilityRequest({ mode: "upload", text: TEXT, publication_year: 2017 });
+  assert.ok(!(r.external_prior_art?.knowledge_base || []).includes("US99000004B2"));
+  assert.ok(!(r.prior_art || []).some((p) => p.patent_no === "US99000004B2"));
 });

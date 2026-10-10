@@ -9,6 +9,9 @@ const { t } = require("./i18n");
 const { expandQuery, cleanQuery } = require("./queryExpansion");
 const { loadRawCorpus } = require("./corpus");
 const literature = require("./literature");
+const knowledgeStore = require("./knowledgeStore");
+const { topicLandscape } = require("./landscape");
+const BUILD = require("./package.json").version;
 
 const {
   AZURE_OPENAI_ENDPOINT,
@@ -97,7 +100,25 @@ function pruneSessions() {
 setInterval(pruneSessions, 10 * 60 * 1000).unref();
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, configured: Boolean(AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_API_KEY && AZURE_OPENAI_DEPLOYMENT) });
+  res.json({ ok: true, version: BUILD, configured: Boolean(AZURE_OPENAI_ENDPOINT && AZURE_OPENAI_API_KEY && AZURE_OPENAI_DEPLOYMENT), knowledge_base: knowledgeStore.getStore().stats().total });
+});
+
+// Knowledge base (RAG write-back) — how much the system has accumulated and what it learned
+// most recently. Read-only; no AI involved.
+const knowledgeLimit = security.createRateLimiter({ windowMs: WINDOW_MS, max: 120 });
+app.get("/api/knowledge/stats", knowledgeLimit, (_req, res) => {
+  const store = knowledgeStore.getStore();
+  const st = store.stats();
+  res.json({ ...st, recent: store.recentLearned(8) });
+});
+
+// Topic landscape for the dashboard (same deterministic function the agent's topic_landscape
+// tool calls), so the numbers on the page and in the chat are the same numbers.
+app.post("/api/landscape", searchLimit, dailyCap, (req, res) => {
+  const query = cleanQuery(req.body?.query);
+  if (!query) return res.status(400).json({ error: "Query must be 1-100 characters." });
+  const y = Number(req.body?.cutoff_year);
+  res.json(topicLandscape(query, { cutoffYear: Number.isInteger(y) && y >= 1990 && y <= 2030 ? y : undefined }));
 });
 
 // Cutoff filtering, feature extraction, in-corpus prior-art retrieval, and the four-factor
@@ -424,23 +445,25 @@ app.post("/api/literature", searchLimit, dailyCap, async (req, res) => {
   const yearStart = YEAR_RE.test(String(req.body?.year_start ?? "")) ? Number(req.body.year_start) : null;
   const yearEnd = YEAR_RE.test(String(req.body?.year_end ?? "")) ? Number(req.body.year_end) : null;
   try {
-    const { literature: items, notes } = await literature.searchLiteratureAllSources(query, {
+    const { local, live, learned, notes } = await literature.searchWithKnowledge(query, {
       cutoffYear: yearEnd || undefined,
       cutoffDate: yearEnd ? `${yearEnd}-12-31` : undefined,
+      localLimit: 10,
     });
     const seen = new Set();
-    const papers = items
-      // Crossref also indexes single figures/tables of papers as their own DOIs; skip those.
-      .filter((p) => p.title && !/^(fig(ure)?|table|supplementary)[\s.]*\w*\s*[:.]/i.test(p.title))
-      .filter((p) => p.title && (!yearStart || (p.year && p.year >= yearStart)) && (!yearEnd || !p.year || p.year <= yearEnd))
-      .filter((p) => {
-        const k = p.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-        if (seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      })
-      .map((p) => ({ title: p.title, year: p.year ?? null, venue: p.venue || null, url: /^https?:\/\//.test(p.url || "") ? p.url : null, source: p.source }));
-    res.json({ query, papers, sources_failed: notes.length });
+    const shape = (from) => (p) => ({ title: p.title, year: p.year ?? null, venue: p.venue || null, url: /^https?:\/\//.test(p.url || "") ? p.url : null, source: p.source, from });
+    const keep = (p) => {
+      if (!p.title || /^(fig(ure)?|table|supplementary)[\s.]*\w*\s*[:.]/i.test(p.title)) return false; // Crossref figure DOIs
+      if (yearStart && !(p.year && p.year >= yearStart)) return false;
+      if (yearEnd && p.year && p.year > yearEnd) return false;
+      const k = p.title.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    };
+    // Live results first (fresh), then what the knowledge base already held.
+    const papers = [...live.filter(keep).map(shape("live")), ...local.filter((p) => p.type === "paper").filter(keep).map(shape("knowledge_base"))];
+    res.json({ query, papers, sources_failed: notes.length, knowledge_base: learned });
   } catch (err) {
     console.error("Literature search failed", err);
     res.status(502).json({ error: "Literature search is temporarily unavailable." });

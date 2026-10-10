@@ -32,7 +32,7 @@ and `/api/sensitivity` to switch the system prompt language and every score-note
 
 ## Tool-calling (`server.js` + `tools.js`)
 
-`/api/chat` gives the model two tools and loops up to `MAX_TOOL_ROUNDS` (4) times, executing each
+`/api/chat` gives the model three tools and loops up to `MAX_TOOL_ROUNDS` (4) times, executing each
 tool call server-side and feeding the result back, before returning the final text reply. This is
 what enforces "backend decides, AI explains" — the model can't compute a score itself, it can
 only call `compute_patentability` and relay what comes back.
@@ -63,11 +63,46 @@ only call `compute_patentability` and relay what comes back.
   results are informational only (for the model to cite in prose); they never feed
   `computeScore()` — in-corpus retrieval (`compute_patentability`'s own `prior_art[]`, via
   `retrieval.js`) remains the sole, backend-controlled source for the Novelty score itself.
+  Literature now comes from the knowledge base first (`knowledge_base[]`), then live sources,
+  and every in-scope live result is written back (see "Knowledge base" below).
+- **`topic_landscape`** — `landscape.js`. For topic questions without an uploaded document
+  ("is X crowded?"): matched corpus patents by year / jurisdiction / IPC group, applicant HHI,
+  knowledge-base papers by year, and the research-to-patent ratio. Deterministic; the same
+  function backs `POST /api/landscape`, so the dashboard and the chat quote the same numbers.
 
 `server.js` also keyword-detects whether the latest user turn is asking about POS/scoring vs.
 white-space specifically, and for the white-space case renders the technology-combination table
 **deterministically from the tool's JSON** rather than trusting the model's own formatting —
 `gpt-4.1-mini` was observed (reproducibly) re-answering with the wrong table otherwise.
+
+## Knowledge base (RAG write-back)
+
+`knowledgeStore.js` keeps a persistent, de-duplicated store of in-scope papers and
+backend-verified patents, searched with BM25 (inverted index, cutoff-date aware).
+
+- **Seed** `data/knowledge_seed.jsonl.gz` — built offline by `scripts/crawl.js`: the model plans
+  the queries (saved to `data/crawl_plan.json`), arXiv / Crossref / OpenAlex supply records, and
+  the backend decides what is kept (`normalize()`: real title + year, one core SDN/NFV/slicing
+  feature or two taxonomy features, de-dup by DOI → arXiv id → title). Per-query counts are in
+  `data/crawl_log.json`. `node scripts/crawl.js --plan-from data/crawl_plan.json --sources arxiv,crossref --merge`
+  adds a pass without asking the model again. Set `OPENALEX_API_KEY` for OpenAlex (keyless use
+  shares a small daily budget per IP).
+- **Learned** `<KNOWLEDGE_DIR>/learned.jsonl` — appended at runtime by `/api/literature`,
+  `search_prior_art` and verified external patents. On Azure (`WEBSITE_SITE_NAME` set) it lives
+  in `/home/data/researchgap`, which survives restarts and `--clean` deploys; locally in
+  `data/learned/` (git-ignored). Capped by `KNOWLEDGE_MAX_LEARNED_PER_DAY` (default 5000).
+- Knowledge-base patents published on/before the cutoff join Novelty's prior-art pool
+  (`external_prior_art.knowledge_base` lists them). Crowding / Regional / white-space stay on
+  the fixed 2,799-patent corpus.
+- `GET /api/knowledge/stats` — size by type / source / origin and the most recent learned records.
+- Under `node --test` the shared store starts empty and never writes, so tests are hermetic.
+
+Prior-art retrieval (`retrieval.js`) queries BM25 with the case's feature terms **plus its own
+top-20 TF-IDF terms** (`documentTerms`). With feature terms alone, a patent's own text found
+itself (or another publication of the same invention) in the top 5 only 21% of the time
+(N=100); with the hybrid query 100%, and with no post-cutoff leakage either way
+(`retrieval.test.js`; experiment in `scratch/report/exp/e4_known_item.js`). Re-scores that only
+carry features (backtest, sensitivity) send back the `doc_terms` the first result returned.
 
 ## Patentability score
 

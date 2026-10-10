@@ -8,6 +8,8 @@ const features = require("./features");
 const scoring = require("./scoring");
 const literature = require("./literature");
 const externalPriorArt = require("./externalPriorArt");
+const knowledgeStore = require("./knowledgeStore");
+const retrieval = require("./retrieval");
 const { t } = require("./i18n");
 
 const DEFAULT_LANG = process.env.DEFAULT_LANG === "zh" ? "zh" : "en";
@@ -60,7 +62,7 @@ async function handlePatentabilityRequest(body) {
         feature_id: null,
       }));
     }
-    return scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, caseId: patentId });
+    return scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, caseId: patentId, docTerms: retrieval.documentTerms(text) });
   }
 
   // Upload mode: auto-detect both the cutoff year and technical features directly from the
@@ -120,7 +122,11 @@ async function handlePatentabilityRequest(body) {
     autoDetectedFeatures = true;
   }
 
-  const result = await scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, caseId: body.case_id || `U-${Date.now()}` });
+  // Distinctive terms come from the real text when there is one; a re-score that only carries
+  // features (backtest / sensitivity from the browser) sends back the doc_terms the first
+  // analysis returned, so both runs retrieve with the same query.
+  const docTerms = text.trim() ? retrieval.documentTerms(text) : sanitizeDocTerms(body.doc_terms);
+  const result = await scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, caseId: body.case_id || `U-${Date.now()}`, docTerms });
   return {
     ...result,
     auto_detected_cutoff_year: autoDetectedCutoffYear,
@@ -131,7 +137,34 @@ async function handlePatentabilityRequest(body) {
   };
 }
 
-async function scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, caseId }) {
+const KB_PATENT_LIMIT = 15;
+function knowledgePatents(feats, cutoffDate, alreadyFetched, docTerms = []) {
+  const store = knowledgeStore.getStore();
+  const query = [...feats.map((f) => f.text), ...docTerms].join(" ");
+  const known = new Set([
+    ...corpus.loadRawCorpus().map((p) => knowledgeStore.patentBase(p.publication_number)),
+    ...alreadyFetched.map((p) => knowledgeStore.patentBase(p.publication_number)),
+  ]);
+  return store
+    .search(query, { type: "patent", cutoffDate, limit: KB_PATENT_LIMIT })
+    .filter((it) => it.date && it.date <= cutoffDate && !known.has(knowledgeStore.patentBase(it.publication_number)))
+    .map((it) => ({
+      publication_number: it.publication_number,
+      title: it.title,
+      abstract: it.abstract,
+      publication_date: it.date,
+      jurisdiction: it.jurisdiction || String(it.publication_number).slice(0, 2),
+      ipc: [],
+      source: "external",
+    }));
+}
+
+function sanitizeDocTerms(terms) {
+  if (!Array.isArray(terms)) return [];
+  return terms.filter((t) => typeof t === "string" && /^[a-z0-9][a-z0-9-]{1,40}$/.test(t)).slice(0, 20);
+}
+
+async function scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, caseId, docTerms = [] }) {
   const s = t(lang);
   const subtechLabel = subtechFromFeatures(feats);
 
@@ -161,8 +194,15 @@ async function scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, ca
   // the corpus for Novelty's prior-art search. Failure → [] and the corpus alone is used.
   const external = await externalPriorArt.fetchExternalPatents(feats, cutoffDate);
 
+  // Retrieval from the knowledge base: patents the backend verified in earlier sessions (or in
+  // the offline harvest) that were public on/before the cutoff join the same BM25 + feature
+  // matching. Only verified records live there, so this widens Novelty's prior-art pool
+  // without letting anything unverified in.
+  const kbPatents = knowledgePatents(feats, cutoffDate, external.patents, docTerms);
+  const priorArtPool = [...external.patents, ...kbPatents];
+
   const result = scoring.computeScore({
-    externalPatents: external.patents,
+    externalPatents: priorArtPool,
     cutoffDate,
     cutoffYear,
     subtechLabel,
@@ -170,6 +210,7 @@ async function scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, ca
     literatureYearCounts,
     targetJurisdiction,
     lang,
+    docTerms,
   });
 
   return {
@@ -180,13 +221,19 @@ async function scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, ca
     subtech_label: subtechLabel,
     target_jurisdiction: scoring.VALID_JURISDICTIONS.includes(targetJurisdiction) ? targetJurisdiction : scoring.DEFAULT_TARGET_JURISDICTION,
     features: feats,
+    doc_terms: docTerms,
     score: result.score,
     grade: result.grade,
     breakdown: result.breakdown,
     insufficient_evidence: result.insufficient_evidence,
     disclaimer: result.disclaimer,
     prior_art: result.prior_art,
-    external_prior_art: { used: external.patents.map((p) => p.publication_number), count: external.patents.length, note: external.note },
+    external_prior_art: {
+      used: external.patents.map((p) => p.publication_number),
+      count: external.patents.length,
+      note: external.note,
+      knowledge_base: kbPatents.map((p) => p.publication_number),
+    },
     whitespace: result.whitespace,
     combination_whitespace: result.combination_whitespace,
     corpus_meta: result.corpus_meta,
