@@ -1,5 +1,6 @@
 require("dotenv").config();
 const express = require("express");
+const compression = require("compression");
 const cors = require("cors");
 const buildSystemPrompt = require("./systemPrompt");
 const { handlePatentabilityRequest } = require("./patentability");
@@ -30,6 +31,7 @@ const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1); // Azure App Service front end — real client IP for rate limiting
 app.use(security.securityHeaders);
+app.use(compression()); // gzip JSON responses (knowledge-base stats, landscape, chat replies)
 app.use(cors({ origin: ALLOWED_ORIGIN }));
 app.use(express.json({ limit: "1mb" }));
 

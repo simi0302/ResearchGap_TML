@@ -1,6 +1,30 @@
-if (window.pdfjsLib) {
-  // Kept here (not as an inline <script>) so the page can run under a strict Content-Security-Policy.
-  window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+// pdf.js is only needed once someone attaches a PDF, so it is loaded on demand instead of
+// blocking the first paint (it was the largest render-blocking resource on mobile). The build is
+// pinned by Subresource Integrity exactly as the old <script> tag was.
+const PDFJS_SRC = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+const PDFJS_SRI = "sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ==";
+let pdfjsPromise = null;
+function loadPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (!pdfjsPromise) {
+    pdfjsPromise = new Promise((resolve, reject) => {
+      const el = document.createElement("script");
+      el.src = PDFJS_SRC;
+      el.integrity = PDFJS_SRI;
+      el.crossOrigin = "anonymous";
+      el.referrerPolicy = "no-referrer";
+      el.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        resolve(window.pdfjsLib);
+      };
+      el.onerror = () => {
+        pdfjsPromise = null;
+        reject(new Error("the PDF reader could not be loaded — check your connection and try again"));
+      };
+      document.head.appendChild(el);
+    });
+  }
+  return pdfjsPromise;
 }
 const menuBtn = document.getElementById("menuBtn");
 // scoped to the hero topbar specifically — the sticky site-nav header also has a
@@ -21,18 +45,35 @@ const backToTop = document.getElementById("backToTop");
 const scrollProgress = document.getElementById("scrollProgress");
 const siteNav = document.getElementById("siteNav");
 
-window.addEventListener("scroll", () => {
-  const pastFold = window.scrollY > window.innerHeight * 0.6;
+// Scroll effects run at most once per frame, and the page height is cached (refreshed by a
+// ResizeObserver) instead of being read on every scroll event — reading scrollHeight there
+// forced a synchronous layout on each event. The progress bar moves with transform only.
+let docHeight = document.documentElement.scrollHeight;
+let viewHeight = window.innerHeight;
+new ResizeObserver(() => {
+  docHeight = document.documentElement.scrollHeight;
+  viewHeight = window.innerHeight;
+}).observe(document.body);
+let scrollQueued = false;
+function onScrollFrame() {
+  scrollQueued = false;
+  const y = window.scrollY;
+  const pastFold = y > viewHeight * 0.6;
   // hide near the very bottom so it doesn't sit on top of the footer's caption text
-  const nearBottom = window.scrollY + window.innerHeight > document.documentElement.scrollHeight - 140;
+  const nearBottom = y + viewHeight > docHeight - 140;
   backToTop.classList.toggle("visible", pastFold && !nearBottom);
-
-  siteNav.classList.toggle("visible", window.scrollY > window.innerHeight * 0.7);
-
-  const scrollable = document.documentElement.scrollHeight - window.innerHeight;
-  const pct = scrollable > 0 ? (window.scrollY / scrollable) * 100 : 0;
-  scrollProgress.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+  siteNav.classList.toggle("visible", y > viewHeight * 0.7);
+  const scrollable = docHeight - viewHeight;
+  const k = scrollable > 0 ? Math.min(1, Math.max(0, y / scrollable)) : 0;
+  scrollProgress.style.transform = `scaleX(${k})`;
+}
+window.addEventListener("scroll", () => {
+  if (!scrollQueued) {
+    scrollQueued = true;
+    requestAnimationFrame(onScrollFrame);
+  }
 }, { passive: true });
+window.addEventListener("resize", () => { viewHeight = window.innerHeight; }, { passive: true });
 backToTop.addEventListener("click", () => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
@@ -318,6 +359,8 @@ function ipcLabelForPatent(p) {
 
 const RESULTS_PAGE_SIZE = 5;
 let currentResults = [];
+let relevanceResults = [];
+let currentKeyword = "";
 let currentPage = 1;
 
 function renderResultCards(pageResults) {
@@ -366,6 +409,37 @@ function renderResultsPage() {
   }
 }
 
+// Sorting only reorders the same matches; "relevance" is the matcher's own ranking.
+document.getElementById("resultsSort").addEventListener("change", (e) => {
+  const mode = e.target.value;
+  const byDate = (a, b) => (a.publication_date || "").localeCompare(b.publication_date || "");
+  currentResults = mode === "newest" ? [...relevanceResults].sort((a, b) => byDate(b, a))
+    : mode === "oldest" ? [...relevanceResults].sort(byDate)
+    : relevanceResults;
+  currentPage = 1;
+  renderResultsPage();
+});
+
+// CSV of the current patent results (in the current sort order), with a UTF-8 BOM so Excel
+// opens Chinese text correctly. Built from the same data the cards show — nothing extra.
+document.getElementById("resultsExport").addEventListener("click", () => {
+  if (!currentResults.length) return;
+  const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  const rows = [["publication_number", "title", "jurisdiction", "publication_date", "applicant", "primary_ipc", "url"]];
+  for (const p of currentResults) {
+    rows.push([p.publication_number, p.title, p.jurisdiction, p.publication_date, p.company_name || (p.assignees || [])[0] || "", (p.ipc || [])[0] || "", googlePatentsUrl(p.publication_number)]);
+  }
+  const blob = new Blob(["\ufeff" + rows.map((r) => r.map(cell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  const slug = (currentKeyword || "all").replace(/[^\p{L}\p{N}]+/gu, "_").slice(0, 40);
+  a.download = `researchgap_patents_${slug}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+
 document.getElementById("resultsPrev").addEventListener("click", () => {
   if (currentPage <= 1) return;
   currentPage -= 1;
@@ -385,6 +459,9 @@ function renderResults(results, keyword) {
   const pagination = document.getElementById("resultsPagination");
 
   heading.textContent = keyword ? `Results for "${keyword}"` : "All patents in the corpus";
+  relevanceResults = results;
+  currentKeyword = keyword;
+  document.getElementById("resultsSort").value = "relevance";
   currentResults = results;
   currentPage = 1;
 
@@ -551,9 +628,55 @@ document.querySelectorAll(".quick-topic").forEach((btn) => {
   });
 });
 
+// Shareable searches: the query and filters live in the URL (?q=…&from=…&to=…&country=…&types=…),
+// so a search can be bookmarked or sent as a link, and back/forward replays it.
+function searchStateFromForm() {
+  return {
+    q: document.getElementById("keyword").value.trim(),
+    from: document.getElementById("yearStart").value,
+    to: document.getElementById("yearEnd").value,
+    country: document.getElementById("country").value,
+    types: [document.getElementById("patent").checked && "patent", document.getElementById("paper").checked && "paper"].filter(Boolean).join(","),
+  };
+}
+function applySearchState(st) {
+  document.getElementById("keyword").value = st.q || "";
+  document.getElementById("yearStart").value = st.from || "";
+  document.getElementById("yearEnd").value = st.to || "";
+  const country = document.getElementById("country");
+  country.value = [...country.options].some((o) => o.value === st.country) ? st.country : "All";
+  const types = (st.types || "patent,paper").split(",");
+  document.getElementById("patent").checked = types.includes("patent");
+  document.getElementById("paper").checked = types.includes("paper");
+  updateFilterState();
+}
+function urlForSearch(st) {
+  const params = new URLSearchParams();
+  if (st.q) params.set("q", st.q);
+  if (st.from) params.set("from", st.from);
+  if (st.to) params.set("to", st.to);
+  if (st.country && st.country !== "All") params.set("country", st.country);
+  if (st.types && st.types !== "patent,paper") params.set("types", st.types);
+  const qs = params.toString();
+  return `${location.pathname}${qs ? `?${qs}` : ""}#overview`;
+}
+let replayingHistory = false;
+window.addEventListener("popstate", () => {
+  const params = new URLSearchParams(location.search);
+  if (!params.has("q")) return;
+  replayingHistory = true;
+  applySearchState(Object.fromEntries(params));
+  document.getElementById("searchForm").requestSubmit();
+});
+
 document.getElementById("searchForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   document.getElementById("quickStart").hidden = true;
+  if (!replayingHistory) {
+    const next = urlForSearch(searchStateFromForm());
+    if (next !== `${location.pathname}${location.search}${location.hash}`) history.pushState(null, "", next);
+  }
+  replayingHistory = false;
 
   const keywordInput = document.getElementById("keyword").value.trim();
   const start = document.getElementById("yearStart").value;
@@ -866,7 +989,7 @@ function renderDefaultWhiteSpaceMatrix() {
         const key = `${a}|${b}`;
         const cell = cells.get(key);
         return `<td class="${statusClass(cell.status)}" data-cell="${key}" tabindex="0" role="button"
-          aria-label="View ${escapeHtml(cell.combo_a)} × ${escapeHtml(cell.combo_b)}">${cell.count.toLocaleString()}</td>`;
+          aria-label="${cell.count.toLocaleString()} patents: ${escapeHtml(cell.combo_a)} × ${escapeHtml(cell.combo_b)}">${cell.count.toLocaleString()}</td>`;
       }).join("")}
     </tr>
   `).join("");
@@ -930,13 +1053,17 @@ const AGENT_API_URL = "https://researchgap-agent-api.azurewebsites.net/api/chat"
 const PATENTABILITY_API_URL = AGENT_API_URL.replace("/api/chat", "/api/patentability");
 let chatHistory = [];
 
+// A full analysis (scoring + external patent checks + the model's write-up) normally takes
+// 20–40 s; past 120 s something is wrong, so the request is abandoned with a clear message
+// instead of leaving the typing indicator spinning forever.
+const CHAT_TIMEOUT_MS = 120000;
 async function sendMessageToAgent(message, history) {
   try {
-    const res = await fetch(AGENT_API_URL, {
+    const res = await fetchWithTimeout(AGENT_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, history }),
-    });
+    }, CHAT_TIMEOUT_MS);
     if (res.status === 429) {
       return {
         en: "You're sending requests a little too fast. Please wait a minute and try again.",
@@ -967,7 +1094,14 @@ async function sendMessageToAgent(message, history) {
       };
     }
     return { en: data.reply, zh: "", usage: data.usage || null, tool_calls: data.tool_calls || [] };
-  } catch {
+  } catch (err) {
+    if (err?.name === "AbortError") {
+      return {
+        en: "The assistant took longer than 2 minutes, so the request was stopped. Please try again — a shorter question usually answers faster.",
+        zh: "助理超過 2 分鐘未回應，已停止這次請求。請再試一次，較短的問題通常回得較快。",
+        usage: null, tool_calls: []
+      };
+    }
     return {
       en: "Could not reach the assistant backend. Please check your connection and try again.",
       zh: "無法連線到助理後端，請確認網路連線，或稍後再試。",
@@ -1008,6 +1142,7 @@ function inlineFormat(escapedText) {
   // interprets characters the model produced as HTML. Links: only http(s) URLs become <a>;
   // quotes are already escaped (&quot;), so a URL cannot break out of the href attribute.
   return escapedText
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
     .replace(/(^|[\s(])(https?:\/\/[^\s<)]+[^\s<).,;:])/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
@@ -1051,6 +1186,26 @@ function renderBotMarkdown(raw) {
       flushParagraph();
       html.push(`<hr class="chat-divider">`);
       i += 1;
+      continue;
+    }
+
+    // Bulleted ("- ", "* ", "• ") and numbered ("1. ", "1) ") lists: consecutive items of the
+    // same kind become one <ul>/<ol>; numbered lists keep the model's own starting number.
+    const bullet = /^\s*[-*•]\s+(.*)$/;
+    const numbered = /^\s*(\d+)[.)]\s+(.*)$/;
+    if (bullet.test(line) || numbered.test(line)) {
+      flushParagraph();
+      const isNum = numbered.test(line);
+      const re = isNum ? numbered : bullet;
+      const start = isNum ? Number(line.match(numbered)[1]) : 1;
+      const items = [];
+      while (i < lines.length && re.test(lines[i])) {
+        const m = lines[i].match(re);
+        items.push(isNum ? m[2] : m[1]);
+        i += 1;
+      }
+      const tag = isNum ? "ol" : "ul";
+      html.push(`<${tag} class="chat-list"${isNum && start !== 1 ? ` start="${start}"` : ""}>${items.map((t) => `<li>${inlineFormat(escapeHtml(t))}</li>`).join("")}</${tag}>`);
       continue;
     }
 
@@ -1138,7 +1293,18 @@ function addBotBubble(en, zh, usage, toolCalls) {
   const usageBlock = usage
     ? `<p class="bubble-usage"><small>Tokens used: ${usage.total_tokens.toLocaleString()} (prompt ${usage.prompt_tokens.toLocaleString()} + completion ${usage.completion_tokens.toLocaleString()}) <span class="zh">・已使用 ${usage.total_tokens.toLocaleString()} tokens</span></small></p>`
     : "";
-  bubble.innerHTML = `<span>RG</span><div class="bubble-content">${evidenceBlock(toolCalls)}${renderBotMarkdown(en)}${zhBlock}${usageBlock}</div>`;
+  const copyBtn = usage ? `<button type="button" class="bubble-copy" aria-label="Copy this answer / 複製這則回答">Copy <span class="zh">複製</span></button>` : "";
+  bubble.innerHTML = `<span>RG</span><div class="bubble-content">${evidenceBlock(toolCalls)}${renderBotMarkdown(en)}${zhBlock}${usageBlock}${copyBtn}</div>`;
+  bubble.querySelector(".bubble-copy")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    try {
+      await navigator.clipboard.writeText(en);
+      btn.innerHTML = `Copied <span class="zh">已複製</span>`;
+    } catch {
+      btn.innerHTML = `Copy failed <span class="zh">無法複製</span>`;
+    }
+    setTimeout(() => { btn.innerHTML = `Copy <span class="zh">複製</span>`; }, 1800);
+  });
   chatMessages.appendChild(bubble);
   return bubble;
 }
@@ -1149,11 +1315,29 @@ function scrollToBubbleStart(bubble) {
   chatMessages.scrollTop += bubble.getBoundingClientRect().top - chatMessages.getBoundingClientRect().top - 8;
 }
 
-function addTypingBubble() {
+// Typing indicator with an elapsed-time counter, so a 30-second analysis does not look frozen.
+function addTypingBubble(withDocument) {
   const bubble = document.createElement("div");
   bubble.className = "bubble bot typing";
-  bubble.innerHTML = `<span>RG</span><p class="typing-dots"><i></i><i></i><i></i></p>`;
+  bubble.innerHTML = `<span>RG</span><div class="typing-box"><p class="typing-dots"><i></i><i></i><i></i></p>
+    <p class="typing-status" aria-live="off"><span class="typing-text">${withDocument
+      ? "Reading your document and computing the score… usually 20–40 s"
+      : "Working on it…"}</span> <span class="typing-time">0 s</span></p></div>`;
   chatMessages.appendChild(bubble);
+  const t0 = Date.now();
+  const timeEl = bubble.querySelector(".typing-time");
+  const textEl = bubble.querySelector(".typing-text");
+  const timer = setInterval(() => {
+    const sec = Math.round((Date.now() - t0) / 1000);
+    timeEl.textContent = `${sec} s`;
+    if (!withDocument && sec === 8) textEl.textContent = "Searching the corpus and the knowledge base…";
+    if (sec === 45) textEl.textContent = "Still working — external patent checks can take a while…";
+  }, 1000);
+  const remove = bubble.remove.bind(bubble);
+  bubble.remove = () => {
+    clearInterval(timer);
+    remove();
+  };
   return bubble;
 }
 
@@ -1175,11 +1359,11 @@ const chatAttachmentName = document.getElementById("chatAttachmentName");
 const chatAttachmentRemove = document.getElementById("chatAttachmentRemove");
 
 async function extractPdfText(file) {
-  if (!window.pdfjsLib) throw new Error("PDF reader is still loading, please try again in a moment");
+  const pdfjsLib = await loadPdfJs();
   const buf = await file.arrayBuffer();
   // isEvalSupported:false is the official mitigation for CVE-2024-4367 (pdf.js < 4.2.67
   // could run script from a crafted PDF font) — this build is 3.11.174, so it must stay off.
-  const pdf = await window.pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
+  const pdf = await pdfjsLib.getDocument({ data: buf, isEvalSupported: false }).promise;
   const pageCount = Math.min(pdf.numPages, MAX_PDF_PAGES);
   const parts = [];
   for (let i = 1; i <= pageCount; i++) {
@@ -1365,6 +1549,15 @@ function setChatBusy(busy) {
   if (!busy) chatText.focus({ preventScroll: true });
 }
 
+// "New chat": clears the conversation history the next request carries, and the bubbles.
+document.getElementById("chatReset")?.addEventListener("click", () => {
+  if (chatBusy) return;
+  chatHistory = [];
+  clearAttachment();
+  [...chatMessages.querySelectorAll(".bubble")].slice(1).forEach((b) => b.remove());
+  chatText.focus({ preventScroll: true });
+});
+
 document.getElementById("chatForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   if (chatBusy) return;
@@ -1391,7 +1584,7 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
   chatText.value = "";
   chatMessages.scrollTop = chatMessages.scrollHeight;
 
-  const typingBubble = addTypingBubble();
+  const typingBubble = addTypingBubble(text.includes("----- Uploaded document:"));
   chatMessages.scrollTop = chatMessages.scrollHeight;
   setChatBusy(true);
 
@@ -1453,4 +1646,14 @@ document.querySelectorAll(".chat-suggestion").forEach(btn => {
   };
   setPlaceholder();
   narrow.addEventListener?.("change", setPlaceholder);
+}
+
+// A shared link (?q=…) runs its search once the page is ready.
+{
+  const params = new URLSearchParams(location.search);
+  if (params.has("q")) {
+    replayingHistory = true;
+    applySearchState(Object.fromEntries(params));
+    document.getElementById("searchForm").requestSubmit();
+  }
 }

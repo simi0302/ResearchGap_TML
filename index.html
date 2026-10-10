@@ -30,7 +30,7 @@
 
   <header class="site-nav" id="siteNav" aria-label="Sticky navigation">
     <a class="logo" href="#explore" aria-label="ResearchGap home">
-      <img src="logo.png" alt="ResearchGap" />
+      <img src="logo.png" alt="ResearchGap" width="118" height="77" />
     </a>
     <nav class="nav" aria-label="Sticky main navigation">
       <a href="#explore">EXPLORE</a>
@@ -51,7 +51,7 @@
 
       <header class="topbar">
         <a class="logo" href="#explore" aria-label="ResearchGap home">
-          <img src="logo.png" alt="ResearchGap" />
+          <img src="logo.png" alt="ResearchGap" width="118" height="77" />
         </a>
 
         <nav class="nav" aria-label="Main navigation">
@@ -169,7 +169,16 @@
         <div id="patentBlock">
         <div class="results-head">
           <h4 id="resultsHeading">Search results</h4>
-          <span id="resultsCount"></span>
+          <div class="results-tools">
+            <span id="resultsCount"></span>
+            <label class="results-sort" for="resultsSort">Sort <span class="zh">排序</span></label>
+            <select id="resultsSort">
+              <option value="relevance">Relevance / 相關度</option>
+              <option value="newest">Newest / 最新</option>
+              <option value="oldest">Oldest / 最舊</option>
+            </select>
+            <button type="button" class="page-btn" id="resultsExport" title="Download these patents as a CSV file / 下載為 CSV">CSV ↓</button>
+          </div>
         </div>
         <div class="results-list" id="resultsList"></div>
         <div class="results-pagination" id="resultsPagination" hidden>
@@ -212,6 +221,7 @@
           </div>
 
           <div class="chat-suggestions">
+          <button type="button" class="chat-reset" id="chatReset" aria-label="Start a new chat / 開始新對話">New chat <span class="zh">新對話</span></button>
             <div class="chat-suggestions__group">
               <span class="chat-suggestions__label">No upload needed <span class="zh">免上傳</span></span>
               <button type="button" class="tag chat-suggestion" data-q="Is network slicing with digital twin a crowded area?">Is slicing + digital twin crowded?</button>
@@ -361,7 +371,7 @@
 
     <footer>
       <a class="logo footer-logo" href="#explore">
-        <img src="logo.png" alt="ResearchGap" />
+        <img src="logo.png" alt="ResearchGap" width="118" height="77" />
       </a>
       <div class="footer-text">
       <p>Patent &amp; Literature White-Space Analysis Platform <span class="zh">· 專利文獻白地分析平台</span></p>
@@ -372,8 +382,7 @@
     <button class="back-to-top" id="backToTop" aria-label="Back to top / 回到頂端">↑</button>
   </main>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" integrity="sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <script src="query-match.js"></script>
-  <script src="script.js"></script>
+  <script src="query-match.js" defer></script>
+  <script src="script.js" defer></script>
 </body>
 </html>
