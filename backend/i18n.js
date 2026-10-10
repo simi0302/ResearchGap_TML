@@ -49,7 +49,7 @@ const STRINGS = {
     },
     temporal: {
       fallback: "No real per-year publication trend was available for this case, so Temporal falls back to a neutral 0.5.",
-      thin: (y0, y1, n, min) => `Only ${n} publications matched this feature combination in ${y0}–${y1} (fewer than ${min}), too few to measure a trend, so Temporal is a neutral 0.5.`,
+      thin: (y0, y1, n, min) => `Only ${n} publication${n === 1 ? "" : "s"} matched this feature combination in ${y0}–${y1} (fewer than ${min}), too few to measure a trend, so Temporal is a neutral 0.5.`,
       note: (y0, y1, litFirst, litLast, halved, patCount, litCount, field) =>
         `Real publication counts for ${y0}–${y1} moved from ${litFirst} to ${litLast}${
           field ? `, against ${field.first} to ${field.last} for the whole SDN/NFV/slicing field (growth is scored relative to the field)` : " (field baseline unavailable, so absolute growth is used)"

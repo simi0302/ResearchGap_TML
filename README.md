@@ -19,7 +19,7 @@ separate build step and no framework: what's in `index.html` is what's live.
 |---|---|---|
 | **Frontend** (`/` root) | Static HTML/CSS/JS. Real client-side patent search, a real click-to-explore White-Space Matrix, and an AI Assistant chat wired to the live backend. | Static hosting (GitHub Pages). |
 | **Backend** (`backend/`) | Express API in front of Azure OpenAI, with function/tool-calling so the model can only report numbers a deterministic backend function computed — never its own. | Azure App Service (Linux, Node 22-LTS). |
-| **Data** | A static JSON file of 2,799 real patents — see [Data, and why there's no database](#data-and-why-theres-no-database) below. | Committed to the repo, fetched by both the frontend and the backend. |
+| **Data** | A fixed corpus of 2,799 real patents (statistics) plus a growing knowledge base of papers and verified patents (retrieval) — see [Data](#data-a-fixed-corpus-plus-a-growing-knowledge-base) below. | Corpus committed to the repo; knowledge-base seed committed, learned records on the App Service's persistent `/home` storage. |
 | `frontend/` (React + TypeScript + Vite) | An early scaffold from before the project pivoted to a dependency-free static site. **Not deployed, not part of the live product.** Kept for history; safe to ignore when reviewing what's actually running. | Not deployed anywhere. |
 
 ## Tech stack
@@ -35,16 +35,17 @@ separate build step and no framework: what's in `index.html` is what's live.
 - Requires being served over http(s) — opening `index.html` via `file://` blocks the `fetch()` of `data/patents.json` under Chrome's CORS rules (search/matrix silently return nothing; everything else still works).
 
 **Backend — Node.js + Express, deployed on Azure App Service**
-- [Azure OpenAI](https://learn.microsoft.com/azure/ai-services/openai/) (`gpt-4.1-mini`) chat completions with **function calling / tool-calling** — the model can only report a score via the `compute_patentability` tool (pure local computation, no LLM involved in the math) or search supporting academic literature via `search_prior_art`.
+- [Azure OpenAI](https://learn.microsoft.com/azure/ai-services/openai/) (`gpt-4.1-mini`) chat completions with **function calling / tool-calling** — the model chooses among three tools and can only report numbers they return: `compute_patentability` (pure local computation, no LLM involved in the math), `search_prior_art` (knowledge base + live literature), and `topic_landscape` (deterministic topic statistics for "is X crowded?" questions without an upload; same function as `POST /api/landscape`, so the dashboard and the chat quote the same numbers). Every reply carries the tool calls it was built from; the site shows them as "How this answer was built".
+- **Retrieval-augmented generation with write-back** (`knowledgeStore.js`): literature search reads the persistent knowledge base first, then the live sources, and writes every in-scope live result back; patents the backend fetched and verified are written back too and reused as prior art for later cases (cutoff-filtered). The seed was built by `scripts/crawl.js`: the model plans the queries, arXiv/Crossref supply records, and backend rules decide what is kept.
 - **In-corpus prior-art retrieval is fully backend-side**: `retrieval.js` runs a deterministic BM25 search over the corpus (title + abstract, cutoff-filtered), and the feature-overlap between a case and each matched patent is computed by the backend's own word-boundary text matcher — never supplied or judged by the model.
 - `search_prior_art`'s literature search queries three independent, free, **keyless** sources in parallel (`literature.js`) — [Semantic Scholar](https://www.semanticscholar.org/product/api), [Crossref](https://api.crossref.org/), and [arXiv](https://arxiv.org/help/api/) — so real citations (including most IEEE Xplore/ACM-indexed papers, via DOI) work with zero API keys. Real per-year publication counts (for the Temporal factor) come from [OpenAlex](https://openalex.org/), also free/keyless. `search_prior_art` also runs a real general-web/patent-office search (`webSearch.js`) via Azure OpenAI's Responses API `web_search` tool — Bing-grounded, reaching Google Patents/USPTO/EPO and general engineering sources, billed per call (~$0.014/search) on the same Azure OpenAI resource already in use, no separate resource or credential needed. This replaced the old standalone Bing Search v7 dependency, which Microsoft retired in August 2025.
 - `compute_patentability` auto-detects the cutoff year (first-page copyright/publication/conference patterns, checked against citation-stripped text so a cited earlier work doesn't win) and technical features (a canonical 17-feature SDN/NFV/5G/6G/cloud-native taxonomy, matched with word-boundary + case-sensitive-acronym rules) directly from an uploaded document's real text — deterministic extraction, never a model guess — and scores in one shot whenever there's real signal to work with. Out-of-scope input (too few matched features, or a dominant classification the corpus doesn't recognize) is refused with a reason instead of returned as a diluted score.
-- Node's built-in test runner (`node --test`) — 52 tests across `backend/*.test.js`, covering the search matcher and AI-term verification, security limits, external prior art, the scoring engine, cutoff filtering, anti-fabrication guarantees, and acceptance criteria on 7 real fixture documents (distinct topics score distinctly, a mature/well-established technique scores lower Novelty than genuinely novel work, off-domain/nonsense input is never scored, a citation-year trap still resolves to the paper's own year).
+- Node's built-in test runner (`node --test`) — 69 tests across `backend/*.test.js`, covering the knowledge base (domain gate, de-dup, persistence, cutoff), known-item retrieval, the Temporal formula, the search matcher and AI-term verification, security limits, external prior art, the scoring engine, cutoff filtering, anti-fabrication guarantees, and acceptance criteria on 7 real fixture documents (distinct topics score distinctly, a mature/well-established technique scores lower Novelty than genuinely novel work, off-domain/nonsense input is never scored, a citation-year trap still resolves to the paper's own year).
 
-## Data, and why there's no database
+## Data: a fixed corpus plus a growing knowledge base
 
-There is **no SQL/NoSQL database** in this project, by design. The corpus is a single static
-JSON file (`data/patents.json`, mirrored at `backend/data/patents.json` for the backend's own
+There is **no SQL/NoSQL database server**, by design. Statistics come from a fixed corpus; retrieval
+also uses a file-based knowledge base that grows. The corpus is a single static JSON file (`data/patents.json`, mirrored at `backend/data/patents.json` for the backend's own
 copy): **2,799 real SDN/NFV/network-slicing patents**, sourced from GPSS (台灣專利檢索系統) and
 public patent-office data, extracted 2026-06-03. Jurisdiction breakdown: US 1,836 · EP 690 ·
 JP 135 · TW 128 · SG 7 · MY 3.
@@ -56,6 +57,15 @@ retrieval — is computed **deterministically at request time** from that flat f
 pre-aggregated in a database and not cached. This keeps every number reproducible and traceable
 back to the same source file, which matters for the project's core anti-fabrication guarantee
 below.
+
+The **knowledge base** (`backend/knowledgeStore.js`) holds papers and backend-verified patents for
+retrieval: a seed of 8,232 papers (`backend/data/knowledge_seed.jsonl.gz`, AI-planned crawl of
+arXiv + Crossref, plan and per-query log in `backend/data/crawl_*.json`) plus records learned from
+live searches (`learned.jsonl` under `/home` on Azure — survives restarts and redeploys). A record
+is stored only if its own text has a core SDN/NFV/slicing feature or two taxonomy features, a real
+title and year, and is not a duplicate (DOI → arXiv id → title). `GET /api/knowledge/stats` reports
+its size; every score records `external_prior_art.knowledge_base_size`, because a larger knowledge
+base can surface more prior art for Novelty.
 
 ## Architecture principle: the backend decides, the AI only explains
 
@@ -83,9 +93,12 @@ POS = 100 × (0.40·Novelty + 0.25·Crowding + 0.20·Temporal + 0.15·Regional)
 - **Crowding** — the percentile rank of (cutoff-filtered patents matching ≥2 of the case's own
   features) among the hit-counts of every pairwise combination of the known feature taxonomy —
   a feature-combination density, not a whole-IPC-group population cap.
-- **Temporal** — growth of real per-year literature counts (OpenAlex) over the 5 years ending at
-  the cutoff, halved if matched-set patent filings in that window already outnumber the
-  literature.
+- **Temporal** — real per-year literature counts (OpenAlex) for the case's feature combination over
+  the 5 years ending at the cutoff, compared with the whole SDN/NFV/slicing field:
+  `0.5 + 0.25 × log2(topic growth multiple ÷ field growth multiple)`, multiples add-one smoothed,
+  clamped to [0, 1]; fewer than 20 matching publications in the window is too thin and gives a
+  flagged neutral 0.5; halved if matched-set patent filings outnumber the literature. (On absolute
+  growth every one of 12 scenario-test papers scored 1.0, because the whole field doubled.)
 - **Regional** — `0.5 × (the target jurisdiction has no matching filing in the same matched set)`
   `+` `0.5 × (1 − applicant HHI ÷ 10,000, computed over that matched set)`.
 
@@ -104,7 +117,10 @@ confident number.
 │   ├── server.js            # routes, Azure OpenAI tool-calling loop, per-turn table steering
 │   ├── tools.js              # compute_patentability / search_prior_art tool implementations
 │   ├── corpus.js              # cutoff filtering, sub-technology taxonomy, density/HHI stats
-│   ├── retrieval.js           # deterministic in-corpus BM25 prior-art search
+│   ├── retrieval.js           # BM25 prior-art search: feature terms + the document's own top TF-IDF terms
+│   ├── knowledgeStore.js      # persistent knowledge base (RAG write-back), BM25, cutoff-aware
+│   ├── landscape.js           # topic_landscape tool / POST /api/landscape
+│   ├── scripts/crawl.js       # AI-planned, backend-verified knowledge-base crawl
 │   ├── literature.js          # Semantic Scholar / Crossref / arXiv / OpenAlex, all free/keyless
 │   ├── webSearch.js            # real general-web/patent-office search (Azure OpenAI Responses API)
 │   ├── scoring.js             # four-factor POS formula
@@ -134,7 +150,7 @@ cd backend
 npm install
 cp .env.example .env   # fill in Azure OpenAI credentials
 npm run dev             # http://localhost:8080
-npm test                 # run the full test suite (52 tests)
+npm test                 # run the full test suite (69 tests)
 ```
 
 Then point the frontend's `AGENT_API_URL` (in `script.js`) at your local backend to test the
@@ -155,6 +171,9 @@ chat widget end to end.
   citations. IEEE Xplore
   specifically isn't directly integrated (it requires an institutional API key with separate
   approval); Crossref surfaces many IEEE-indexed papers by DOI as a partial substitute.
+- **Scores can change as the knowledge base grows.** Verified patents written back to the
+  knowledge base join Novelty's prior-art pool for later cases, so re-scoring the same paper later
+  can find more prior art. Each score records the knowledge-base size it was computed against.
 - **Regional factor's family-gap term** is an approximation (jurisdiction presence in the
   matched-feature set, not true patent-family linkage — the corpus has no family ID) and is
   disclosed as such in the score's own note text, not just here.
