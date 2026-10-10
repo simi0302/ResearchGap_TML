@@ -360,6 +360,61 @@ function ipcLabelForPatent(p) {
 
 const RESULTS_PAGE_SIZE = 5;
 let currentResults = [];
+let currentHighlight = null; // RegExp for the current query's terms (all synonyms), or null
+
+// One regex for every variant of every concept in the query, mirroring the matcher's rules:
+// "-", "_", "/" and spaces are interchangeable; short ASCII terms need word boundaries;
+// longer typed words match as prefixes ("orchestr" → "orchestration").
+function highlightRegexFor(keyword) {
+  const concepts = keyword ? QueryMatch.parseQuery(keyword) : [];
+  const parts = [];
+  for (const c of concepts) {
+    for (const v of c.variants) {
+      if (!v) continue;
+      const body = v.split(" ").map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("[\\s\\-_/]+");
+      const ascii = /^[\x00-\x7f]+$/.test(v);
+      if (ascii && v.length <= 3) parts.push(`\\b${body}\\b`);
+      else if (ascii && !c.fromDictionary) parts.push(`\\b${body}[\\w-]*`);
+      else parts.push(body);
+    }
+  }
+  if (!parts.length) return null;
+  parts.sort((a, b) => b.length - a.length); // longest first, so "network slicing" beats "network"
+  return new RegExp(`(${parts.join("|")})`, "gi");
+}
+
+// Escape, then wrap matches in <mark> (the text is never interpreted as HTML).
+function highlightText(text, re) {
+  const s = String(text || "");
+  if (!re) return escapeHtml(s);
+  let out = "";
+  let last = 0;
+  re.lastIndex = 0;
+  let m;
+  while ((m = re.exec(s))) {
+    if (!m[0]) { re.lastIndex++; continue; }
+    out += escapeHtml(s.slice(last, m.index)) + `<mark>${escapeHtml(m[0])}</mark>`;
+    last = m.index + m[0].length;
+  }
+  return out + escapeHtml(s.slice(last));
+}
+
+// ~220 characters of the abstract around the first matched term (or its start).
+function abstractSnippet(abstract, re) {
+  const s = String(abstract || "").replace(/\s+/g, " ").trim();
+  if (!s) return "";
+  let idx = 0;
+  if (re) {
+    re.lastIndex = 0;
+    const m = re.exec(s);
+    if (m) idx = m.index;
+  }
+  let start = Math.max(0, idx - 80);
+  if (start > 0) start = s.indexOf(" ", start) + 1 || start;
+  let end = Math.min(s.length, start + 220);
+  if (end < s.length) end = s.lastIndexOf(" ", end) > start ? s.lastIndexOf(" ", end) : end;
+  return `${start > 0 ? "… " : ""}${highlightText(s.slice(start, end), re)}${end < s.length ? " …" : ""}`;
+}
 let relevanceResults = [];
 let currentKeyword = "";
 let currentPage = 1;
@@ -373,8 +428,9 @@ function renderResultCards(pageResults) {
           <span class="result-jurisdiction">${escapeHtml(p.jurisdiction || "—")}</span>
           <span>${escapeHtml(p.publication_date || "date unknown")}</span>
         </div>
-        <h5>${escapeHtml(p.title || "(untitled)")}</h5>
+        <h5>${highlightText(p.title || "(untitled)", currentHighlight)}</h5>
         <p class="result-meta">${escapeHtml(applicant)} · ${escapeHtml(ipcLabelForPatent(p))}</p>
+        ${p.abstract ? `<p class="result-snippet">${abstractSnippet(p.abstract, currentHighlight)}</p>` : ""}
         <a class="result-link" href="${googlePatentsUrl(p.publication_number)}" target="_blank" rel="noopener noreferrer">
           View on Google Patents <span aria-hidden="true">↗</span>
         </a>
@@ -462,6 +518,7 @@ function renderResults(results, keyword) {
   heading.textContent = keyword ? `Results for "${keyword}"` : "All patents in the corpus";
   relevanceResults = results;
   currentKeyword = keyword;
+  currentHighlight = highlightRegexFor(keyword);
   document.getElementById("resultsSort").value = "relevance";
   currentResults = results;
   currentPage = 1;
