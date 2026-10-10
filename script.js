@@ -980,7 +980,7 @@ function renderDefaultWhiteSpaceMatrix() {
   document.getElementById("whiteSpaceGapCards").hidden = false;
 
   document.getElementById("whiteSpaceMatrixHead").innerHTML = `
-    <tr><th></th>${colGroups.map((c) => `<th>${escapeHtml(wsLabelFor(c))}</th>`).join("")}</tr>
+    <tr><th><span class="visually-hidden">Technology group / 技術分組</span></th>${colGroups.map((c) => `<th>${escapeHtml(wsLabelFor(c))}</th>`).join("")}</tr>
   `;
   document.getElementById("whiteSpaceMatrixBody").innerHTML = rowGroups.map((a) => `
     <tr>
@@ -1147,6 +1147,7 @@ function inlineFormat(escapedText) {
     .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
     .replace(/(^|[\s(])(https?:\/\/[^\s<)]+[^\s<).,;:])/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer">$2</a>');
 }
+let chatTableCount = 0; // unique accessible names for scrollable reply tables
 function renderBotMarkdown(raw) {
   const lines = raw.replace(/\r\n/g, "\n").split("\n");
   const html = [];
@@ -1173,7 +1174,7 @@ function renderBotMarkdown(raw) {
         i += 1;
       }
       html.push(
-        `<div class="chat-table-wrap"><table class="chat-table"><thead><tr>${headerCells
+        `<div class="chat-table-wrap" tabindex="0" role="region" aria-label="Table ${++chatTableCount} / 表格 ${chatTableCount}"><table class="chat-table"><thead><tr>${headerCells
           .map((c) => `<th>${inlineFormat(escapeHtml(c))}</th>`)
           .join("")}</tr></thead><tbody>${bodyRows
           .map((row) => `<tr>${row.map((c, j) => `<td data-label="${escapeHtml(headerCells[j] || "")}">${inlineFormat(escapeHtml(c))}</td>`).join("")}</tr>`)
@@ -1293,7 +1294,7 @@ function addBotBubble(en, zh, usage, toolCalls) {
   const usageBlock = usage
     ? `<p class="bubble-usage"><small>Tokens used: ${usage.total_tokens.toLocaleString()} (prompt ${usage.prompt_tokens.toLocaleString()} + completion ${usage.completion_tokens.toLocaleString()}) <span class="zh">・已使用 ${usage.total_tokens.toLocaleString()} tokens</span></small></p>`
     : "";
-  const copyBtn = usage ? `<button type="button" class="bubble-copy" aria-label="Copy this answer / 複製這則回答">Copy <span class="zh">複製</span></button>` : "";
+  const copyBtn = usage ? `<button type="button" class="bubble-copy" title="Copy this answer / 複製這則回答">Copy <span class="zh">複製</span></button>` : "";
   bubble.innerHTML = `<span>RG</span><div class="bubble-content">${evidenceBlock(toolCalls)}${renderBotMarkdown(en)}${zhBlock}${usageBlock}${copyBtn}</div>`;
   bubble.querySelector(".bubble-copy")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget;
@@ -1452,7 +1453,7 @@ function renderBacktestComparison(original, compareYear, compareResult) {
     })
     .join("");
   backtestResult.innerHTML = `
-    <div class="chat-table-wrap">
+    <div class="chat-table-wrap" tabindex="0" role="region" aria-label="Backtest table / 回測表格">
       <table class="chat-table">
         <thead><tr><th>Factor / 因子</th><th>Cutoff ${escapeHtml(String(original.cutoff_year))}</th><th>Cutoff ${escapeHtml(String(compareYear))}</th></tr></thead>
         <tbody>
