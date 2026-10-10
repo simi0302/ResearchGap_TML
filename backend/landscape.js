@@ -92,7 +92,7 @@ function topicLandscape(query, { cutoffYear } = {}) {
     understood_as: concepts.map((c) => c.label),
     cutoff_year: cutoffYear || null,
     patents: {
-      population: `GPSS corpus, N=${all.length}${cutoffDate ? `, ${population.length} published on/before ${cutoffDate}` : ""}`,
+      population: `GPSS corpus, N=${all.length}, extracted 2026-06-03${cutoffDate ? `, ${population.length} published on/before ${cutoffDate}` : ""}`,
       matched: patents.length,
       share_of_corpus_pct: population.length ? Math.round((patents.length / population.length) * 1000) / 10 : 0,
       by_jurisdiction: byJur,
