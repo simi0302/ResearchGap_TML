@@ -1739,3 +1739,11 @@ document.addEventListener("keydown", (e) => {
   kw.focus();
   kw.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "center" });
 });
+
+// Offline-capable repeat visits (see sw.js). Registered after load so it never competes with
+// the first paint; failures (e.g. private mode) are harmless — the site works without it.
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
