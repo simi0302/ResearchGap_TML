@@ -386,6 +386,7 @@ function highlightRegexFor(keyword) {
       const ascii = /^[\x00-\x7f]+$/.test(v);
       if (ascii && v.length <= 3) parts.push(`\\b${body}\\b`);
       else if (ascii && !c.fromDictionary) parts.push(`\\b${body}[\\w-]*`);
+      else if (ascii) parts.push(`\\b${body}(?:s|es)?\\b`); // dictionary phrase: whole words, plural included
       else parts.push(body);
     }
   }
