@@ -152,6 +152,16 @@
         <p class="kb-pill" id="kbPill" hidden></p>
       </div>
 
+      <div class="quick-start" id="quickStart">
+        <p class="quick-start__label">Type a topic in the search box above, or try one: <span class="zh">在上方搜尋框輸入主題，或直接點一個：</span></p>
+        <div class="quick-start__chips">
+          <button type="button" class="quick-topic" data-q="network slicing">network slicing</button>
+          <button type="button" class="quick-topic" data-q="NFV edge computing">NFV + edge computing</button>
+          <button type="button" class="quick-topic" data-q="網路切片 數位孿生">網路切片 數位孿生</button>
+          <button type="button" class="quick-topic" data-q="intent-based networking">intent-based networking</button>
+        </div>
+      </div>
+
       <div class="results-wrap" id="resultsWrap" hidden>
         <p class="query-interpretation" id="queryInterpretation" hidden></p>
         <div class="landscape" id="landscapePanel" hidden></div>
@@ -178,15 +188,12 @@
         <div class="assistant-intro">
           <p class="eyebrow">AI RESEARCH GAP ASSISTANT</p>
           <h3>AI Research Gap Assistant <span>/ AI 研究白地助手</span></h3>
-          <p>Ask about research gaps and relevant patents in natural language, or upload a paper or patent draft (PDF or TXT) to check whether it's patentable.</p>
-          <p class="zh">用自然語言詢問研究缺口與相關專利，或上傳論文、專利草稿（PDF／TXT），評估是否具可專利性。</p>
+          <p>Ask about a technology, or upload your paper to check its patentability.</p>
+          <p class="zh">問一個技術方向，或上傳論文評估可專利性。</p>
           <ul class="diff-list">
-            <li><strong>Computed, not generated</strong> — scores and counts come from deterministic code; the same input always gives the same number.
-              <span class="zh">數字由程式計算而非生成，同樣輸入永遠得到同樣結果。</span></li>
-            <li><strong>Bounded by your cutoff date</strong> — nothing published after your paper counts as prior art.
-              <span class="zh">以你的發表年為基準日，之後才公開的資料一律不算前案。</span></li>
-            <li><strong>Grounded and remembered</strong> — answers cite 2,799 patents and a knowledge base that keeps every verified paper and patent it finds.
-              <span class="zh">回答引用 2,799 筆專利與持續累積的知識庫，每次查到並驗證的論文、專利都會存回。</span></li>
+            <li><strong>Numbers computed by code</strong><span class="zh">數字由程式計算，不是 AI 猜的</span></li>
+            <li><strong>Only prior art before your paper</strong><span class="zh">只比對你發表前已公開的資料</span></li>
+            <li><strong>Every source is a link you can check</strong><span class="zh">每個來源都能點開查證</span></li>
           </ul>
           <p class="status-pill">
             <span class="status-dot"></span>Live · Azure OpenAI <span class="zh">已上線</span>
@@ -198,18 +205,23 @@
             <div class="bubble bot">
               <span>RG</span>
               <div class="bubble-content">
-                <p>Hi! Ask me how crowded a topic is, or attach your paper or patent draft for a full patentability check. Every number I give is computed by the backend over a named population — 2,799 patents plus a knowledge base of <strong id="kbChatCount">thousands of</strong> papers and verified patents — and every patent or paper I name comes with a link you can check.</p>
-                <p><small>嗨！可以問我某個技術主題擁不擁擠，或上傳論文／專利草稿做完整的可專利性分析。我給的每個數字都由後端在明確的母體上計算（2,799 筆專利＋<span id="kbChatCountZh">數千</span>筆論文與驗證專利的知識庫），提到的每篇專利或論文都附可查證連結。</small></p>
+                <p>Hi! Ask whether a topic is crowded, or attach your paper for a patentability check. My numbers come from 2,799 patents and <strong id="kbChatCount">thousands of</strong> papers — not from memory.</p>
+                <p><small>嗨！可以問某個方向擁不擁擠，或附上論文做可專利性分析。數字來自 2,799 筆專利與 <span id="kbChatCountZh">數千</span> 筆論文，不是憑記憶回答。</small></p>
               </div>
             </div>
           </div>
 
           <div class="chat-suggestions">
-            <span class="chat-suggestions__label">Try asking:</span>
-            <button type="button" class="tag chat-suggestion">Is network slicing with digital twin a crowded area?</button>
-            <button type="button" class="tag chat-suggestion">Who is patenting NFV, and how concentrated is it?</button>
-            <button type="button" class="tag chat-suggestion" data-needs-doc>What's my research's patentability opportunity score?</button>
-            <button type="button" class="tag chat-suggestion" data-needs-doc>What white-space opportunities exist for my research?</button>
+            <div class="chat-suggestions__group">
+              <span class="chat-suggestions__label">No upload needed <span class="zh">免上傳</span></span>
+              <button type="button" class="tag chat-suggestion" data-q="Is network slicing with digital twin a crowded area?">Is slicing + digital twin crowded?</button>
+              <button type="button" class="tag chat-suggestion" data-q="Who is patenting NFV, and how concentrated is it?">Who patents NFV?</button>
+            </div>
+            <div class="chat-suggestions__group">
+              <span class="chat-suggestions__label">With your paper <span class="zh">上傳論文後</span></span>
+              <button type="button" class="tag chat-suggestion" data-needs-doc data-q="What's my research's patentability opportunity score?">Score my paper (POS)</button>
+              <button type="button" class="tag chat-suggestion" data-needs-doc data-q="What white-space opportunities exist for my research?">White space for my paper</button>
+            </div>
           </div>
 
           <div class="chat-attachment" id="chatAttachment" hidden>
@@ -340,8 +352,8 @@
           </article>
           <article class="about-card">
             <h4>Case &amp; goal <span class="zh">案例與目標</span></h4>
-            <p>Validated on SDN/NFV networking with over two thousand patents and papers — aiming to make gap-finding a self-service, data-driven tool.</p>
-            <p class="zh">以 SDN／NFV 為案例、交叉比對逾兩千筆專利與文獻，目標是讓「找研究缺口」成為人人可自助使用的資料驅動工具。</p>
+            <p>Validated on SDN/NFV networking with 2,799 patents and a knowledge base of 8,000+ papers that grows with every search — aiming to make gap-finding a self-service, data-driven tool.</p>
+            <p class="zh">以 SDN／NFV 為案例，交叉比對 2,799 筆專利與八千餘筆論文（知識庫隨每次搜尋持續累積），目標是讓「找研究缺口」成為人人可自助使用的資料驅動工具。</p>
           </article>
         </div>
       </div>

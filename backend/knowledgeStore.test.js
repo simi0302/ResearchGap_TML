@@ -87,3 +87,9 @@ test("a corrupt line in the learned file is skipped, not fatal", () => {
   const kb = new KnowledgeStore({ seedPath: null, dir });
   assert.equal(kb.stats().total, 0);
 });
+
+test("a record dated after the current year (forthcoming issue) is not stored", () => {
+  const kb = new KnowledgeStore({ seedPath: null, dir: null, persist: false });
+  const r = kb.addMany([{ ...SLICING, doi: "10.1000/future", year: new Date().getFullYear() + 1 }]);
+  assert.equal(r.added, 0);
+});

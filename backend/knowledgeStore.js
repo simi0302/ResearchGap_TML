@@ -95,7 +95,9 @@ function normalize(raw, origin) {
   const abstract = stripMarkup(raw.abstract).slice(0, MAX_ABSTRACT);
   const date = /^\d{4}-\d{2}-\d{2}$/.test(raw.date || raw.publication_date || "") ? raw.date || raw.publication_date : null;
   const year = Number(raw.year || (date ? date.slice(0, 4) : NaN));
-  if (!Number.isInteger(year) || year < 1950 || year > 2100) return null;
+  // A year after the current one is a publisher's forthcoming-issue date, not a publication
+  // that exists yet — it would also slip past any cutoff filter, so it is not stored.
+  if (!Number.isInteger(year) || year < 1950 || year > new Date().getFullYear()) return null;
   const url = /^https?:\/\//.test(raw.url || "") ? String(raw.url).slice(0, 500) : null;
   // Domain gate: the item's own text must contain one core SDN/NFV/slicing feature, or at
   // least two taxonomy features (a lone "latency" or "container" is not enough).

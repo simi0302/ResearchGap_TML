@@ -207,15 +207,20 @@ async function loadPaperResults(keyword, { start, end }, token) {
             <span class="zh">知識庫 ${fromKb} 筆・即時 ${papers.length - fromKb} 筆${kb.added ? `・本次新增 <strong>${kb.added}</strong> 筆寫回知識庫（共 ${Number(kb.kb_total).toLocaleString()} 筆）` : ""}。</span></span></p>`
         : "";
       if (kb?.added) loadKnowledgeStats();
-      body = `${kbNote}<div class="results-list">${papers.map((p) => `
+      const PAPERS_SHOWN = 6;
+      body = `${kbNote}<div class="results-list paper-list${papers.length > PAPERS_SHOWN ? " is-collapsed" : ""}">${papers.map((p) => `
         <article class="result-card paper-card">
           <div class="result-head"><span class="result-jurisdiction">${escapeHtml(p.source || "Paper")}</span>${p.from === "knowledge_base" ? `<span class="kb-tag">Knowledge base <span class="zh">知識庫</span></span>` : ""}<span>${p.year ? escapeHtml(String(p.year)) : "year unknown"}</span></div>
           <h5>${escapeHtml(p.title || "(untitled)")}</h5>
           ${p.venue ? `<p class="result-meta">${escapeHtml(p.venue)}</p>` : ""}
           ${p.url ? `<a class="result-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">View paper <span aria-hidden="true">↗</span></a>` : ""}
-        </article>`).join("")}</div>`;
+        </article>`).join("")}</div>${papers.length > PAPERS_SHOWN ? `<button type="button" class="page-btn paper-more">Show all ${papers.length} papers <span class="zh">顯示全部 ${papers.length} 篇</span></button>` : ""}`;
     }
     el.innerHTML = `${head}${countryNote}${body}`;
+    el.querySelector(".paper-more")?.addEventListener("click", (ev) => {
+      el.querySelector(".paper-list").classList.remove("is-collapsed");
+      ev.currentTarget.remove();
+    });
   } catch {
     if (token === searchToken) el.innerHTML = `${head}${countryNote}${unavailable()}`;
   }
@@ -539,8 +544,16 @@ function updateFilterState() {
 });
 updateFilterState();
 
+document.querySelectorAll(".quick-topic").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.getElementById("keyword").value = btn.dataset.q;
+    document.getElementById("searchForm").requestSubmit();
+  });
+});
+
 document.getElementById("searchForm").addEventListener("submit", async (e) => {
   e.preventDefault();
+  document.getElementById("quickStart").hidden = true;
 
   const keywordInput = document.getElementById("keyword").value.trim();
   const start = document.getElementById("yearStart").value;
@@ -1419,14 +1432,14 @@ document.querySelectorAll(".chat-suggestion").forEach(btn => {
     if (chatBusy) return;
     const hasDocument = Boolean(attachedDocText) || chatHistory.some((m) => m.role === "user" && m.content.includes("Uploaded document:"));
     if (btn.hasAttribute("data-needs-doc") && !hasDocument) {
-      addUserBubble(btn.textContent.trim());
-      const bubble = addBotBubble("Please attach your paper or patent draft first (PDF or TXT) with the paperclip button below, then ask this question again.");
+      addUserBubble(btn.dataset.q || btn.textContent.trim());
+      const bubble = addBotBubble("Please attach your paper or patent draft first (PDF or TXT) with the paperclip button below, then ask this question again.", "請先用下方迴紋針按鈕附上論文或專利草稿（PDF 或 TXT），再點一次這個問題。");
       scrollToBubbleStart(bubble);
       document.querySelector(".chat-upload-btn")?.classList.add("attention");
       window.setTimeout(() => document.querySelector(".chat-upload-btn")?.classList.remove("attention"), 2200);
       return;
     }
-    chatText.value = btn.textContent.trim();
+    chatText.value = btn.dataset.q || btn.textContent.trim();
     document.getElementById("chatForm").requestSubmit();
   });
 });

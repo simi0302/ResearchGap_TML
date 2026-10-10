@@ -233,6 +233,9 @@ async function scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, ca
       count: external.patents.length,
       note: external.note,
       knowledge_base: kbPatents.map((p) => p.publication_number),
+      // The knowledge base grows (write-back), so a later re-score can find more prior art;
+      // its size at scoring time makes every score traceable to the data state behind it.
+      knowledge_base_size: knowledgeStore.getStore().stats().total,
     },
     whitespace: result.whitespace,
     combination_whitespace: result.combination_whitespace,
