@@ -186,16 +186,17 @@ async function scoreWithFeatures({ body, lang, cutoffDate, cutoffYear, feats, ca
   // POST /api/patentability and the compute_patentability tool call go through the exact
   // same deterministic pipeline, regardless of whether the model remembered to search first.
   const query = feats.slice(0, 4).map((f) => f.text).join(" ");
-  const [literatureYearCounts, fieldYearCounts] = await Promise.all([
+  // The literature counts (OpenAlex) and the external patent lookup (web search + page checks)
+  // are independent network calls, so they run concurrently rather than one after the other.
+  // Backend-fetched external patents (never taken from the request body or the model) join
+  // the corpus for Novelty's prior-art search. Failure → [] and the corpus alone is used.
+  const [literatureYearCounts, fieldYearCounts, external] = await Promise.all([
     literature.fetchYearlyLiteratureCounts(query, cutoffYear - 4, cutoffYear),
     literature.fetchFieldBaselineCounts(cutoffYear - 4, cutoffYear),
+    externalPriorArt.fetchExternalPatents(feats, cutoffDate),
   ]);
 
   const targetJurisdiction = typeof body.target_jurisdiction === "string" ? body.target_jurisdiction.toUpperCase() : undefined;
-
-  // Backend-fetched external patents (never taken from the request body or the model) join
-  // the corpus for Novelty's prior-art search. Failure → [] and the corpus alone is used.
-  const external = await externalPriorArt.fetchExternalPatents(feats, cutoffDate);
 
   // Retrieval from the knowledge base: patents the backend verified in earlier sessions (or in
   // the offline harvest) that were public on/before the cutoff join the same BM25 + feature

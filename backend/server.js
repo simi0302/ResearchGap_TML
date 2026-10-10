@@ -310,7 +310,9 @@ app.post("/api/chat", chatLimit, dailyCap, async (req, res) => {
       if (!toolCalls || toolCalls.length === 0) break;
 
       messages = [...messages, message];
-      for (const call of toolCalls) {
+      // Tool calls requested in the same round are independent, so they run concurrently;
+      // their results are appended in the model's original order.
+      const prepared = toolCalls.map((call) => {
         let args = {};
         try {
           args = JSON.parse(call.function.arguments || "{}");
@@ -324,19 +326,17 @@ app.post("/api/chat", chatLimit, dailyCap, async (req, res) => {
           args.text = uploadedDocText;
         }
         if (!args.lang) args.lang = lang;
-        let result;
-        try {
-          result = await executeTool(call.function.name, args);
-        } catch (err) {
-          result = { error: `Tool ${call.function.name} failed: ${err.message}` };
-        }
-        toolTrace.push({ tool: call.function.name, args, result });
-        messages.push({
-          role: "tool",
-          tool_call_id: call.id,
-          content: JSON.stringify(result),
-        });
-      }
+        return { call, args };
+      });
+      const results = await Promise.all(
+        prepared.map(({ call, args }) =>
+          executeTool(call.function.name, args).catch((err) => ({ error: `Tool ${call.function.name} failed: ${err.message}` }))
+        )
+      );
+      prepared.forEach(({ call, args }, i) => {
+        toolTrace.push({ tool: call.function.name, args, result: results[i] });
+        messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(results[i]) });
+      });
 
       round += 1;
       data = await callAzureChat(buildCallMessages(messages));
