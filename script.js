@@ -259,10 +259,11 @@ async function loadPaperResults(keyword, { start, end }, token) {
         : "";
       if (kb?.added) loadKnowledgeStats();
       const PAPERS_SHOWN = 6;
+      const paperHighlight = highlightRegexFor(keyword);
       body = `${kbNote}<div class="results-list paper-list${papers.length > PAPERS_SHOWN ? " is-collapsed" : ""}">${papers.map((p) => `
         <article class="result-card paper-card">
           <div class="result-head"><span class="result-jurisdiction">${escapeHtml(p.source || "Paper")}</span>${p.from === "knowledge_base" ? `<span class="kb-tag">Knowledge base <span class="zh">知識庫</span></span>` : ""}<span>${p.year ? escapeHtml(String(p.year)) : "year unknown"}</span></div>
-          <h5>${escapeHtml(p.title || "(untitled)")}</h5>
+          <h5>${highlightText(p.title || "(untitled)", paperHighlight)}</h5>
           ${p.venue ? `<p class="result-meta">${escapeHtml(p.venue)}</p>` : ""}
           ${p.url ? `<a class="result-link" href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">View paper <span aria-hidden="true">↗</span></a>` : ""}
         </article>`).join("")}</div>${papers.length > PAPERS_SHOWN ? `<button type="button" class="page-btn paper-more">Show all ${papers.length} papers <span class="zh">顯示全部 ${papers.length} 篇</span></button>` : ""}`;
@@ -551,12 +552,32 @@ function renderResults(results, keyword) {
     countEl.textContent = "";
     pagination.hidden = true;
     const shown = keyword ? `“${escapeHtml(keyword)}”` : "these filters";
+    const concepts = keyword ? QueryMatch.parseQuery(keyword) : [];
+    let breakdown = "";
+    if (concepts.length >= 2 && patentCorpus) {
+      const filters = {
+        yearStart: document.getElementById("yearStart").value,
+        yearEnd: document.getElementById("yearEnd").value,
+        jurisdiction: document.getElementById("country").value,
+        patentType: true,
+      };
+      const items = concepts.map((c) => ({ term: c.label, n: searchCorpus({ ...filters, keyword: c.label }).length }));
+      breakdown = `<div class="zero-breakdown">
+        <p>Every concept must appear in the same patent. Each one on its own, with the same filters:
+          <span class="zh">所有概念必須同時出現在同一件專利。各概念單獨搜尋（相同條件）：</span></p>
+        <div class="ai-suggest__chips">${items.map((it) => `<button type="button" class="ai-chip zero-chip" data-term="${escapeHtml(it.term)}"${it.n ? "" : " disabled"}>${escapeHtml(it.term)} <span class="ai-chip__count">${it.n.toLocaleString()}</span></button>`).join("")}</div>
+      </div>`;
+    }
     list.innerHTML = `<div class="results-empty">
       No patents match ${shown}. Check the spelling, try a broader keyword, or relax the year and country filters.
       <br><small>找不到符合的專利。請檢查拼字、改用較廣的關鍵字，或放寬年份與國家條件。</small>
       <br><small>If ${keyword ? "this is a real technology term" : "your filters are intentional"}, having no matches can itself be a white-space signal worth validating.
       若這是真實的技術用語，「查無結果」本身也可能是值得驗證的白地訊號。</small>
-    </div>`;
+    </div>${breakdown}`;
+    list.querySelectorAll(".zero-chip").forEach((btn) => btn.addEventListener("click", () => {
+      document.getElementById("keyword").value = btn.dataset.term;
+      document.getElementById("searchForm").requestSubmit();
+    }));
     return;
   }
 
