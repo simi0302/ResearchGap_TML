@@ -10,6 +10,7 @@
   <!-- No inline scripts, event handlers or third-party origins beyond the pinned pdf.js build and the API. -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' https://cdnjs.cloudflare.com; worker-src blob: https://cdnjs.cloudflare.com; connect-src 'self' https://researchgap-agent-api.azurewebsites.net https://cdnjs.cloudflare.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self'; base-uri 'none'; form-action 'self'; object-src 'none'" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <link rel="canonical" href="https://simi0302.github.io/ResearchGap_TML/" />
   <link rel="icon" href="logo.png" type="image/png" />
   <link rel="apple-touch-icon" href="logo.png" />
 
@@ -26,6 +27,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <noscript><p class="noscript">ResearchGap needs JavaScript for search, the white-space matrix and the AI assistant. Please enable it and reload. <span class="zh">本網站的搜尋、白地矩陣與 AI 助手需要啟用 JavaScript。</span></p></noscript>
   <div class="scroll-progress" id="scrollProgress"></div>
 
   <header class="site-nav" id="siteNav" aria-label="Sticky navigation">
@@ -327,6 +329,7 @@
             <h4 id="gapTitle">—</h4>
             <p id="gapDescription"></p>
             <p class="zh" id="gapDescriptionZh"></p>
+            <button type="button" class="pill-btn small gap-ask" id="gapAsk">Ask the AI about this combination <span class="zh">問 AI 這個組合</span> →</button>
           </div>
         </article>
       </div>

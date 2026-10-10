@@ -303,7 +303,7 @@ async function loadLandscape(keyword, { end }, token) {
     el.innerHTML = `
       <div class="ls-head">
         <h4>Topic landscape <span class="zh">主題全景</span></h4>
-        <span class="ls-src">Computed by the backend · the same numbers the AI assistant cites <span class="zh">後端計算・與 AI 助手引用的數字相同</span></span>
+        <button type="button" class="pill-btn small ls-ask" data-q="${escapeHtml(`Is ${keyword} a crowded area? Who is patenting it?`)}">Ask the AI about this <span class="zh">問 AI</span> →</button>
       </div>
       <div class="ls-grid">
         <div class="ls-stat"><strong>${d.patents.matched.toLocaleString()}</strong><span>corpus patents <span class="zh">語料庫專利</span></span><small>${d.patents.share_of_corpus_pct}% of N=2,799 · 5-yr ${fmtPct(d.patents.growth_last5_vs_prev5_pct)}</small></div>
@@ -312,7 +312,8 @@ async function loadLandscape(keyword, { end }, token) {
         <div class="ls-stat"><strong>${d.patents.applicant_hhi ?? "—"}</strong><span>applicant HHI <span class="zh">申請人集中度</span></span><small>${top ? `${escapeHtml(d.patents.applicant_concentration)} · top: ${escapeHtml(top.name)} ${top.share_pct}%` : "no applicants"}</small></div>
       </div>
       ${landscapeBars(d.patents.by_year, d.papers.by_year)}
-      <p class="ls-legend"><i class="ls-key ls-bar--patent"></i>Patents per year <span class="zh">每年專利</span> <i class="ls-key ls-bar--paper"></i>Papers per year <span class="zh">每年論文</span> <span class="ls-scale">(each scaled to its own maximum <span class="zh">各自以最大值為基準</span>)</span></p>`;
+      <p class="ls-legend"><i class="ls-key ls-bar--patent"></i>Patents per year <span class="zh">每年專利</span> <i class="ls-key ls-bar--paper"></i>Papers per year <span class="zh">每年論文</span> <span class="ls-scale">(each scaled to its own maximum <span class="zh">各自以最大值為基準</span>)</span></p>
+      <p class="ls-src">Computed by the backend — the same numbers the AI assistant cites. <span class="zh">由後端計算，與 AI 助手引用的數字相同。</span></p>`;
     el.hidden = false;
   } catch {
     if (token === searchToken) el.hidden = true;
@@ -1031,6 +1032,8 @@ function showGapCard(row) {
   document.getElementById("gapTitle").textContent = `${row.combo_a} × ${row.combo_b}`;
   document.getElementById("gapDescription").textContent = row.evidence_en;
   document.getElementById("gapDescriptionZh").textContent = row.evidence_zh;
+  const ask = document.getElementById("gapAsk");
+  if (ask) ask.dataset.q = `Is "${row.combo_a} × ${row.combo_b}" (${row.count} patents in the corpus) a white space worth exploring? What does the literature say?`;
   const scoreEl = document.querySelector(".score");
   if (scoreEl) popValue(scoreEl);
 }
@@ -1052,6 +1055,45 @@ document.getElementById("whiteSpaceTbody").addEventListener("click", (e) => {
 const AGENT_API_URL = "https://researchgap-agent-api.azurewebsites.net/api/chat";
 const PATENTABILITY_API_URL = AGENT_API_URL.replace("/api/chat", "/api/patentability");
 let chatHistory = [];
+
+// Hand a question to the AI assistant from elsewhere on the page (topic landscape, gap card):
+// scroll to the chat and send it, so the user does not have to retype what they were looking at.
+function askAssistant(question) {
+  document.getElementById("assistant").scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "start" });
+  if (chatBusy) {
+    chatText.value = question;
+    return;
+  }
+  chatText.value = question;
+  setTimeout(() => document.getElementById("chatForm").requestSubmit(), prefersReducedMotion ? 0 : 450);
+}
+
+// Follow-up suggestions under a reply, chosen by which backend tool produced it (deterministic,
+// not model-generated), so the next step is one click away.
+function followUpsFor(toolCalls) {
+  const tools = (toolCalls || []).map((c) => c.tool);
+  const scored = (toolCalls || []).some((c) => c.tool === "compute_patentability" && typeof c.result?.score === "number");
+  const landscape = (toolCalls || []).find((c) => c.tool === "topic_landscape" && c.result?.query);
+  if (scored) {
+    return [
+      ["Why is the lowest factor low?", "Which factor pulls my POS down the most, and why?"],
+      ["Show the white-space table", "What white-space opportunities exist for my research?"],
+      ["Questions for a patent attorney", "What should I ask a patent attorney about this case?"],
+    ];
+  }
+  if (landscape) {
+    const q = landscape.result.query;
+    return [
+      ["Who files most?", `Who are the top patent applicants for ${q}, and how concentrated is it?`],
+      ["Recent papers", `List the most relevant recent papers on ${q}, with links.`],
+      ["Check my own paper", null],
+    ];
+  }
+  if (tools.includes("search_prior_art")) {
+    return [["Is this area crowded?", "Is this area crowded in patents? Give numbers."], ["Check my own paper", null]];
+  }
+  return [];
+}
 
 // A full analysis (scoring + external patent checks + the model's write-up) normally takes
 // 20–40 s; past 120 s something is wrong, so the request is abandoned with a clear message
@@ -1295,7 +1337,27 @@ function addBotBubble(en, zh, usage, toolCalls) {
     ? `<p class="bubble-usage"><small>Tokens used: ${usage.total_tokens.toLocaleString()} (prompt ${usage.prompt_tokens.toLocaleString()} + completion ${usage.completion_tokens.toLocaleString()}) <span class="zh">・已使用 ${usage.total_tokens.toLocaleString()} tokens</span></small></p>`
     : "";
   const copyBtn = usage ? `<button type="button" class="bubble-copy" title="Copy this answer / 複製這則回答">Copy <span class="zh">複製</span></button>` : "";
-  bubble.innerHTML = `<span>RG</span><div class="bubble-content">${evidenceBlock(toolCalls)}${renderBotMarkdown(en)}${zhBlock}${usageBlock}${copyBtn}</div>`;
+  const follow = usage ? followUpsFor(toolCalls) : [];
+  const followBlock = follow.length
+    ? `<div class="follow-ups"><span class="follow-ups__label">Next <span class="zh">接著問</span></span>${follow
+        .map(([label, q]) => `<button type="button" class="follow-up" data-q="${q ? escapeHtml(q) : ""}">${escapeHtml(label)}</button>`)
+        .join("")}</div>`
+    : "";
+  bubble.innerHTML = `<span>RG</span><div class="bubble-content">${evidenceBlock(toolCalls)}${renderBotMarkdown(en)}${zhBlock}${usageBlock}${copyBtn}${followBlock}</div>`;
+  bubble.querySelectorAll(".follow-up").forEach((b) =>
+    b.addEventListener("click", () => {
+      if (chatBusy) return;
+      if (!b.dataset.q) {
+        // "Check my own paper": point at the upload button instead of sending a question
+        document.querySelector(".chat-upload-btn")?.classList.add("attention");
+        setTimeout(() => document.querySelector(".chat-upload-btn")?.classList.remove("attention"), 2200);
+        document.getElementById("chatFile").click();
+        return;
+      }
+      chatText.value = b.dataset.q;
+      document.getElementById("chatForm").requestSubmit();
+    })
+  );
   bubble.querySelector(".bubble-copy")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget;
     try {
@@ -1658,3 +1720,22 @@ document.querySelectorAll(".chat-suggestion").forEach(btn => {
     document.getElementById("searchForm").requestSubmit();
   }
 }
+
+document.getElementById("landscapePanel").addEventListener("click", (e) => {
+  const b = e.target.closest(".ls-ask");
+  if (b) askAssistant(b.dataset.q);
+});
+document.getElementById("gapAsk")?.addEventListener("click", (e) => {
+  if (e.currentTarget.dataset.q) askAssistant(e.currentTarget.dataset.q);
+});
+
+// "/" jumps to the search box (unless the user is typing somewhere).
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+  const t = e.target;
+  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  e.preventDefault();
+  const kw = document.getElementById("keyword");
+  kw.focus();
+  kw.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "center" });
+});
