@@ -981,11 +981,11 @@ function renderDefaultWhiteSpaceMatrix() {
   document.getElementById("whiteSpaceGapCards").hidden = false;
 
   document.getElementById("whiteSpaceMatrixHead").innerHTML = `
-    <tr><th><span class="visually-hidden">Technology group / 技術分組</span></th>${colGroups.map((c) => `<th>${escapeHtml(wsLabelFor(c))}</th>`).join("")}</tr>
+    <tr><th scope="col"><span class="visually-hidden">Technology group / 技術分組</span></th>${colGroups.map((c) => `<th scope="col">${escapeHtml(wsLabelFor(c))}</th>`).join("")}</tr>
   `;
   document.getElementById("whiteSpaceMatrixBody").innerHTML = rowGroups.map((a) => `
     <tr>
-      <th>${escapeHtml(wsLabelFor(a))}</th>
+      <th scope="row">${escapeHtml(wsLabelFor(a))}</th>
       ${colGroups.map((b) => {
         const key = `${a}|${b}`;
         const cell = cells.get(key);
@@ -1217,7 +1217,7 @@ function renderBotMarkdown(raw) {
       }
       html.push(
         `<div class="chat-table-wrap" tabindex="0" role="region" aria-label="Table ${++chatTableCount} / 表格 ${chatTableCount}"><table class="chat-table"><thead><tr>${headerCells
-          .map((c) => `<th>${inlineFormat(escapeHtml(c))}</th>`)
+          .map((c) => `<th scope="col">${inlineFormat(escapeHtml(c))}</th>`)
           .join("")}</tr></thead><tbody>${bodyRows
           .map((row) => `<tr>${row.map((c, j) => `<td data-label="${escapeHtml(headerCells[j] || "")}">${inlineFormat(escapeHtml(c))}</td>`).join("")}</tr>`)
           .join("")}</tbody></table></div>`
@@ -1517,7 +1517,7 @@ function renderBacktestComparison(original, compareYear, compareResult) {
   backtestResult.innerHTML = `
     <div class="chat-table-wrap" tabindex="0" role="region" aria-label="Backtest table / 回測表格">
       <table class="chat-table">
-        <thead><tr><th>Factor / 因子</th><th>Cutoff ${escapeHtml(String(original.cutoff_year))}</th><th>Cutoff ${escapeHtml(String(compareYear))}</th></tr></thead>
+        <thead><tr><th scope="col">Factor / 因子</th><th scope="col">Cutoff ${escapeHtml(String(original.cutoff_year))}</th><th scope="col">Cutoff ${escapeHtml(String(compareYear))}</th></tr></thead>
         <tbody>
           ${rows}
           <tr><td><strong>POS Score</strong></td><td><strong>${escapeHtml(String(original.score))}</strong></td><td><strong>${escapeHtml(String(compareResult.score))}</strong></td></tr>

@@ -63,7 +63,7 @@
           <a href="#about">ABOUT</a>
         </nav>
 
-        <button class="menu-btn" id="menuBtn" aria-label="Open navigation" aria-expanded="false">☰</button>
+        <button type="button" class="menu-btn" id="menuBtn" aria-label="Open navigation" aria-expanded="false">☰</button>
       </header>
 
       <div class="hero-content">
@@ -248,7 +248,7 @@
               <span class="visually-hidden">Upload a document / 上傳文件</span>
             </label>
             <input type="file" id="chatFile" accept=".pdf,.txt,application/pdf,text/plain" hidden />
-            <input id="chatText" placeholder="Ask about a research gap... / 輸入問題" />
+            <input type="text" id="chatText" autocomplete="off" placeholder="Ask about a research gap... / 輸入問題" />
             <button type="submit" aria-label="Send">→</button>
           </form>
         </div>
@@ -305,10 +305,10 @@
         <table class="matrix-table" id="whiteSpaceTable" hidden>
           <thead>
             <tr>
-              <th>Technology Combination <span class="zh">技術組合</span></th>
-              <th>Patents <span class="zh">專利數</span></th>
-              <th>Status <span class="zh">狀態</span></th>
-              <th>Evidence <span class="zh">證據</span></th>
+              <th scope="col">Technology Combination <span class="zh">技術組合</span></th>
+              <th scope="col">Patents <span class="zh">專利數</span></th>
+              <th scope="col">Status <span class="zh">狀態</span></th>
+              <th scope="col">Evidence <span class="zh">證據</span></th>
             </tr>
           </thead>
           <tbody id="whiteSpaceTbody"></tbody>
@@ -382,7 +382,7 @@
       </div>
     </footer>
 
-    <button class="back-to-top" id="backToTop" aria-label="Back to top / 回到頂端">↑</button>
+    <button type="button" class="back-to-top" id="backToTop" aria-label="Back to top / 回到頂端">↑</button>
   </main>
 
   <script src="query-match.js" defer></script>
