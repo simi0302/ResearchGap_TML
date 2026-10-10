@@ -37,8 +37,18 @@ menuBtn.addEventListener("click", () => {
   menuBtn.setAttribute("aria-expanded", nav.classList.contains("open"));
 });
 
+function closeMenu() {
+  nav.classList.remove("open");
+  menuBtn.setAttribute("aria-expanded", "false");
+}
 document.querySelectorAll(".nav a").forEach(a => {
-  a.addEventListener("click", () => nav.classList.remove("open"));
+  a.addEventListener("click", closeMenu);
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && nav.classList.contains("open")) {
+    closeMenu();
+    menuBtn.focus();
+  }
 });
 
 const backToTop = document.getElementById("backToTop");
@@ -1073,11 +1083,27 @@ document.getElementById("whiteSpaceMatrixBody").addEventListener("click", (e) =>
   if (td) selectMatrixCell(td.dataset.cell);
 });
 document.getElementById("whiteSpaceMatrixBody").addEventListener("keydown", (e) => {
-  if (e.key !== "Enter" && e.key !== " ") return;
   const td = e.target.closest("[data-cell]");
   if (!td) return;
+  if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    selectMatrixCell(td.dataset.cell);
+    return;
+  }
+  // Arrow keys move between cells like a grid (Tab still walks them in order).
+  const moves = { ArrowRight: [0, 1], ArrowLeft: [0, -1], ArrowDown: [1, 0], ArrowUp: [-1, 0] };
+  const mv = moves[e.key];
+  if (!mv) return;
+  const rows = [...document.querySelectorAll("#whiteSpaceMatrixBody tr")];
+  const r = rows.indexOf(td.parentElement);
+  const cellsInRow = [...td.parentElement.querySelectorAll("[data-cell]")];
+  const c = cellsInRow.indexOf(td);
+  const targetRow = rows[r + mv[0]];
+  if (!targetRow) return;
+  const target = targetRow.querySelectorAll("[data-cell]")[c + mv[1]];
+  if (!target) return;
   e.preventDefault();
-  selectMatrixCell(td.dataset.cell);
+  target.focus();
 });
 
 patentCorpusPromise.then(renderDefaultWhiteSpaceMatrix);
