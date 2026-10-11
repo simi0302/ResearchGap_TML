@@ -153,6 +153,7 @@ let searchToken = 0;
 function fetchWithTimeout(url, options, ms) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
+  options?.signal?.addEventListener("abort", () => ctrl.abort());
   return fetch(url, { ...options, signal: ctrl.signal }).finally(() => clearTimeout(timer));
 }
 
@@ -1238,12 +1239,13 @@ async function readAgentResponse(res, onProgress) {
   return { status: last.type === "error" ? last.status || 500 : 200, data: last };
 }
 
-async function sendMessageToAgent(message, history, onProgress) {
+async function sendMessageToAgent(message, history, onProgress, signal) {
   try {
     const res = await fetchWithTimeout(AGENT_API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/x-ndjson, application/json" },
       body: JSON.stringify({ message, history }),
+      signal,
     }, CHAT_TIMEOUT_MS);
     const { status, data } = await readAgentResponse(res, onProgress);
     if (status === 429) {
@@ -1276,6 +1278,7 @@ async function sendMessageToAgent(message, history, onProgress) {
     }
     return { en: data.reply, zh: "", usage: data.usage || null, tool_calls: data.tool_calls || [] };
   } catch (err) {
+    if (signal?.aborted) return { stopped: true };
     if (err?.name === "AbortError") {
       return {
         en: "The assistant took longer than 2 minutes, so the request was stopped. Please try again — a shorter question usually answers faster.",
@@ -1443,7 +1446,7 @@ function evidenceItems(toolCalls) {
       }
     } else if (call.tool === "topic_landscape" && r.patents) {
       items.push({
-        en: `Topic landscape computed by the backend for “${r.query}”: ${r.patents.matched.toLocaleString()} of ${Number(r.patents.population.match(/N=(\d+)/)?.[1] || 2799).toLocaleString()} corpus patents, ${r.papers.matched} knowledge-base papers${r.patents.applicant_hhi != null ? `, applicant HHI ${r.patents.applicant_hhi}` : ""}.`,
+        en: `Topic landscape computed by the backend for “${r.query}”: ${r.patents.matched.toLocaleString()} of ${Number(r.patents.population.match(/N=(\d+)/)?.[1] || 2799).toLocaleString()} corpus patents, ${r.papers.matched.toLocaleString()} knowledge-base papers${r.patents.applicant_hhi != null ? `, applicant HHI ${r.patents.applicant_hhi}` : ""}.`,
         zh: `後端計算「${r.query}」主題全景：語料庫專利 ${r.patents.matched} 筆、知識庫論文 ${r.papers.matched} 筆${r.patents.applicant_hhi != null ? `，申請人 HHI ${r.patents.applicant_hhi}` : ""}。`,
       });
     } else if (call.tool === "search_prior_art") {
@@ -1774,10 +1777,18 @@ function answerFor(text) {
 // cost, replies arriving out of order), so extra submits are ignored until the reply lands.
 let chatBusy = false;
 const chatSendBtn = document.querySelector("#chatForm button[type=submit]");
+// While a reply is pending the send button turns into a Stop button (the backend may still
+// finish the turn, but the page stops waiting and nothing is added to the conversation).
+let chatAbort = null;
 function setChatBusy(busy) {
   chatBusy = busy;
   chatText.disabled = busy;
-  if (chatSendBtn) chatSendBtn.disabled = busy;
+  if (chatSendBtn) {
+    chatSendBtn.classList.toggle("is-stop", busy);
+    chatSendBtn.setAttribute("aria-label", busy ? "Stop waiting for the reply" : "Send");
+    chatSendBtn.title = busy ? "Stop / 停止" : "";
+    chatSendBtn.textContent = busy ? "■" : "→";
+  }
   if (!busy) chatText.focus({ preventScroll: true });
 }
 
@@ -1792,7 +1803,10 @@ document.getElementById("chatReset")?.addEventListener("click", () => {
 
 document.getElementById("chatForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  if (chatBusy) return;
+  if (chatBusy) {
+    chatAbort?.abort();
+    return;
+  }
   const typed = chatText.value.trim();
   if (!typed && !attachedDocText) return;
 
@@ -1821,7 +1835,15 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
   setChatBusy(true);
 
   if (AGENT_API_URL) {
-    const { en, zh, usage, tool_calls } = await sendMessageToAgent(text, chatHistory, typingBubble.setStep);
+    chatAbort = new AbortController();
+    const { en, zh, usage, tool_calls, stopped } = await sendMessageToAgent(text, chatHistory, typingBubble.setStep, chatAbort.signal);
+    chatAbort = null;
+    if (stopped) {
+      typingBubble.remove();
+      addBotBubble("Stopped. Ask again whenever you're ready — a narrower question usually answers faster.", "已停止。可隨時再問，範圍較小的問題通常回得較快。");
+      setChatBusy(false);
+      return;
+    }
     chatHistory = [...chatHistory, { role: "user", content: text }, { role: "assistant", content: en }];
     typingBubble.remove();
     const botBubble = addBotBubble(en, zh, usage, tool_calls);

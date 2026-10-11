@@ -405,6 +405,8 @@ h6.chat-heading{font-size:14px;text-transform:uppercase;letter-spacing:.03em;opa
 .chat-input input{border:0;outline:0;background:transparent;width:100%;padding:0 10px;font-size:16px}
 .chat-input button{border:0;width:44px;height:44px;flex-shrink:0;border-radius:50%;background:var(--orange);color:white;font-size:20px;cursor:pointer}
 .chat-input button:hover{background:var(--orange2)}
+.chat-input button.is-stop{background:#4a2f20;font-size:15px}
+.chat-input button.is-stop:hover{background:#2e1c12}
 
 .chat-upload-btn{
   border:0;width:40px;height:40px;flex-shrink:0;border-radius:50%;
