@@ -723,6 +723,12 @@ footer .muted{opacity:.85;font-size:13.5px}
 .typing-box .typing-dots{padding:12px 0 2px!important}
 .typing-status{margin:0;font-size:12.5px;color:#6f4f3d}
 .typing-time{font-variant-numeric:tabular-nums;font-weight:800}
+.typing-steps{margin:2px 0 6px;padding:0;list-style:none;font-size:12.5px;color:#4a2f20}
+.typing-steps li{position:relative;padding-left:20px;margin:3px 0;overflow-wrap:anywhere}
+.typing-steps li::before{content:"";position:absolute;left:3px;top:4px;width:9px;height:9px;border-radius:50%;border:2px solid #d8ab8c;border-top-color:var(--orange-text,#b43c0a);animation:stepSpin .8s linear infinite}
+.typing-steps li.done::before{content:"✓";border:0;animation:none;width:auto;height:auto;top:0;left:2px;color:#2f7d3a;font-weight:800}
+@keyframes stepSpin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.typing-steps li::before{animation:none}}
 .bubble-copy{margin-top:8px;border:1px solid #f0d9c8;background:#fff;color:#6f4f3d;border-radius:999px;padding:4px 12px;font-size:12px;font-weight:800;cursor:pointer}
 .bubble-copy:hover{background:#fff3e9}
 :focus-visible{outline:3px solid var(--orange-text);outline-offset:2px}

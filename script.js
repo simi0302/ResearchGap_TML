@@ -301,11 +301,15 @@ async function loadLandscape(keyword, { end }, token) {
   const el = document.getElementById("landscapePanel");
   el.hidden = true;
   try {
-    const res = await fetchWithTimeout(`${SEARCH_API_BASE}/api/landscape`, {
+    // One retry: a backend waking from idle can drop or stall the first request.
+    const request = () => fetchWithTimeout(`${SEARCH_API_BASE}/api/landscape`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query: keyword, cutoff_year: end ? Number(end) : undefined }),
     }, 20000);
+    let res = await request().catch(() => null);
+    if (token !== searchToken) return;
+    if (!res || res.status >= 500) res = await request();
     if (token !== searchToken || !res.ok) return;
     const d = await res.json();
     if (token !== searchToken || !d.patents) return;
@@ -1204,35 +1208,65 @@ function followUpsFor(toolCalls) {
 // 20–40 s; past 120 s something is wrong, so the request is abandoned with a clear message
 // instead of leaving the typing indicator spinning forever.
 const CHAT_TIMEOUT_MS = 120000;
-async function sendMessageToAgent(message, history) {
+// The backend streams one JSON line per step (application/x-ndjson) — which tools are running —
+// and the usual payload as the last line; onProgress gets each step so the typing indicator can
+// say what is happening. A plain JSON reply (older backend) is still accepted.
+async function readAgentResponse(res, onProgress) {
+  if (!/ndjson/.test(res.headers.get("content-type") || "") || !res.body) {
+    return { status: res.status, data: res.ok ? await res.json() : null };
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let last = null;
+  const handle = (line) => {
+    if (!line.trim()) return;
+    const evt = JSON.parse(line);
+    if (evt.type === "step") onProgress?.(evt);
+    else last = evt;
+  };
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop();
+    lines.forEach(handle);
+  }
+  handle(buffer);
+  if (!last) return { status: 502, data: null };
+  return { status: last.type === "error" ? last.status || 500 : 200, data: last };
+}
+
+async function sendMessageToAgent(message, history, onProgress) {
   try {
     const res = await fetchWithTimeout(AGENT_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Accept: "application/x-ndjson, application/json" },
       body: JSON.stringify({ message, history }),
     }, CHAT_TIMEOUT_MS);
-    if (res.status === 429) {
+    const { status, data } = await readAgentResponse(res, onProgress);
+    if (status === 429) {
       return {
         en: "You're sending requests a little too fast. Please wait a minute and try again.",
         zh: "請求過於頻繁，請稍候一分鐘再試。",
         usage: null, tool_calls: []
       };
     }
-    if (res.status === 503) {
+    if (status === 503) {
       return {
         en: "The assistant has reached its usage limit for now. Please try again later.",
         zh: "助理目前已達使用上限，請稍後再試。",
         usage: null, tool_calls: []
       };
     }
-    if (!res.ok) {
+    if (status < 200 || status >= 300) {
       return {
-        en: `Assistant is temporarily unavailable (server returned ${res.status}). Please try again shortly.`,
-        zh: `助理暫時無法回應（伺服器回傳 ${res.status}）。請稍後再試。`,
+        en: `Assistant is temporarily unavailable (server returned ${status}). Please try again shortly.`,
+        zh: `助理暫時無法回應（伺服器回傳 ${status}）。請稍後再試。`,
         usage: null, tool_calls: []
       };
     }
-    const data = await res.json();
     if (typeof data?.reply !== "string") {
       return {
         en: "Assistant response was malformed. Please contact the site administrator.",
@@ -1484,10 +1518,19 @@ function scrollToBubbleStart(bubble) {
 }
 
 // Typing indicator with an elapsed-time counter, so a 30-second analysis does not look frozen.
+// bubble.setStep() receives the backend's progress events and lists the tools as they run.
+const TOOL_STEP_LABELS = {
+  search_prior_art: (t) => `Searching papers and patents${t.query ? ` for “${t.query}”` : ""}`,
+  topic_landscape: (t) => `Counting patents and papers${t.query ? ` on “${t.query}”` : ""}`,
+  compute_patentability: (t) => t.mode === "corpus" && t.query
+    ? `Scoring patent ${t.query} against prior art`
+    : "Scoring your document against prior art (POS)",
+};
 function addTypingBubble(withDocument) {
   const bubble = document.createElement("div");
   bubble.className = "bubble bot typing";
   bubble.innerHTML = `<span>RG</span><div class="typing-box"><p class="typing-dots"><i></i><i></i><i></i></p>
+    <ol class="typing-steps" hidden></ol>
     <p class="typing-status" aria-live="off"><span class="typing-text">${withDocument
       ? "Reading your document and computing the score… usually 20–40 s"
       : "Working on it…"}</span> <span class="typing-time">0 s</span></p></div>`;
@@ -1495,12 +1538,33 @@ function addTypingBubble(withDocument) {
   const t0 = Date.now();
   const timeEl = bubble.querySelector(".typing-time");
   const textEl = bubble.querySelector(".typing-text");
+  const stepsEl = bubble.querySelector(".typing-steps");
+  let gotSteps = false;
   const timer = setInterval(() => {
     const sec = Math.round((Date.now() - t0) / 1000);
     timeEl.textContent = `${sec} s`;
+    if (gotSteps) return;
     if (!withDocument && sec === 8) textEl.textContent = "Searching the corpus and the knowledge base…";
     if (sec === 45) textEl.textContent = "Still working — external patent checks can take a while…";
   }, 1000);
+  bubble.setStep = (evt) => {
+    gotSteps = true;
+    stepsEl.querySelectorAll("li:not(.done)").forEach((li) => li.classList.add("done"));
+    if (evt.step === "tools" && Array.isArray(evt.tools)) {
+      evt.tools.forEach((tool) => {
+        const li = document.createElement("li");
+        li.textContent = (TOOL_STEP_LABELS[tool.name] || (() => `Running ${tool.name}`))(tool);
+        stepsEl.appendChild(li);
+      });
+      stepsEl.hidden = false;
+      textEl.textContent = "Running backend tools…";
+    } else if (evt.step === "model") {
+      textEl.textContent = evt.round > 0 ? "Writing the answer from these results…" : "Reading your question…";
+    }
+    if (chatMessages.scrollHeight - chatMessages.scrollTop - chatMessages.clientHeight < 120) {
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+  };
   const remove = bubble.remove.bind(bubble);
   bubble.remove = () => {
     clearInterval(timer);
@@ -1757,7 +1821,7 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
   setChatBusy(true);
 
   if (AGENT_API_URL) {
-    const { en, zh, usage, tool_calls } = await sendMessageToAgent(text, chatHistory);
+    const { en, zh, usage, tool_calls } = await sendMessageToAgent(text, chatHistory, typingBubble.setStep);
     chatHistory = [...chatHistory, { role: "user", content: text }, { role: "assistant", content: en }];
     typingBubble.remove();
     const botBubble = addBotBubble(en, zh, usage, tool_calls);

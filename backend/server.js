@@ -209,6 +209,28 @@ app.post("/api/chat", chatLimit, dailyCap, async (req, res) => {
     return res.status(400).json({ error: s.errors.missingMessage });
   }
 
+  // Progress streaming (opt-in): a caller that sends `Accept: application/x-ndjson` gets one
+  // JSON line per step (model call, which tools are running) while the turn is worked on,
+  // then the usual payload as the last line ({type:"done"} or {type:"error", status}). The
+  // website uses it to say what the assistant is doing instead of a bare timer. Without the
+  // header the single JSON response is unchanged (experiments and tests rely on it).
+  // `no-transform` keeps the compression middleware from buffering the stream.
+  const streaming = /application\/x-ndjson/i.test(req.get("accept") || "");
+  const progress = (event) => {
+    if (streaming && !res.writableEnded) res.write(`${JSON.stringify({ type: "step", ...event })}\n`);
+  };
+  const finish = (status, payload) => {
+    if (!streaming) return res.status(status).json(payload);
+    res.end(`${JSON.stringify({ type: status >= 400 ? "error" : "done", status, ...payload })}\n`);
+  };
+  if (streaming) {
+    res.status(200);
+    res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+  }
+
   // Ground-truth override for the uploaded document's raw text (see buildCallMessages
   // below for the same pattern applied to table formatting). The compute_patentability
   // tool's `text` parameter asks the *model* to copy that same text back into a
@@ -300,6 +322,7 @@ app.post("/api/chat", chatLimit, dailyCap, async (req, res) => {
   };
 
   try {
+    progress({ step: "model", round: 0 });
     let data = await callAzureChat(buildCallMessages(messages));
     accumulateUsage(data);
     let round = 0;
@@ -328,6 +351,15 @@ app.post("/api/chat", chatLimit, dailyCap, async (req, res) => {
         if (!args.lang) args.lang = lang;
         return { call, args };
       });
+      progress({
+        step: "tools",
+        round,
+        tools: prepared.map(({ call, args }) => ({
+          name: call.function.name,
+          query: typeof args.query === "string" ? args.query.slice(0, 80) : typeof args.patent_id === "string" ? args.patent_id.slice(0, 40) : null,
+          mode: args.mode || null,
+        })),
+      });
       const results = await Promise.all(
         prepared.map(({ call, args }) =>
           executeTool(call.function.name, args).catch((err) => ({ error: `Tool ${call.function.name} failed: ${err.message}` }))
@@ -339,6 +371,7 @@ app.post("/api/chat", chatLimit, dailyCap, async (req, res) => {
       });
 
       round += 1;
+      progress({ step: "model", round });
       data = await callAzureChat(buildCallMessages(messages));
       accumulateUsage(data);
     }
@@ -356,7 +389,7 @@ app.post("/api/chat", chatLimit, dailyCap, async (req, res) => {
       if (typeof more === "string") reply = reply + more;
     }
     if (typeof reply !== "string") {
-      return res.status(502).json({ error: s.errors.azureBadResponse });
+      return finish(502, { error: s.errors.azureBadResponse });
     }
 
     // See the "Hard guarantee" block above buildCallMessages. Only the white-space case
@@ -383,14 +416,14 @@ app.post("/api/chat", chatLimit, dailyCap, async (req, res) => {
 
     // Real token usage as reported by Azure OpenAI for this turn (summed across every
     // tool-calling round it took) — not estimated, so the UI can show real cost, not a guess.
-    res.json({ reply: security.redactPromptLeak(finalReply), tool_calls: toolTrace, usage: usageTotal, lang });
+    finish(200, { reply: security.redactPromptLeak(finalReply), tool_calls: toolTrace, usage: usageTotal, lang });
   } catch (err) {
     if (security.isContentFilterError(err)) {
-      return res.json({ reply: security.BLOCKED_REPLY, tool_calls: [], usage: null, lang });
+      return finish(200, { reply: security.BLOCKED_REPLY, tool_calls: [], usage: null, lang });
     }
     console.error("Chat handler failed", err, err.detail || "");
-    if (err.status) return res.status(502).json({ error: s.errors.azureError(err.status) });
-    res.status(500).json({ error: s.errors.azureCallFailed });
+    if (err.status) return finish(502, { error: s.errors.azureError(err.status) });
+    finish(500, { error: s.errors.azureCallFailed });
   }
 });
 
