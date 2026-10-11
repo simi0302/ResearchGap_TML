@@ -216,9 +216,9 @@ async function loadAiSuggestions(keyword, token) {
     const proposed = Number(data.proposed) || terms.length;
     el.innerHTML = `
       <p class="ai-suggest__head"><span class="ai-badge">AI</span> Related terms <span class="zh">相關詞</span></p>
-      <div class="ai-suggest__chips">${terms.map((t) =>
+      <div class="ai-suggest__chips${terms.length > 4 ? " is-collapsed" : ""}">${terms.map((t) =>
         `<button type="button" class="ai-chip" data-term="${escapeHtml(String(t.term))}">${escapeHtml(String(t.term))} <span class="ai-chip__count">${Number(t.count).toLocaleString()}</span></button>`
-      ).join("")}</div>
+      ).join("")}${terms.length > 4 ? `<button type="button" class="ai-chip-more" aria-expanded="false">+${terms.length - 4} more <span class="zh">更多</span></button>` : ""}</div>
       <p class="ai-suggest__note">AI suggested ${proposed} terms; after removing synonyms of each other and terms with no match in the ${Number(data.corpus_size || 2799).toLocaleString()}-patent corpus, the backend kept ${terms.length} (number = matching patents).
         <span class="zh">AI 提出 ${proposed} 個詞，後端去除彼此同義與語料庫查無結果的詞後保留 ${terms.length} 個（數字＝符合的專利數）。</span></p>`;
   } catch {
@@ -227,6 +227,16 @@ async function loadAiSuggestions(keyword, token) {
 }
 
 document.getElementById("aiSuggest").addEventListener("click", (e) => {
+  // On phones only the first four terms show (one chip per row would push the results far
+  // down); "+N more" reveals the rest. Wider screens show every chip and never see the button.
+  const more = e.target.closest(".ai-chip-more");
+  if (more) {
+    more.parentElement.classList.remove("is-collapsed");
+    more.setAttribute("aria-expanded", "true");
+    more.hidden = true;
+    more.parentElement.querySelectorAll(".ai-chip")[4]?.focus();
+    return;
+  }
   const chip = e.target.closest(".ai-chip");
   if (!chip) return;
   document.getElementById("keyword").value = chip.dataset.term;
@@ -437,8 +447,11 @@ function abstractSnippet(abstract, re) {
     const m = re.exec(s);
     if (m) idx = m.index;
   }
-  let start = Math.max(0, idx - 80);
-  if (start > 0) start = s.indexOf(" ", start) + 1 || start;
+  // Start at the beginning of the sentence holding the first match when it is close enough,
+  // so the snippet reads as prose rather than starting mid-clause.
+  const sentence = s.lastIndexOf(". ", idx);
+  let start = sentence >= 0 && idx - sentence <= 140 ? sentence + 2 : Math.max(0, idx - 80);
+  if (start > 0 && start !== sentence + 2) start = s.indexOf(" ", start) + 1 || start;
   let end = Math.min(s.length, start + 220);
   if (end < s.length) end = s.lastIndexOf(" ", end) > start ? s.lastIndexOf(" ", end) : end;
   return `${start > 0 ? "… " : ""}${highlightText(s.slice(start, end), re)}${end < s.length ? " …" : ""}`;
