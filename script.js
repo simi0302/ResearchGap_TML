@@ -104,11 +104,18 @@ document.querySelectorAll(".try-row .tag").forEach(tag => {
    directly (file://) blocks the fetch under Chrome's CORS rules — see README. */
 let patentCorpus = null;
 let corpusLoadError = null;
-// Low fetch priority unless a shared link is about to search: on a slow phone connection the
-// ~470 KB corpus otherwise competes with the first paint (header logo, styles) for bandwidth.
-const patentCorpusPromise = fetch("data/patents.json", {
-  priority: new URLSearchParams(location.search).has("q") ? "high" : "low",
-})
+// Unless a shared link is about to search, the ~470 KB corpus is requested only after the
+// first frame has painted (rAF runs just before that paint, the timeout just after) and at low
+// priority: on a slow phone it otherwise competes with the first paint for bandwidth, and
+// parsing it could land before that paint.
+const corpusNeededNow = new URLSearchParams(location.search).has("q");
+// (The 2 s timer covers a tab opened in the background, where rAF does not run.)
+const afterFirstPaint = new Promise((resolve) => {
+  requestAnimationFrame(() => setTimeout(resolve, 0));
+  setTimeout(resolve, 2000);
+});
+const patentCorpusPromise = (corpusNeededNow ? Promise.resolve() : afterFirstPaint)
+  .then(() => fetch("data/patents.json", { priority: corpusNeededNow ? "high" : "low" }))
   .then(res => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
