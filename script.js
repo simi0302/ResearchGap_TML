@@ -1165,6 +1165,39 @@ document.getElementById("whiteSpaceTbody").addEventListener("click", (e) => {
 const AGENT_API_URL = "https://researchgap-agent-api.azurewebsites.net/api/chat";
 const PATENTABILITY_API_URL = AGENT_API_URL.replace("/api/chat", "/api/patentability");
 let chatHistory = [];
+// What was shown, so a reload of this tab can redraw the conversation (sessionStorage: per tab,
+// gone when the tab closes; a full or blocked store just means nothing is restored).
+const CHAT_STORE_KEY = "rg-chat-v1";
+let chatLog = [];
+function saveChat() {
+  try {
+    if (!chatLog.length) sessionStorage.removeItem(CHAT_STORE_KEY);
+    else sessionStorage.setItem(CHAT_STORE_KEY, JSON.stringify({ history: chatHistory, log: chatLog.slice(-12) }));
+  } catch {
+    try { sessionStorage.removeItem(CHAT_STORE_KEY); } catch { /* storage unavailable */ }
+  }
+}
+function restoreChat() {
+  let saved = null;
+  try { saved = JSON.parse(sessionStorage.getItem(CHAT_STORE_KEY) || "null"); } catch { return; }
+  if (!Array.isArray(saved?.log) || !saved.log.length) return;
+  chatHistory = Array.isArray(saved.history) ? saved.history : [];
+  chatLog = saved.log;
+  chatLog.forEach((e) => {
+    addUserBubble(e.user);
+    addBotBubble(e.en, e.zh, e.usage, e.tool_calls);
+  });
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  const scoreResult = chatLog
+    .flatMap((e) => e.tool_calls || [])
+    .filter((c) => c.tool === "compute_patentability" && typeof c.result?.score === "number")
+    .map((c) => c.result)
+    .pop();
+  if (scoreResult) {
+    renderWhiteSpaceFromAnalysis(scoreResult);
+    showBacktestPanel(scoreResult);
+  }
+}
 
 // Hand a question to the AI assistant from elsewhere on the page (topic landscape, gap card):
 // scroll to the chat and send it, so the user does not have to retype what they were looking at.
@@ -1796,6 +1829,8 @@ function setChatBusy(busy) {
 document.getElementById("chatReset")?.addEventListener("click", () => {
   if (chatBusy) return;
   chatHistory = [];
+  chatLog = [];
+  saveChat();
   clearAttachment();
   [...chatMessages.querySelectorAll(".bubble")].slice(1).forEach((b) => b.remove());
   chatText.focus({ preventScroll: true });
@@ -1847,6 +1882,8 @@ document.getElementById("chatForm").addEventListener("submit", async (e) => {
     chatHistory = [...chatHistory, { role: "user", content: text }, { role: "assistant", content: en }];
     typingBubble.remove();
     const botBubble = addBotBubble(en, zh, usage, tool_calls);
+    chatLog.push({ user: displayText, en, zh, usage, tool_calls });
+    saveChat();
     scrollToBubbleStart(botBubble);
     setChatBusy(false);
     if (tool_calls?.some((c) => c.tool === "search_prior_art" || c.tool === "compute_patentability")) loadKnowledgeStats();
@@ -1930,6 +1967,8 @@ document.addEventListener("keydown", (e) => {
   kw.focus();
   kw.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "center" });
 });
+
+restoreChat();
 
 // Offline-capable repeat visits (see sw.js). Registered after load so it never competes with
 // the first paint; failures (e.g. private mode) are harmless — the site works without it.
