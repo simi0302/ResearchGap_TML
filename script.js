@@ -104,7 +104,11 @@ document.querySelectorAll(".try-row .tag").forEach(tag => {
    directly (file://) blocks the fetch under Chrome's CORS rules — see README. */
 let patentCorpus = null;
 let corpusLoadError = null;
-const patentCorpusPromise = fetch("data/patents.json")
+// Low fetch priority unless a shared link is about to search: on a slow phone connection the
+// ~470 KB corpus otherwise competes with the first paint (header logo, styles) for bandwidth.
+const patentCorpusPromise = fetch("data/patents.json", {
+  priority: new URLSearchParams(location.search).has("q") ? "high" : "low",
+})
   .then(res => {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
