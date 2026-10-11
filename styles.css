@@ -749,6 +749,9 @@ footer .muted{opacity:.85;font-size:13.5px}
 #resultsExport{padding:7px 14px}
 @media(max-width:560px){.results-tools{width:100%}.results-tools #resultsCount{flex-basis:100%}}
 @media(max-width:700px){.chat-reset{position:static;justify-self:end;order:-1}}
+/* Wider screens: the absolutely placed New chat button sits at the right end of the first
+   suggestion row, so that row keeps its width clear (it overlapped a suggestion at ~800 px). */
+@media(min-width:701px){.chat-suggestions__group:first-of-type{padding-right:150px}}
 
 /* ===== Cross-links: follow-ups, ask-the-AI buttons, noscript ===== */
 .follow-ups{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:10px;padding-top:8px;border-top:1px dashed #f0d9c8}
@@ -771,3 +774,41 @@ footer .muted{opacity:.85;font-size:13.5px}
 .zero-breakdown p{margin:0 0 10px;font-size:14px;line-height:1.6;color:#4a352b}
 .zero-chip:disabled{opacity:.55;cursor:not-allowed}
 .zero-breakdown .zh{display:block;font-weight:500}
+
+/* ===== Print / Save as PDF: keep the analysis (overview, landscape, results, papers, the whole
+   conversation, white-space matrix), drop navigation and controls. Browsers skip background
+   colours by default, so white-on-orange text is switched to dark ink. */
+@media print{
+  @page{margin:14mm}
+  html,body{background:#fff!important}
+  *,*::before,*::after{animation:none!important;transition:none!important;box-shadow:none!important;text-shadow:none!important}
+  .scroll-progress,.site-nav,.menu-btn,.orb-field,.back-to-top,.search-panel,.scroll-cue,#quickStart,
+  .results-tools,#resultsPagination,.paper-more,.ai-chip-more,.ls-ask,.status-pill,
+  .chat-suggestions,.chat-input,.chat-attachment,.bubble-copy,.follow-ups,.bubble.typing,
+  #backtestPanel .backtest-controls,#gapAsk,.matrix-scroll-hint{display:none!important}
+  /* Scroll-in elements the reader never scrolled to would otherwise print invisible. */
+  .reveal,.reveal-scale{opacity:1!important;transform:none!important}
+  .hero{min-height:0!important;padding:0 0 8px!important;background:none!important}
+  .hero::before,.hero::after{display:none!important}
+  .hero,.hero *{color:#2a1a10!important}
+  .hero h1{font-size:34pt!important;letter-spacing:-1px!important;margin:6px 0!important}
+  .section{padding:14px 0!important;background:none!important}
+  .section.assistant,.assistant-intro,.assistant-intro *{color:#2a1a10!important}
+  .assistant-shell{display:block!important}
+  .chat{min-height:0!important;max-height:none!important;height:auto!important;border:1px solid #e3d3c6}
+  .chat-messages{overflow:visible!important;max-height:none!important;height:auto!important}
+  /* A reply can be longer than a page; flex boxes that must not break overflow into the next
+     section when paginated, so the conversation prints as plain blocks. */
+  .chat,.chat-messages,.bubble{display:block!important}
+  .bubble{margin:0 0 12px!important}
+  .bubble>span:first-child{display:none!important}
+  .bubble.user{text-align:right}
+  .bubble.user>p{display:inline-block}
+  .matrix-wrap{overflow:visible!important}
+  .result-card,.bubble.user,.ls-stat,.about-card,.gap-card,.landscape,.ai-suggest{break-inside:avoid}
+  h2,h3,h4{break-after:avoid}
+  /* Colour that carries meaning (bars, matrix density, gap card, badges) prints even with
+     "background graphics" off. */
+  .ls-bar,.ls-key,.ws-matrix td,.dot,.ai-chip__count,.bubble.user>p,.gap-card,.gap-card *,.score,
+  .result-jurisdiction,mark,.kb-dot{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
