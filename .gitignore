@@ -7,3 +7,4 @@ dist/
 Thumbs.db
 .azure/
 backend/data/learned/
+backend/data/*.state.json

@@ -120,6 +120,9 @@
                 <option value="JP">Japan / 日本</option>
                 <option value="SG">Singapore / 新加坡</option>
                 <option value="MY">Malaysia / 馬來西亞</option>
+                <option value="CN">China / 中國 (knowledge base only)</option>
+                <option value="KR">Korea / 韓國 (knowledge base only)</option>
+                <option value="WO">WIPO PCT (knowledge base only)</option>
               </select>
             </label>
 
@@ -189,6 +192,7 @@
           <button type="button" class="page-btn" id="resultsNext">Next <span class="zh">下一頁</span> ›</button>
         </div>
         </div>
+        <div class="paper-results kb-patent-results" id="kbPatentResults" hidden></div>
         <div class="paper-results" id="paperResults" hidden></div>
       </div>
     </section>
@@ -216,8 +220,8 @@
             <div class="bubble bot">
               <span>RG</span>
               <div class="bubble-content">
-                <p>Hi! Ask whether a topic is crowded, or attach your paper for a patentability check. My numbers come from 2,799 patents and <strong id="kbChatCount">thousands of</strong> papers — not from memory.</p>
-                <p><small>嗨！可以問某個方向擁不擁擠，或附上論文做可專利性分析。數字來自 2,799 筆專利與 <span id="kbChatCountZh">數千</span> 筆論文，不是憑記憶回答。</small></p>
+                <p>Hi! Ask whether a topic is crowded, or attach your paper for a patentability check. My numbers come from the 2,799-patent corpus, <strong id="kbChatPatents">thousands of</strong> more knowledge-base patents and <strong id="kbChatCount">thousands of</strong> papers — not from memory.</p>
+                <p><small>嗨！可以問某個方向擁不擁擠，或附上論文做可專利性分析。數字來自 2,799 筆專利語料庫、知識庫另外 <span id="kbChatPatentsZh">數千</span> 筆專利與 <span id="kbChatCountZh">數千</span> 筆論文，不是憑記憶回答。</small></p>
               </div>
             </div>
           </div>

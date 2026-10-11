@@ -5,8 +5,11 @@
 // gone after a restart. Now every in-scope item is written back here, and every later search
 // retrieves from here first, so the knowledge the system has seen keeps growing:
 //
-//   seed    data/knowledge_seed.jsonl.gz   built offline by scripts/crawl.js (AI-planned crawl,
-//                                         backend-verified), shipped with the deploy
+//   seed    data/knowledge_seed.jsonl.gz   papers, built offline by scripts/crawl.js (AI-planned
+//                                         crawl, backend-verified), shipped with the deploy
+//           data/patent_seed.jsonl.gz      patents, built offline by scripts/crawl_patents.js
+//                                         (citation snowballing from the corpus, every page
+//                                         fetched and verified), shipped with the deploy
 //   learned <KNOWLEDGE_DIR>/learned.jsonl  appended at runtime by live searches; on Azure App
 //                                         Service KNOWLEDGE_DIR points under /home, which
 //                                         survives restarts and redeploys
@@ -27,7 +30,9 @@ const zlib = require("zlib");
 const features = require("./features");
 
 const DATA_DIR = path.join(__dirname, "data");
-const SEED_PATH = process.env.KNOWLEDGE_SEED_PATH || path.join(DATA_DIR, "knowledge_seed.jsonl.gz");
+const SEED_PATHS = process.env.KNOWLEDGE_SEED_PATH
+  ? [process.env.KNOWLEDGE_SEED_PATH]
+  : [path.join(DATA_DIR, "knowledge_seed.jsonl.gz"), path.join(DATA_DIR, "patent_seed.jsonl.gz")];
 
 function defaultKnowledgeDir() {
   if (process.env.KNOWLEDGE_DIR) return process.env.KNOWLEDGE_DIR;
@@ -128,8 +133,9 @@ function normalize(raw, origin) {
 
 // ---------------------------------------------------------------------------------------
 class KnowledgeStore {
-  constructor({ seedPath = SEED_PATH, dir = defaultKnowledgeDir(), persist = true } = {}) {
-    this.seedPath = seedPath;
+  // seedPath: one path, a list of paths, or null.
+  constructor({ seedPath = SEED_PATHS, dir = defaultKnowledgeDir(), persist = true } = {}) {
+    this.seedPaths = (Array.isArray(seedPath) ? seedPath : [seedPath]).filter(Boolean);
     this.dir = dir;
     this.learnedPath = dir ? path.join(dir, "learned.jsonl") : null;
     this.persist = persist && Boolean(dir);
@@ -147,9 +153,10 @@ class KnowledgeStore {
     this.loaded = true;
     this.seedCount = 0;
     this.learnedCount = 0;
-    if (this.seedPath && fs.existsSync(this.seedPath)) {
-      const buf = fs.readFileSync(this.seedPath);
-      const text = this.seedPath.endsWith(".gz") ? zlib.gunzipSync(buf).toString("utf-8") : buf.toString("utf-8");
+    for (const seedPath of this.seedPaths) {
+      if (!fs.existsSync(seedPath)) continue;
+      const buf = fs.readFileSync(seedPath);
+      const text = seedPath.endsWith(".gz") ? zlib.gunzipSync(buf).toString("utf-8") : buf.toString("utf-8");
       for (const line of text.split("\n")) {
         if (!line.trim()) continue;
         try {
@@ -159,6 +166,8 @@ class KnowledgeStore {
         }
       }
     }
+    // Everything indexed so far shipped with the deploy; later records were learned at runtime.
+    this.seedEnd = this.docs.length;
     if (this.learnedPath && fs.existsSync(this.learnedPath)) {
       for (const line of fs.readFileSync(this.learnedPath, "utf-8").split("\n")) {
         if (!line.trim()) continue;
@@ -295,17 +304,20 @@ class KnowledgeStore {
     const bySource = {};
     const byYear = {};
     let latest = null;
-    for (const { item } of this.docs) {
+    const patentsByOrigin = {};
+    this.docs.forEach(({ item }, idx) => {
       byType[item.type] = (byType[item.type] || 0) + 1;
       byOrigin[item.origin] = (byOrigin[item.origin] || 0) + 1;
       bySource[item.source] = (bySource[item.source] || 0) + 1;
       byYear[item.year] = (byYear[item.year] || 0) + 1;
-      if (item.origin !== "seed" && (!latest || item.added_at > latest)) latest = item.added_at;
-    }
+      if (item.type === "patent") patentsByOrigin[item.origin] = (patentsByOrigin[item.origin] || 0) + 1;
+      if (idx >= (this.seedEnd || 0) && (!latest || item.added_at > latest)) latest = item.added_at;
+    });
     return {
       total: this.docs.length,
       by_type: byType,
       by_origin: byOrigin,
+      patents_by_origin: patentsByOrigin,
       by_source: bySource,
       by_year: byYear,
       seed: this.seedCount || 0,
@@ -319,9 +331,9 @@ class KnowledgeStore {
   recentLearned(limit = 10) {
     this.load();
     const out = [];
-    for (let i = this.docs.length - 1; i >= 0 && out.length < limit; i--) {
+    for (let i = this.docs.length - 1; i >= (this.seedEnd || 0) && out.length < limit; i--) {
       const it = this.docs[i].item;
-      if (it.origin !== "seed") out.push({ id: it.id, type: it.type, title: it.title, year: it.year, source: it.source, origin: it.origin, query: it.query, added_at: it.added_at, url: it.url });
+      out.push({ id: it.id, type: it.type, title: it.title, year: it.year, source: it.source, origin: it.origin, query: it.query, added_at: it.added_at, url: it.url });
     }
     return out;
   }

@@ -665,7 +665,7 @@ footer .muted{opacity:.85;font-size:13.5px}
 .ls-head h4{margin:0;font-size:18px}
 .ls-head h4 .zh{font-size:14px;color:#6f4f3d;margin-left:4px}
 .ls-src{margin:6px 0 0;font-size:12px;font-weight:700;color:#6f4f3d}
-.ls-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.ls-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
 .ls-stat{background:#fff8f2;border:1px solid #f6e3d4;border-radius:14px;padding:12px 14px;display:grid;gap:2px;min-width:0}
 .ls-stat strong{font-size:26px;line-height:1.1;color:var(--orange-text);letter-spacing:-.5px}
 .ls-stat span{font-size:13px;font-weight:800;color:var(--ink)}

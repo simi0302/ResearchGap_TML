@@ -93,3 +93,27 @@ test("a record dated after the current year (forthcoming issue) is not stored", 
   const r = kb.addMany([{ ...SLICING, doi: "10.1000/future", year: new Date().getFullYear() + 1 }]);
   assert.equal(r.added, 0);
 });
+
+test("several seed files (papers + patents) load together; citation-crawl patents count as seed, not learned", () => {
+  const dir = tmpDir();
+  const paperSeed = path.join(dir, "papers.jsonl.gz");
+  const patentSeed = path.join(dir, "patents.jsonl.gz");
+  const tmp = new KnowledgeStore({ seedPath: null, dir: null, persist: false });
+  tmp.addMany([SDN], { origin: "seed" });
+  fs.writeFileSync(paperSeed, zlib.gzipSync(tmp.docs.map((d) => JSON.stringify(d.item)).join("\n")));
+  const pt = new KnowledgeStore({ seedPath: null, dir: null, persist: false });
+  pt.addMany([{ type: "patent", publication_number: "CN112153700B", jurisdiction: "CN", title: "Network slice resource management method and equipment", abstract: "Allocating resources to a network slice instance.", date: "2022-03-29", source: "Google Patents" }], { origin: "citation-crawl" });
+  fs.writeFileSync(patentSeed, zlib.gzipSync(pt.docs.map((d) => JSON.stringify(d.item)).join("\n")));
+
+  const kb = new KnowledgeStore({ seedPath: [paperSeed, patentSeed, path.join(dir, "missing.jsonl.gz")], dir });
+  const s = kb.stats();
+  assert.equal(s.total, 2);
+  assert.equal(s.seed, 2);
+  assert.equal(s.learned, 0);
+  assert.equal(s.by_type.patent, 1);
+  assert.deepEqual(s.patents_by_origin, { "citation-crawl": 1 });
+  assert.equal(s.last_learned_at, null, "shipped records are not reported as learned");
+  assert.equal(kb.recentLearned(5).length, 0);
+  assert.equal(kb.search("network slice resource", { type: "patent", cutoffDate: "2021-12-31" }).length, 0, "cutoff applies to patents too");
+  assert.equal(kb.search("network slice resource", { type: "patent", cutoffDate: "2022-12-31" })[0].publication_number, "CN112153700B");
+});

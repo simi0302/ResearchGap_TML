@@ -18,6 +18,7 @@ const { handlePatentabilityRequest } = require("./patentability");
 const literature = require("./literature");
 const webSearch = require("./webSearch");
 const { topicLandscape } = require("./landscape");
+const knowledgeStore = require("./knowledgeStore");
 
 const TOOL_DEFINITIONS = [
   {
@@ -69,7 +70,7 @@ const TOOL_DEFINITIONS = [
     function: {
       name: "topic_landscape",
       description:
-        "Deterministic landscape of a technology topic, for questions like 'is X crowded?', 'who files patents on X?', 'is research on X growing faster than patents?' when the user has NOT uploaded a document. Returns counts over the fixed 2,799-patent corpus (by year, jurisdiction, IPC group, applicant HHI, example patents with links) and over the ResearchGap knowledge base of papers (by year, most-cited papers), plus the research-to-patent ratio. Every number is computed by the backend; quote them, never estimate.",
+        "Deterministic landscape of a technology topic, for questions like 'is X crowded?', 'who files patents on X?', 'is research on X growing faster than patents?' when the user has NOT uploaded a document. Returns counts over the fixed 2,799-patent corpus (by year, jurisdiction, IPC group, applicant HHI, example patents with links), over the ResearchGap knowledge base of papers (by year, most-cited papers) and over the much larger knowledge-base patent set (patents_kb: citation-expanded, includes CN/KR/WO; by year, jurisdiction, applicants), plus the research-to-patent ratio (corpus-based). Every number is computed by the backend; quote them, never estimate.",
       parameters: {
         type: "object",
         properties: {
@@ -103,6 +104,12 @@ async function executeTool(name, args) {
       // Retrieved from ResearchGap's persistent knowledge base (stored from earlier searches
       // and the offline crawl) — available even when the live sources fail.
       knowledge_base: litResult.local.map((p) => ({ ...brief(p), type: p.type, relevance: p.relevance })),
+      // Patents from the knowledge base (citation-expanded from the corpus, every page fetched
+      // and parsed by the backend), on/before the cutoff, BM25-ranked against the query.
+      knowledge_base_patents: knowledgeStore
+        .getStore()
+        .search(query, { type: "patent", cutoffDate: cutoffDate || undefined, limit: 6 })
+        .map((p) => ({ publication_number: p.publication_number, title: p.title, date: p.date, jurisdiction: p.jurisdiction, assignee: p.assignee || undefined, url: p.url, abstract: p.abstract ? String(p.abstract).slice(0, 300) : undefined, relevance: p.relevance })),
       literature: litResult.live.map(brief),
       knowledge_base_update: litResult.learned,
       web: webResult.results,

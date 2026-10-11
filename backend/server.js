@@ -11,7 +11,7 @@ const { expandQuery, cleanQuery } = require("./queryExpansion");
 const { loadRawCorpus } = require("./corpus");
 const literature = require("./literature");
 const knowledgeStore = require("./knowledgeStore");
-const { topicLandscape } = require("./landscape");
+const { topicLandscape, searchKbPatents } = require("./landscape");
 const BUILD = require("./package.json").version;
 
 const {
@@ -121,6 +121,20 @@ app.post("/api/landscape", searchLimit, dailyCap, (req, res) => {
   if (!query) return res.status(400).json({ error: "Query must be 1-100 characters." });
   const y = Number(req.body?.cutoff_year);
   res.json(topicLandscape(query, { cutoffYear: Number.isInteger(y) && y >= 1990 && y <= 2030 ? y : undefined }));
+});
+
+// Knowledge-base patents for the search bar (the corpus itself is searched in the browser).
+app.post("/api/kb-patents", searchLimit, dailyCap, (req, res) => {
+  const query = cleanQuery(req.body?.query);
+  if (!query) return res.status(400).json({ error: "Query must be 1-100 characters." });
+  const year = (v) => {
+    const y = Number(v);
+    return Number.isInteger(y) && y >= 1950 && y <= 2100 ? y : undefined;
+  };
+  const country = /^[A-Z]{2}$/.test(String(req.body?.country || "")) ? req.body.country : undefined;
+  const offset = Math.min(Math.max(Number(req.body?.offset) || 0, 0), 5000);
+  const limit = Math.min(Math.max(Number(req.body?.limit) || 20, 1), 50);
+  res.json(searchKbPatents(query, { from: year(req.body?.from), to: year(req.body?.to), country, offset, limit }));
 });
 
 // Cutoff filtering, feature extraction, in-corpus prior-art retrieval, and the four-factor

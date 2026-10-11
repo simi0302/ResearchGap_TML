@@ -7,6 +7,10 @@
 //     matcher (queryMatch.js — synonyms, Chinese ↔ English), counted by year / jurisdiction /
 //     IPC group, applicant concentration as HHI;
 //   - papers: the persistent knowledge base (knowledgeStore.js), matched the same way;
+//   - patents_kb: the knowledge base's patents (citation-expanded from the corpus and verified
+//     page by page, plus patents verified during live scoring) — a much larger population that
+//     includes CN / KR / WO filings the corpus lacks. Reported separately: the corpus figures
+//     stay the reproducible reference population;
 //   - the paper-to-patent ratio over the last five years, the signal behind "research is
 //     growing faster than patent filings" (the Temporal idea in POS).
 // Optional cutoffYear applies the 基準日 rule: nothing after Dec 31 of that year is counted.
@@ -15,6 +19,24 @@ const QueryMatch = require("./queryMatch");
 const knowledgeStore = require("./knowledgeStore");
 
 const JURISDICTIONS = ["US", "EP", "JP", "TW", "SG", "MY"];
+
+// Both functions below scan the whole knowledge base (tens of thousands of records), and the
+// Azure free tier has a daily CPU quota, so results are kept for 10 minutes per argument set.
+// Write-back can make a cached answer at most that much behind the live knowledge base.
+const CACHE_TTL_MS = 10 * 60 * 1000;
+const CACHE_MAX = 300;
+const cache = new Map();
+function cached(key, compute) {
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value;
+  const value = compute();
+  if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value);
+  cache.set(key, { at: Date.now(), value });
+  return value;
+}
+function _clearCache() {
+  cache.clear();
+}
 
 function hhiOf(names) {
   const counts = new Map();
@@ -34,7 +56,11 @@ function concentrationLabel(hhi) {
   return "unconcentrated";
 }
 
-function topicLandscape(query, { cutoffYear } = {}) {
+function topicLandscape(query, opts = {}) {
+  return cached(JSON.stringify(["landscape", query, opts.cutoffYear || null]), () => computeLandscape(query, opts));
+}
+
+function computeLandscape(query, { cutoffYear } = {}) {
   const q = String(query || "").trim().slice(0, 100);
   const concepts = QueryMatch.parseQuery(q);
   if (!concepts.length) return { error: "Empty or unusable query." };
@@ -62,14 +88,26 @@ function topicLandscape(query, { cutoffYear } = {}) {
   const applicants = patents.map((p) => p.assignees[0] || p.company_name || "unknown");
   const conc = patents.length ? hhiOf(applicants) : { hhi: null, top: [] };
 
-  // --- papers (knowledge base) ---
+  // --- papers and patents (knowledge base) ---
   const kb = knowledgeStore.getStore().load();
   const papers = [];
+  const kbPatents = [];
+  let kbPatentTotal = 0;
   for (const { item } of kb.docs) {
-    if (item.type !== "paper") continue;
+    if (item.type === "patent") kbPatentTotal++;
     if (cutoffYear && item.year > cutoffYear) continue;
-    if (QueryMatch.scorePatent(concepts, item, q) > 0) papers.push(item);
+    if (QueryMatch.scorePatent(concepts, item, q) <= 0) continue;
+    if (item.type === "paper") papers.push(item);
+    else if (item.type === "patent") kbPatents.push(item);
   }
+  const kbPatentsByYear = Object.fromEntries(years.map((y) => [y, kbPatents.filter((p) => p.year === y).length]));
+  const kbJur = {};
+  for (const p of kbPatents) {
+    const j = p.jurisdiction || String(p.publication_number || "").slice(0, 2);
+    kbJur[j] = (kbJur[j] || 0) + 1;
+  }
+  const kbWithAssignee = kbPatents.filter((p) => p.assignee);
+  const kbConc = kbWithAssignee.length ? hhiOf(kbWithAssignee.map((p) => p.assignee)) : { hhi: null, top: [] };
   const papersByYear = Object.fromEntries(years.map((y) => [y, papers.filter((p) => p.year === y).length]));
   const recent = years.slice(-5);
   const sum = (obj, ys) => ys.reduce((s, y) => s + (obj[y] || 0), 0);
@@ -111,10 +149,70 @@ function topicLandscape(query, { cutoffYear } = {}) {
       growth_last5_vs_prev5_pct: growth(papersByYear),
       most_cited: topPapers,
     },
+    patents_kb: {
+      population: `ResearchGap patent knowledge base, N=${kbPatentTotal} (citation-expanded from the corpus on Google Patents, each page verified; not the scoring population)`,
+      matched: kbPatents.length,
+      by_year: kbPatentsByYear,
+      growth_last5_vs_prev5_pct: growth(kbPatentsByYear),
+      by_jurisdiction: Object.fromEntries(Object.entries(kbJur).sort((a, b) => b[1] - a[1]).slice(0, 8)),
+      applicant_hhi: kbConc.hhi,
+      applicant_concentration: kbConc.hhi == null ? null : concentrationLabel(kbConc.hhi),
+      top_applicants: kbConc.top,
+      examples: kbPatents
+        .slice()
+        .sort((a, b) => String(b.date || b.year).localeCompare(String(a.date || a.year)))
+        .slice(0, 5)
+        .map((p) => ({ publication_number: p.publication_number, title: p.title, year: p.year, jurisdiction: p.jurisdiction, assignee: p.assignee || null, url: p.url })),
+    },
     research_to_patent_ratio_last5: recentPatents ? Math.round((recentPapers / recentPatents) * 100) / 100 : null,
     reading_guide:
       "matched = documents containing every concept of the query (synonyms count). HHI uses each patent's first applicant (U.S. DOJ/FTC merger-guideline bands: 1000–1800 moderately, >1800 highly concentrated). A high research-to-patent ratio with growing papers suggests academic activity that patent filings have not caught up with — a candidate white space, not a conclusion.",
   };
 }
 
-module.exports = { topicLandscape, hhiOf, concentrationLabel };
+// Search bar companion: knowledge-base patents matching the query with the same concept
+// matcher as the corpus search (synonyms, Chinese <-> English), filtered by publication year and
+// jurisdiction. Returns the total, a jurisdiction breakdown and one page of results.
+function searchKbPatents(query, opts = {}) {
+  return cached(JSON.stringify(["kb-patents", query, opts]), () => computeKbPatents(query, opts));
+}
+
+function computeKbPatents(query, { from, to, country, offset = 0, limit = 20 } = {}) {
+  const q = String(query || "").trim().slice(0, 100);
+  const concepts = QueryMatch.parseQuery(q);
+  if (!concepts.length) return { error: "Empty or unusable query." };
+  const kb = knowledgeStore.getStore().load();
+  let population = 0;
+  const hits = [];
+  for (const { item } of kb.docs) {
+    if (item.type !== "patent") continue;
+    population++;
+    if (from && item.year < from) continue;
+    if (to && item.year > to) continue;
+    const j = item.jurisdiction || String(item.publication_number || "").slice(0, 2);
+    if (country && j !== country) continue;
+    const s = QueryMatch.scorePatent(concepts, item, q);
+    if (s > 0) hits.push({ item, s, j });
+  }
+  hits.sort((a, b) => b.s - a.s || String(b.item.date || b.item.year).localeCompare(String(a.item.date || a.item.year)));
+  const byJur = {};
+  for (const h of hits) byJur[h.j] = (byJur[h.j] || 0) + 1;
+  return {
+    query: q,
+    population,
+    total: hits.length,
+    by_jurisdiction: Object.fromEntries(Object.entries(byJur).sort((a, b) => b[1] - a[1])),
+    results: hits.slice(offset, offset + limit).map(({ item, j }) => ({
+      publication_number: item.publication_number,
+      title: item.title,
+      abstract: item.abstract ? String(item.abstract).slice(0, 600) : "",
+      date: item.date,
+      jurisdiction: j,
+      assignee: item.assignee || null,
+      url: item.url,
+      origin: item.origin,
+    })),
+  };
+}
+
+module.exports = { topicLandscape, searchKbPatents, hhiOf, concentrationLabel, _clearCache };

@@ -44,7 +44,8 @@ function noveltyFactor(caseFeatures, priorArt, lang) {
     return { value: 0.5, note: s.novelty.fallback, is_fallback: true, evidence_count: 0 };
   }
   const caseIds = new Set(caseFeatures.map((f) => f.id));
-  const top5 = priorArt.slice(0, 5);
+  // The evidence set built in computeScore(): corpus top 5 + external / knowledge-base top 5.
+  const top5 = priorArt.slice(0, 10);
 
   let maxJ = 0;
   let closest = null;
@@ -269,9 +270,17 @@ function computeScore({ cutoffDate, cutoffYear, subtechLabel, features: caseFeat
   const all = corpus.loadRawCorpus();
   const cutoffPatents = corpus.filterByCutoff(all, cutoffDate);
 
-  // externalPatents (backend-fetched, see externalPriorArt.js) join the corpus for Novelty's
-  // prior-art search only; Crowding/Temporal/Regional/white-space stay on the fixed corpus.
-  const priorArt = retrieval.searchPriorArt(caseFeatures, cutoffDate, 5, externalPatents, docTerms);
+  // externalPatents (backend-fetched, see externalPriorArt.js, plus knowledge-base patents) join
+  // the corpus for Novelty's prior-art search only; Crowding/Temporal/Regional/white-space stay on
+  // the fixed corpus. Novelty's evidence is the corpus's own top 5 (ranked over the corpus alone)
+  // plus the top 5 external patents, so more external prior art can only add evidence: in E7
+  // (2026-10-11) a single merged top 5 let 18k knowledge-base patents shift the BM25 statistics and
+  // push closer corpus patents out, and Novelty rose for 2 of 12 papers when prior art was added.
+  const corpusArt = retrieval.searchPriorArt(caseFeatures, cutoffDate, 5, [], docTerms);
+  const externalArt = externalPatents.length
+    ? retrieval.searchPriorArt(caseFeatures, cutoffDate, Infinity, externalPatents, docTerms).filter((p) => p.source === "external").slice(0, 5)
+    : [];
+  const priorArt = [...corpusArt, ...externalArt];
   const caseFeatureIds = [...new Set(caseFeatures.map((f) => f.feature_id).filter(Boolean))];
 
   const novelty = noveltyFactor(caseFeatures, priorArt, lang);

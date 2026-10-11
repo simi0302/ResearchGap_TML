@@ -40,7 +40,7 @@ separate build step and no framework: what's in `index.html` is what's live.
 - **In-corpus prior-art retrieval is fully backend-side**: `retrieval.js` runs a deterministic BM25 search over the corpus (title + abstract, cutoff-filtered), and the feature-overlap between a case and each matched patent is computed by the backend's own word-boundary text matcher — never supplied or judged by the model.
 - `search_prior_art`'s literature search queries three independent, free, **keyless** sources in parallel (`literature.js`) — [Semantic Scholar](https://www.semanticscholar.org/product/api), [Crossref](https://api.crossref.org/), and [arXiv](https://arxiv.org/help/api/) — so real citations (including most IEEE Xplore/ACM-indexed papers, via DOI) work with zero API keys. Real per-year publication counts (for the Temporal factor) come from [OpenAlex](https://openalex.org/), also free/keyless. `search_prior_art` also runs a real general-web/patent-office search (`webSearch.js`) via Azure OpenAI's Responses API `web_search` tool — Bing-grounded, reaching Google Patents/USPTO/EPO and general engineering sources, billed per call (~$0.014/search) on the same Azure OpenAI resource already in use, no separate resource or credential needed. This replaced the old standalone Bing Search v7 dependency, which Microsoft retired in August 2025.
 - `compute_patentability` auto-detects the cutoff year (first-page copyright/publication/conference patterns, checked against citation-stripped text so a cited earlier work doesn't win) and technical features (a canonical 17-feature SDN/NFV/5G/6G/cloud-native taxonomy, matched with word-boundary + case-sensitive-acronym rules) directly from an uploaded document's real text — deterministic extraction, never a model guess — and scores in one shot whenever there's real signal to work with. Out-of-scope input (too few matched features, or a dominant classification the corpus doesn't recognize) is refused with a reason instead of returned as a diluted score.
-- Node's built-in test runner (`node --test`) — 69 tests across `backend/*.test.js`, covering the knowledge base (domain gate, de-dup, persistence, cutoff), known-item retrieval, the Temporal formula, the search matcher and AI-term verification, security limits, external prior art, the scoring engine, cutoff filtering, anti-fabrication guarantees, and acceptance criteria on 7 real fixture documents (distinct topics score distinctly, a mature/well-established technique scores lower Novelty than genuinely novel work, off-domain/nonsense input is never scored, a citation-year trap still resolves to the paper's own year).
+- Node's built-in test runner (`node --test`) — 74 tests across `backend/*.test.js`, covering the knowledge base (domain gate, de-dup, persistence, cutoff), known-item retrieval, the Temporal formula, the search matcher and AI-term verification, security limits, external prior art, the scoring engine, cutoff filtering, anti-fabrication guarantees, and acceptance criteria on 7 real fixture documents (distinct topics score distinctly, a mature/well-established technique scores lower Novelty than genuinely novel work, off-domain/nonsense input is never scored, a citation-year trap still resolves to the paper's own year).
 
 ## Data: a fixed corpus plus a growing knowledge base
 
@@ -66,6 +66,18 @@ is stored only if its own text has a core SDN/NFV/slicing feature or two taxonom
 title and year, and is not a duplicate (DOI → arXiv id → title). `GET /api/knowledge/stats` reports
 its size; every score records `external_prior_art.knowledge_base_size`, because a larger knowledge
 base can surface more prior art for Novelty.
+
+The knowledge base also holds a **patent seed** (`backend/data/patent_seed.jsonl.gz`) grown from the
+corpus by citation snowballing (`backend/scripts/crawl_patents.js`): every corpus patent's public
+Google Patents page (`/patent/…` only, as robots.txt allows) lists the patents it cites, the patents
+citing it and similar documents; a reference is queued only if its title matches the SDN/NFV
+feature taxonomy, then its own page is fetched and parsed (real title, abstract, publication date,
+applicant) and must pass the same domain gate, and accepted patents seed the next hop. The crawl's
+counts at every stage are in `backend/data/patent_crawl_log.json`. These patents (US, CN, WO, KR, EP …)
+widen prior-art retrieval for Novelty (cutoff-filtered), appear on the site under the corpus results
+(`POST /api/kb-patents`) and in the topic landscape as their own population (`patents_kb`). They are
+**not** the statistics population: a citation-linked sample is biased toward the corpus, so
+Crowding / Regional / white-space keep using the fixed 2,799-patent corpus.
 
 ## Architecture principle: the backend decides, the AI only explains
 
@@ -121,6 +133,7 @@ confident number.
 │   ├── knowledgeStore.js      # persistent knowledge base (RAG write-back), BM25, cutoff-aware
 │   ├── landscape.js           # topic_landscape tool / POST /api/landscape
 │   ├── scripts/crawl.js       # AI-planned, backend-verified knowledge-base crawl
+│   ├── scripts/crawl_patents.js # citation-snowballed patent knowledge base (Google Patents pages)
 │   ├── literature.js          # Semantic Scholar / Crossref / arXiv / OpenAlex, all free/keyless
 │   ├── webSearch.js            # real general-web/patent-office search (Azure OpenAI Responses API)
 │   ├── scoring.js             # four-factor POS formula

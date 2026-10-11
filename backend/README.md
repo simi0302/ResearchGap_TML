@@ -87,6 +87,12 @@ backend-verified patents, searched with BM25 (inverted index, cutoff-date aware)
   `data/crawl_log.json`. `node scripts/crawl.js --plan-from data/crawl_plan.json --sources arxiv,crossref --merge`
   adds a pass without asking the model again. Set `OPENALEX_API_KEY` for OpenAlex (keyless use
   shares a small daily budget per IP).
+- **Patent seed** `data/patent_seed.jsonl.gz` — built offline by `scripts/crawl_patents.js`
+  (citation snowballing from the 2,799 corpus patents over public Google Patents pages; titles
+  gated by the feature taxonomy, every accepted page parsed and domain-checked; stage counts in
+  `data/patent_crawl_log.json`). `node --max-old-space-size=6144 scripts/crawl_patents.js --hops 2
+  --max-fetch 45000` resumes from `data/patent_seed.jsonl.gz.state.json` (not deployed); `--fresh`
+  starts over.
 - **Learned** `<KNOWLEDGE_DIR>/learned.jsonl` — appended at runtime by `/api/literature`,
   `search_prior_art` and verified external patents. On Azure (`WEBSITE_SITE_NAME` set) it lives
   in `/home/data/researchgap`, which survives restarts and `--clean` deploys; locally in

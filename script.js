@@ -172,6 +172,7 @@ function resetSearchExtras() {
   document.getElementById("queryInterpretation").hidden = true;
   document.getElementById("aiSuggest").hidden = true;
   document.getElementById("paperResults").hidden = true;
+  document.getElementById("kbPatentResults").hidden = true;
   document.getElementById("landscapePanel").hidden = true;
   document.getElementById("patentBlock").hidden = false;
 }
@@ -242,6 +243,71 @@ document.getElementById("aiSuggest").addEventListener("click", (e) => {
   document.getElementById("keyword").value = chip.dataset.term;
   document.getElementById("searchForm").requestSubmit();
 });
+
+/* ===== Knowledge-base patents: the citation-expanded patent set (backend, /api/kb-patents),
+   matched with the same concept rules as the corpus search. Shown under the corpus results and
+   labelled as a separate population — the score statistics use the 2,799-patent corpus. */
+const KB_PATENTS_PAGE = 6;
+async function loadKbPatents(keyword, { start, end, jurisdiction }, token, offset = 0) {
+  const el = document.getElementById("kbPatentResults");
+  const request = () => fetchWithTimeout(`${SEARCH_API_BASE}/api/kb-patents`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      query: keyword,
+      from: start || undefined,
+      to: end || undefined,
+      country: jurisdiction && jurisdiction !== "All" ? jurisdiction : undefined,
+      offset,
+      limit: offset ? 20 : KB_PATENTS_PAGE,
+    }),
+  }, 20000);
+  try {
+    let res = await request().catch(() => null);
+    if (token !== searchToken) return;
+    if (!res || res.status >= 500) res = await request();
+    if (token !== searchToken || !res.ok) return;
+    const d = await res.json();
+    if (token !== searchToken || !Array.isArray(d.results)) return;
+    const re = highlightRegexFor(keyword);
+    const cards = d.results.map((p) => `
+      <article class="result-card">
+        <div class="result-head">
+          <span class="result-jurisdiction">${escapeHtml(p.jurisdiction || "—")}</span>
+          <span class="kb-tag">Knowledge base <span class="zh">知識庫</span></span>
+          <span>${escapeHtml(p.date || "date unknown")}</span>
+        </div>
+        <h5>${highlightText(p.title || "(untitled)", re)}</h5>
+        <p class="result-meta">${escapeHtml(p.assignee || "Applicant not listed")} · ${escapeHtml(p.publication_number)}</p>
+        ${p.abstract ? `<p class="result-snippet">${abstractSnippet(p.abstract, re)}</p>` : ""}
+        <a class="result-link" href="${escapeHtml(p.url || googlePatentsUrl(p.publication_number))}" target="_blank" rel="noopener noreferrer">View on Google Patents <span aria-hidden="true">↗</span></a>
+      </article>`).join("");
+    if (offset) {
+      el.querySelector(".kb-patent-list").insertAdjacentHTML("beforeend", cards);
+    } else {
+      const jur = Object.entries(d.by_jurisdiction || {}).slice(0, 6).map(([j, n]) => `${escapeHtml(j)} ${n.toLocaleString()}`).join(" · ");
+      el.innerHTML = `<div class="results-head">
+          <h4>More patents — knowledge base <span class="zh">知識庫擴充專利</span></h4>
+          <span class="paper-source">${d.total.toLocaleString()} of ${d.population.toLocaleString()}</span>
+        </div>
+        <p class="paper-note kb-note"><span class="kb-dot" aria-hidden="true"></span><span>${d.total ? `${d.total.toLocaleString()} matching patents${jur ? ` (${jur})` : ""}` : "No matching patents"} among ${d.population.toLocaleString()} patents expanded from the corpus by citation on Google Patents, each page fetched and checked. They widen prior-art search; the score statistics use the 2,799-patent corpus.
+          <span class="zh">知識庫專利共 ${d.population.toLocaleString()} 筆（由語料庫的引用關係擴充、逐筆抓取驗證），符合 ${d.total.toLocaleString()} 筆。用於擴大先前技術比對；評分統計仍以 2,799 筆語料庫為母體。</span></span></p>
+        <div class="results-list kb-patent-list">${cards}</div>`;
+    }
+    el.querySelector(".kb-more")?.remove();
+    const shown = el.querySelectorAll(".kb-patent-list .result-card").length;
+    if (shown < d.total) {
+      el.insertAdjacentHTML("beforeend", `<button type="button" class="page-btn kb-more">Show more (${(d.total - shown).toLocaleString()} left) <span class="zh">顯示更多</span></button>`);
+      el.querySelector(".kb-more").addEventListener("click", (ev) => {
+        ev.currentTarget.disabled = true;
+        loadKbPatents(keyword, { start, end, jurisdiction }, token, shown);
+      });
+    }
+    el.hidden = false;
+  } catch {
+    if (token === searchToken && !offset) el.hidden = true;
+  }
+}
 
 async function loadPaperResults(keyword, { start, end }, token) {
   const el = document.getElementById("paperResults");
@@ -344,6 +410,7 @@ async function loadLandscape(keyword, { end }, token) {
       </div>
       <div class="ls-grid">
         <div class="ls-stat"><strong>${d.patents.matched.toLocaleString()}</strong><span>corpus patents <span class="zh">語料庫專利</span></span><small>${d.patents.share_of_corpus_pct}% of N=2,799 · 5-yr ${fmtPct(d.patents.growth_last5_vs_prev5_pct)}</small></div>
+        ${d.patents_kb ? `<div class="ls-stat"><strong>${d.patents_kb.matched.toLocaleString()}</strong><span>knowledge-base patents <span class="zh">知識庫專利</span></span><small>${Object.entries(d.patents_kb.by_jurisdiction || {}).slice(0, 4).map(([j, n]) => `${escapeHtml(j)} ${n.toLocaleString()}`).join(" · ") || "none"}</small></div>` : ""}
         <div class="ls-stat"><strong>${d.papers.matched.toLocaleString()}</strong><span>knowledge-base papers <span class="zh">知識庫論文</span></span><small>5-yr ${fmtPct(d.papers.growth_last5_vs_prev5_pct)}</small></div>
         <div class="ls-stat"><strong>${ratio == null ? "—" : ratio}</strong><span>papers per patent, last 5 yrs <span class="zh">近五年論文／專利比</span></span><small>${ratio == null ? "no patents in this window" : ratio >= 5 ? "research ahead of filings" : "filings keep pace"}</small></div>
         <div class="ls-stat"><strong>${d.patents.applicant_hhi ?? "—"}</strong><span>applicant HHI <span class="zh">申請人集中度</span></span><small>${top ? `${escapeHtml(d.patents.applicant_concentration)} · top: ${escapeHtml(top.name)} ${top.share_pct}%` : "no applicants"}</small></div>
@@ -368,14 +435,18 @@ async function loadKnowledgeStats() {
     const learned = st.learned || 0;
     const papers = (st.by_type?.paper || 0).toLocaleString();
     const patents = (st.by_type?.patent || 0).toLocaleString();
-    pill.innerHTML = `<span class="kb-dot" aria-hidden="true"></span><span><strong>Knowledge base: ${st.total.toLocaleString()} records</strong> — ${papers} papers, ${patents} verified patents; ${learned.toLocaleString()} saved back from live searches${st.last_learned_at ? `, latest ${new Date(st.last_learned_at).toLocaleDateString()}` : ""}.
-      <span class="zh">知識庫共 ${st.total.toLocaleString()} 筆（論文 ${papers}、驗證專利 ${patents}），其中 ${learned.toLocaleString()} 筆由即時搜尋寫回，每次搜尋都會持續累積。</span></span>`;
+    const crawled = (st.patents_by_origin?.["citation-crawl"] || 0).toLocaleString();
+    pill.innerHTML = `<span class="kb-dot" aria-hidden="true"></span><span><strong>Knowledge base: ${st.total.toLocaleString()} records</strong> — ${papers} papers and ${patents} patents (${crawled} expanded from the corpus by citation, each page verified); ${learned.toLocaleString()} saved back from live searches${st.last_learned_at ? `, latest ${new Date(st.last_learned_at).toLocaleDateString()}` : ""}.
+      <span class="zh">知識庫共 ${st.total.toLocaleString()} 筆：論文 ${papers}、專利 ${patents}（其中 ${crawled} 筆由語料庫引用關係擴充、逐筆驗證），${learned.toLocaleString()} 筆由即時搜尋寫回，每次搜尋都會持續累積。</span></span>`;
     pill.hidden = false;
-    const n = st.total.toLocaleString();
-    const c = document.getElementById("kbChatCount");
-    const cz = document.getElementById("kbChatCountZh");
-    if (c) c.textContent = n;
-    if (cz) cz.textContent = n;
+    const setText = (id, v) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = v;
+    };
+    setText("kbChatCount", papers);
+    setText("kbChatCountZh", papers);
+    setText("kbChatPatents", patents);
+    setText("kbChatPatentsZh", patents);
   } catch {
     // stats are informational; the page works without them
   }
@@ -852,6 +923,7 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
   if (keywordInput) {
     loadLandscape(keywordInput, { end }, token);
     loadAiSuggestions(keywordInput, token);
+    if (patent) loadKbPatents(keywordInput, { start, end, jurisdiction }, token);
     if (paper) loadPaperResults(keywordInput, { start, end }, token);
   } else if (paper && !patent) {
     const el = document.getElementById("paperResults");
