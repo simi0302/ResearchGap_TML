@@ -7,9 +7,11 @@
 //
 //   seed    data/knowledge_seed.jsonl.gz   papers, built offline by scripts/crawl.js (AI-planned
 //                                         crawl, backend-verified), shipped with the deploy
-//           data/patent_seed.jsonl.gz      patents, built offline by scripts/crawl_patents.js
-//                                         (citation snowballing from the corpus, every page
-//                                         fetched and verified), shipped with the deploy
+//           data/gpss_patents.jsonl.gz     patents, built offline by scripts/fetch_gpss.js from
+//                                         TIPO's GPSS search API (same source as the corpus,
+//                                         same jurisdictions), shipped with the deploy. The
+//                                         earlier citation-snowball set (patent_seed.jsonl.gz,
+//                                         scripts/crawl_patents.js) is kept but no longer loaded
 //   learned <KNOWLEDGE_DIR>/learned.jsonl  appended at runtime by live searches; on Azure App
 //                                         Service KNOWLEDGE_DIR points under /home, which
 //                                         survives restarts and redeploys
@@ -32,7 +34,7 @@ const features = require("./features");
 const DATA_DIR = path.join(__dirname, "data");
 const SEED_PATHS = process.env.KNOWLEDGE_SEED_PATH
   ? [process.env.KNOWLEDGE_SEED_PATH]
-  : [path.join(DATA_DIR, "knowledge_seed.jsonl.gz"), path.join(DATA_DIR, "patent_seed.jsonl.gz")];
+  : [path.join(DATA_DIR, "knowledge_seed.jsonl.gz"), path.join(DATA_DIR, "gpss_patents.jsonl.gz")];
 
 function defaultKnowledgeDir() {
   if (process.env.KNOWLEDGE_DIR) return process.env.KNOWLEDGE_DIR;

@@ -244,7 +244,7 @@ document.getElementById("aiSuggest").addEventListener("click", (e) => {
   document.getElementById("searchForm").requestSubmit();
 });
 
-/* ===== Knowledge-base patents: the citation-expanded patent set (backend, /api/kb-patents),
+/* ===== Knowledge-base patents: the GPSS patent set beyond the corpus (backend, /api/kb-patents),
    matched with the same concept rules as the corpus search. Shown under the corpus results and
    labelled as a separate population — the score statistics use the 2,799-patent corpus. */
 const KB_PATENTS_PAGE = 6;
@@ -290,8 +290,8 @@ async function loadKbPatents(keyword, { start, end, jurisdiction }, token, offse
           <h4>More patents — knowledge base <span class="zh">知識庫擴充專利</span></h4>
           <span class="paper-source">${d.total.toLocaleString()} of ${d.population.toLocaleString()}</span>
         </div>
-        <p class="paper-note kb-note"><span class="kb-dot" aria-hidden="true"></span><span>${d.total ? `${d.total.toLocaleString()} matching patents${jur ? ` (${jur})` : ""}` : "No matching patents"} among ${d.population.toLocaleString()} patents expanded from the corpus by citation on Google Patents, each page fetched and checked. They widen prior-art search; the score statistics use the 2,799-patent corpus.
-          <span class="zh">知識庫專利共 ${d.population.toLocaleString()} 筆（由語料庫的引用關係擴充、逐筆抓取驗證），符合 ${d.total.toLocaleString()} 筆。用於擴大先前技術比對；評分統計仍以 2,799 筆語料庫為母體。</span></span></p>
+        <p class="paper-note kb-note"><span class="kb-dot" aria-hidden="true"></span><span>${d.total ? `${d.total.toLocaleString()} matching patents${jur ? ` (${jur})` : ""}` : "No matching patents"} among ${d.population.toLocaleString()} more patents fetched from GPSS — the corpus's own source, same countries. They widen prior-art search; the score statistics use the 2,799-patent corpus.
+          <span class="zh">專利庫共 ${d.population.toLocaleString()} 筆（與語料庫同樣取自 GPSS、同樣國別），符合 ${d.total.toLocaleString()} 筆。用於擴大先前技術比對；評分統計仍以 2,799 筆語料庫為母體。</span></span></p>
         <div class="results-list kb-patent-list">${cards}</div>`;
     }
     el.querySelector(".kb-more")?.remove();
@@ -435,9 +435,9 @@ async function loadKnowledgeStats() {
     const learned = st.learned || 0;
     const papers = (st.by_type?.paper || 0).toLocaleString();
     const patents = (st.by_type?.patent || 0).toLocaleString();
-    const crawled = (st.patents_by_origin?.["citation-crawl"] || 0).toLocaleString();
-    pill.innerHTML = `<span class="kb-dot" aria-hidden="true"></span><span><strong>Knowledge base: ${st.total.toLocaleString()} records</strong> — ${papers} papers and ${patents} patents (${crawled} expanded from the corpus by citation, each page verified); ${learned.toLocaleString()} saved back from live searches${st.last_learned_at ? `, latest ${new Date(st.last_learned_at).toLocaleDateString()}` : ""}.
-      <span class="zh">知識庫共 ${st.total.toLocaleString()} 筆：論文 ${papers}、專利 ${patents}（其中 ${crawled} 筆由語料庫引用關係擴充、逐筆驗證），${learned.toLocaleString()} 筆由即時搜尋寫回，每次搜尋都會持續累積。</span></span>`;
+    const gpss = (st.patents_by_origin?.gpss || 0).toLocaleString();
+    pill.innerHTML = `<span class="kb-dot" aria-hidden="true"></span><span><strong>Knowledge base: ${st.total.toLocaleString()} records</strong> — ${papers} papers and ${patents} patents (${gpss} fetched from GPSS, the corpus's own source); ${learned.toLocaleString()} saved back from live searches${st.last_learned_at ? `, latest ${new Date(st.last_learned_at).toLocaleDateString()}` : ""}.
+      <span class="zh">知識庫共 ${st.total.toLocaleString()} 筆：論文 ${papers}、專利 ${patents}（其中 ${gpss} 筆與語料庫同樣取自 GPSS），${learned.toLocaleString()} 筆由即時搜尋寫回，每次搜尋都會持續累積。</span></span>`;
     pill.hidden = false;
     const setText = (id, v) => {
       const el = document.getElementById(id);
@@ -1112,7 +1112,7 @@ function wsGroupsOf(p, known) {
 // Rows = the 4 most frequent groups in the corpus, columns = the next 4 — an 8-group,
 // 4×4 grid stays readable while still covering the bulk of the corpus (disjoint sets,
 // so every cell is a distinct, real pair; no diagonal/self-pair ambiguity to handle).
-// The groups always come from the corpus; the knowledge-base patents (citation-expanded,
+// The groups always come from the corpus; the knowledge-base patents (from GPSS beyond the corpus,
 // classified by CPC main group) are counted by the backend for the same pairs and can be
 // added on top — see wsMatrixSource.
 function computeDefaultWhitespaceMatrix(corpus) {

@@ -1,0 +1,82 @@
+{
+  "method": "TIPO GPSS search API (same source as the 2,799-patent corpus): title/abstract keyword queries for SDN, NFV and network slicing over TW/US/EP/JP/KR/CN/WO invention patents published on or before the corpus extraction date; each hit passed through the knowledge base's domain gate; corpus patents and duplicates removed.",
+  "run_at": "2026-10-12T12:31:03.122Z",
+  "until": "20260603",
+  "databases": "TWA,TWB,USA,USB,EPA,EPB,JPA,JPB",
+  "queries": [
+    {
+      "id": "sdn",
+      "q": "\"software defined network\" or \"software defined networking\" or \"software-defined network\" or \"software-defined networking\""
+    },
+    {
+      "id": "nfv",
+      "q": "\"network function virtualization\" or \"network functions virtualization\" or \"network function virtualisation\""
+    },
+    {
+      "id": "slicing",
+      "q": "\"network slicing\" or \"network slice\" or \"network slices\""
+    },
+    {
+      "id": "zh",
+      "q": "軟體定義網路 or 軟體定義網絡 or 软件定义网络 or 網路功能虛擬化 or 网络功能虚拟化 or 網路切片 or 網絡切片 or 网络切片"
+    }
+  ],
+  "stopped": null,
+  "counts": {
+    "requested": 12,
+    "returned": 5213,
+    "in_corpus": 1302,
+    "duplicate": 378,
+    "domain_rejected": 76,
+    "accepted": 3457,
+    "also_in_citation_kb": 1111,
+    "by_query": {
+      "sdn": {
+        "hits": 2808,
+        "accepted": 2190
+      },
+      "nfv": {
+        "hits": 880,
+        "accepted": 396
+      },
+      "slicing": {
+        "hits": 1230,
+        "accepted": 790
+      },
+      "zh": {
+        "hits": 295,
+        "accepted": 81
+      }
+    },
+    "by_jurisdiction": {
+      "TW": 146,
+      "US": 2624,
+      "EP": 526,
+      "JP": 161
+    },
+    "by_year": {
+      "1991": 2,
+      "1992": 1,
+      "1998": 1,
+      "1999": 1,
+      "2000": 1,
+      "2001": 1,
+      "2010": 1,
+      "2012": 3,
+      "2013": 20,
+      "2014": 70,
+      "2015": 177,
+      "2016": 245,
+      "2017": 302,
+      "2018": 316,
+      "2019": 356,
+      "2020": 378,
+      "2021": 322,
+      "2022": 316,
+      "2023": 288,
+      "2024": 301,
+      "2025": 271,
+      "2026": 84
+    }
+  }
+}

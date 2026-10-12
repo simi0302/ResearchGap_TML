@@ -7,10 +7,9 @@
 //     matcher (queryMatch.js — synonyms, Chinese ↔ English), counted by year / jurisdiction /
 //     IPC group, applicant concentration as HHI;
 //   - papers: the persistent knowledge base (knowledgeStore.js), matched the same way;
-//   - patents_kb: the knowledge base's patents (citation-expanded from the corpus and verified
-//     page by page, plus patents verified during live scoring) — a much larger population that
-//     includes CN / KR / WO filings the corpus lacks. Reported separately: the corpus figures
-//     stay the reproducible reference population;
+//   - patents_kb: the knowledge base's patents (fetched from the same GPSS source as the corpus,
+//     same jurisdictions, minus the corpus itself, plus patents verified during live scoring).
+//     Reported separately: the corpus figures stay the reproducible reference population;
 //   - the paper-to-patent ratio over the last five years, the signal behind "research is
 //     growing faster than patent filings" (the Temporal idea in POS).
 // Optional cutoffYear applies the 基準日 rule: nothing after Dec 31 of that year is counted.
@@ -150,7 +149,7 @@ function computeLandscape(query, { cutoffYear } = {}) {
       most_cited: topPapers,
     },
     patents_kb: {
-      population: `ResearchGap patent knowledge base, N=${kbPatentTotal} (citation-expanded from the corpus on Google Patents, each page verified; not the scoring population)`,
+      population: `ResearchGap patent knowledge base, N=${kbPatentTotal} (fetched from GPSS, the corpus's own source, beyond the corpus; not the scoring population)`,
       matched: kbPatents.length,
       by_year: kbPatentsByYear,
       growth_last5_vs_prev5_pct: growth(kbPatentsByYear),

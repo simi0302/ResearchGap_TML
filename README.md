@@ -67,17 +67,19 @@ title and year, and is not a duplicate (DOI → arXiv id → title). `GET /api/k
 its size; every score records `external_prior_art.knowledge_base_size`, because a larger knowledge
 base can surface more prior art for Novelty.
 
-The knowledge base also holds a **patent seed** (`backend/data/patent_seed.jsonl.gz`) grown from the
-corpus by citation snowballing (`backend/scripts/crawl_patents.js`): every corpus patent's public
-Google Patents page (`/patent/…` only, as robots.txt allows) lists the patents it cites, the patents
-citing it and similar documents; a reference is queued only if its title matches the SDN/NFV
-feature taxonomy, then its own page is fetched and parsed (real title, abstract, publication date,
-applicant) and must pass the same domain gate, and accepted patents seed the next hop. The crawl's
-counts at every stage are in `backend/data/patent_crawl_log.json`. These patents (US, CN, WO, KR, EP …)
-widen prior-art retrieval for Novelty (cutoff-filtered), appear on the site under the corpus results
-(`POST /api/kb-patents`) and in the topic landscape as their own population (`patents_kb`). They are
-**not** the statistics population: a citation-linked sample is biased toward the corpus, so
-Crowding / Regional / white-space keep using the fixed 2,799-patent corpus.
+The knowledge base also holds a separate **patent set** (`backend/data/gpss_patents.jsonl.gz`, 3,457
+patents) fetched from the same source as the corpus — TIPO's GPSS search API — by
+`backend/scripts/fetch_gpss.js`: title/abstract queries for SDN, NFV and network slicing (English,
+plus Traditional/Simplified Chinese), invention patents in the corpus's own jurisdictions (US, EP,
+JP, TW), published on or before the corpus extraction date (2026-06-03). Every hit passes the
+knowledge base's domain gate; the 1,302 hits already in the corpus and duplicates are removed. The
+counts are in `backend/data/gpss_fetch_log.json` (the API key is read from `GPSS_USER_CODE` and never
+committed). These patents widen prior-art retrieval for Novelty (cutoff-filtered), appear on the
+site under the corpus results (`POST /api/kb-patents`) and in the topic landscape as their own
+population (`patents_kb`). They are **not** the statistics population: Crowding / Regional /
+white-space keep using the fixed 2,799-patent corpus. (An earlier, larger citation-snowball set built
+from Google Patents — `scripts/crawl_patents.js`, `data/patent_seed.jsonl.gz` — is kept in the repo
+but no longer loaded.)
 
 ## Architecture principle: the backend decides, the AI only explains
 
