@@ -897,6 +897,19 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
     document.getElementById("analysisSummary").textContent = "Enter a valid year range to search. 請輸入有效的年份範圍。";
     return;
   }
+  // Only stopwords ("a", "the", "of"…) parse to no concept, which would otherwise list the whole
+  // corpus under "Results for "a"" and send the word to the AI.
+  if (keywordInput && !QueryMatch.parseQuery(keywordInput).length) {
+    document.getElementById("resultsHeading").textContent = `"${keywordInput}" is too common to search`;
+    document.getElementById("resultsCount").textContent = "";
+    document.getElementById("resultsPagination").hidden = true;
+    document.getElementById("resultsList").innerHTML = `<div class="results-empty">
+      "${escapeHtml(keywordInput)}" only contains common words that appear in almost every patent. Try a technical term, e.g. network slicing, SDN controller or NFV orchestration.
+      <br><small>「${escapeHtml(keywordInput)}」只含常見字詞，幾乎每件專利都有。請改用技術詞，例如 network slicing、SDN controller 或 NFV orchestration。</small>
+    </div>`;
+    document.getElementById("analysisSummary").textContent = "Enter a technical term to search. 請輸入技術詞。";
+    return;
+  }
   if (!patent && !paper) {
     document.getElementById("filterPanel").open = true;
     document.getElementById("resultsHeading").textContent = "Choose a type";
