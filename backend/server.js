@@ -11,7 +11,7 @@ const { expandQuery, cleanQuery } = require("./queryExpansion");
 const { loadRawCorpus } = require("./corpus");
 const literature = require("./literature");
 const knowledgeStore = require("./knowledgeStore");
-const { topicLandscape, searchKbPatents } = require("./landscape");
+const { topicLandscape, searchKbPatents, kbMatrixCounts } = require("./landscape");
 const BUILD = require("./package.json").version;
 
 const {
@@ -135,6 +135,16 @@ app.post("/api/kb-patents", searchLimit, dailyCap, (req, res) => {
   const offset = Math.min(Math.max(Number(req.body?.offset) || 0, 0), 5000);
   const limit = Math.min(Math.max(Number(req.body?.limit) || 20, 1), 50);
   res.json(searchKbPatents(query, { from: year(req.body?.from), to: year(req.body?.to), country, offset, limit }));
+});
+
+// White-space matrix: knowledge-base patent counts for the IPC main groups the page derived
+// from the corpus (the corpus side is counted in the browser). Read-only, no AI.
+app.get("/api/kb-matrix", knowledgeLimit, (req, res) => {
+  const list = (v) => String(v || "").split(",").map((g) => g.trim()).filter((g) => /^[A-H]\d{2}[A-Z] \d{1,4}$/.test(g));
+  const rows = [...new Set(list(req.query.rows))].slice(0, 6);
+  const cols = [...new Set(list(req.query.cols))].slice(0, 6);
+  if (!rows.length || !cols.length) return res.status(400).json({ error: "rows and cols must be IPC main groups like 'H04L 41'." });
+  res.json(kbMatrixCounts(rows, cols));
 });
 
 // Cutoff filtering, feature extraction, in-corpus prior-art retrieval, and the four-factor

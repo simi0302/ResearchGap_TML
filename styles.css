@@ -198,6 +198,14 @@ a{text-decoration:none;color:inherit}
 .section-note .static-dot{width:6px;height:6px;margin-top:6px;border-radius:50%;background:currentColor;flex-shrink:0;opacity:.55}
 .section-note .zh{display:block;margin-top:2px;font-weight:700}
 .section-head.light .section-note{color:#fff;background:rgba(255,255,255,.16)}
+#whiteSpaceNote{flex-wrap:wrap}
+#whiteSpaceNote>span:not(.ws-source){flex:1 1 0;min-width:0}
+.ws-source{flex-basis:100%;display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 2px 14px}
+.ws-source button{border:1px solid #e0b89a;background:#fff;color:#6f4f3d;border-radius:999px;padding:6px 14px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;min-height:40px}
+.ws-source button[aria-pressed="true"]{background:var(--orange-text);border-color:var(--orange-text);color:#fff}
+.ws-source button .zh{display:inline;margin:0 0 0 4px;font-weight:700}
+.ws-source button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.ws-split{display:block;margin-top:2px;font-size:13px;font-weight:700;opacity:.75}
 
 .cream{background:var(--cream)}
 
@@ -783,7 +791,7 @@ footer .muted{opacity:.85;font-size:15.5px}
   html,body{background:#fff!important}
   *,*::before,*::after{animation:none!important;transition:none!important;box-shadow:none!important;text-shadow:none!important}
   .scroll-progress,.site-nav,.menu-btn,.orb-field,.back-to-top,.search-panel,.scroll-cue,#quickStart,
-  .results-tools,#resultsPagination,.paper-more,.ai-chip-more,.ls-ask,.status-pill,
+  .results-tools,.ws-source,#resultsPagination,.paper-more,.ai-chip-more,.ls-ask,.status-pill,
   .chat-suggestions,.chat-input,.chat-attachment,.bubble-copy,.follow-ups,.bubble.typing,
   #backtestPanel .backtest-controls,#gapAsk,.matrix-scroll-hint{display:none!important}
   /* Scroll-in elements the reader never scrolled to would otherwise print invisible. */
@@ -812,3 +820,4 @@ footer .muted{opacity:.85;font-size:15.5px}
   .ls-bar,.ls-key,.ws-matrix td,.dot,.ai-chip__count,.bubble.user>p,.gap-card,.gap-card *,.score,
   .result-jurisdiction,mark,.kb-dot{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
+@media(max-width:560px){.ws-source{margin-left:0}.ws-source button{font-size:14px;padding:6px 12px}}

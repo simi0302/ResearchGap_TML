@@ -1112,40 +1112,63 @@ function wsGroupsOf(p, known) {
 // Rows = the 4 most frequent groups in the corpus, columns = the next 4 — an 8-group,
 // 4×4 grid stays readable while still covering the bulk of the corpus (disjoint sets,
 // so every cell is a distinct, real pair; no diagonal/self-pair ambiguity to handle).
+// The groups always come from the corpus; the knowledge-base patents (citation-expanded,
+// classified by CPC main group) are counted by the backend for the same pairs and can be
+// added on top — see wsMatrixSource.
 function computeDefaultWhitespaceMatrix(corpus) {
   const topGroups = wsDeriveSubtechGroups(corpus);
   const known = new Set(topGroups);
   const rowGroups = topGroups.slice(0, 4);
   const colGroups = topGroups.slice(4, 8);
   const groupSets = corpus.map((p) => wsGroupsOf(p, known));
-
-  const rawCounts = [];
+  const corpusCounts = new Map();
   for (const a of rowGroups) {
     for (const b of colGroups) {
       let count = 0;
       for (const gs of groupSets) if (gs.has(a) && gs.has(b)) count++;
-      rawCounts.push([a, b, count]);
+      corpusCounts.set(`${a}|${b}`, count);
     }
   }
+  return { rowGroups, colGroups, corpusCounts, cells: new Map() };
+}
+
+// "combined" (corpus + knowledge base) once the backend answers; "corpus" otherwise or when
+// the visitor switches back. kbMatrix = { kb_patents, kb_classified, counts } from /api/kb-matrix.
+let wsMatrixSource = "combined";
+let kbMatrix = null;
+
+function wsBuildCells(m) {
+  const useKb = wsMatrixSource === "combined" && kbMatrix;
+  const nCorpus = patentCorpus.length.toLocaleString();
+  const nKb = kbMatrix ? kbMatrix.kb_classified.toLocaleString() : "";
+  const raw = [...m.corpusCounts.entries()].map(([key, corpus]) => {
+    const kb = useKb ? Number(kbMatrix.counts[key]) || 0 : 0;
+    return [key, corpus, kb, corpus + kb];
+  });
   // Crowded/developing is relative to this matrix's own scale, not a fixed absolute
   // count — these top-8-group cells run far higher than the finer per-case subtech
   // combinations elsewhere on this page, so a fixed "<5" threshold (tuned for those)
   // would leave every non-zero cell here reading as "crowded" and flatten the matrix
   // to two colors. Split non-zero counts at their own median instead.
-  const nonZero = rawCounts.map(([, , c]) => c).filter((c) => c > 0).sort((x, y) => x - y);
+  const nonZero = raw.map(([, , , c]) => c).filter((c) => c > 0).sort((x, y) => x - y);
   const median = nonZero.length ? nonZero[Math.floor((nonZero.length - 1) / 2)] : 0;
-
-  const cells = new Map();
-  for (const [a, b, count] of rawCounts) {
+  m.cells = new Map();
+  for (const [key, corpus, kb, count] of raw) {
+    const [a, b] = key.split("|");
     const status = count === 0 ? "gap" : count < median ? "developing" : "crowded";
     const labelA = wsLabelFor(a), labelB = wsLabelFor(b);
-    cells.set(`${a}|${b}`, {
-      combo_a: labelA, combo_b: labelB, ipc_a: a, ipc_b: b, count, status,
-      evidence_en: `Among all ${corpus.length.toLocaleString()} patents in the corpus, ${count} are classified under both "${labelA}" (${a}) and "${labelB}" (${b}).`,
-      evidence_zh: `母體 ${corpus.length.toLocaleString()} 筆專利中，同時歸類於「${labelA}」(${a}) 與「${labelB}」(${b}) 的共 ${count} 件。`,
-    });
+    let evidence_en = `Among all ${nCorpus} patents in the corpus, ${corpus} are classified under both "${labelA}" (${a}) and "${labelB}" (${b}).`;
+    let evidence_zh = `母體 ${nCorpus} 筆專利中，同時歸類於「${labelA}」(${a}) 與「${labelB}」(${b}) 的共 ${corpus} 件。`;
+    if (useKb) {
+      evidence_en += ` The knowledge base adds ${kb} of its ${nKb} classified patents (CPC main groups), ${count} in total.`;
+      evidence_zh += `知識庫 ${nKb} 筆已分類專利（CPC 主群組）中另有 ${kb} 件，合計 ${count} 件。`;
+      if (corpus === 0 && kb > 0) {
+        evidence_en += " Empty in the corpus alone, but not an untouched area: check these before calling it a white space.";
+        evidence_zh += "只看語料庫是空白，但並非無人涉足——判斷為白地前請先查看這些專利。";
+      }
+    }
+    m.cells.set(key, { combo_a: labelA, combo_b: labelB, ipc_a: a, ipc_b: b, count, corpus, kb, status, evidence_en, evidence_zh, useKb: Boolean(useKb) });
   }
-  return { rowGroups, colGroups, cells };
 }
 
 let defaultWhitespaceMatrix = null;
@@ -1153,6 +1176,29 @@ let activeMatrixCellKey = null;
 
 function statusClass(status) {
   return status === "gap" ? "gap" : status === "crowded" ? "dense" : "medium";
+}
+
+function wsNoteHtml() {
+  const m = defaultWhitespaceMatrix;
+  const nCorpus = patentCorpus.length.toLocaleString();
+  const toggle = kbMatrix ? `<span class="ws-source" role="group" aria-label="Patents counted 計入的專利">
+      <button type="button" data-ws-source="combined" aria-pressed="${wsMatrixSource === "combined"}">Corpus + knowledge base <span class="zh">語料庫＋知識庫</span></button>
+      <button type="button" data-ws-source="corpus" aria-pressed="${wsMatrixSource === "corpus"}">Corpus only <span class="zh">只看語料庫</span></button>
+    </span>` : "";
+  if (wsMatrixSource === "combined" && kbMatrix) {
+    const reorganised = [...m.rowGroups, ...m.colGroups].filter((g) => g === "H04L 29");
+    const caveat = reorganised.length
+      ? ` H04L 29 was split up in the 2022 classification, so newer patents rarely carry it: that row undercounts. <span class="zh">H04L 29 已於 2022 年版分類中拆分，較新的知識庫專利很少使用，該列件數偏低。</span>`
+      : "";
+    return `<i class="static-dot" aria-hidden="true"></i><span>
+      ${nCorpus} corpus + ${kbMatrix.kb_classified.toLocaleString()} knowledge-base patents (CPC main groups; ${(kbMatrix.kb_patents - kbMatrix.kb_classified).toLocaleString()} unclassified left out) — click a cell.
+      <span class="zh">語料庫 ${nCorpus} 筆＋知識庫 ${kbMatrix.kb_classified.toLocaleString()} 筆（CPC 主群組；${(kbMatrix.kb_patents - kbMatrix.kb_classified).toLocaleString()} 筆無分類號未計入）——點格子看詳情。</span>${caveat}
+    </span>${toggle}`;
+  }
+  return `<i class="static-dot" aria-hidden="true"></i><span>
+    All ${nCorpus} patents in the corpus — click a cell for details.
+    <span class="zh">全部 ${nCorpus} 筆專利語料庫——點格子看詳情。</span>
+  </span>${toggle}`;
 }
 
 function renderDefaultWhiteSpaceMatrix() {
@@ -1169,13 +1215,13 @@ function renderDefaultWhiteSpaceMatrix() {
     return;
   }
   if (!defaultWhitespaceMatrix) defaultWhitespaceMatrix = computeDefaultWhitespaceMatrix(patentCorpus);
-  const { rowGroups, colGroups, cells } = defaultWhitespaceMatrix;
+  const m = defaultWhitespaceMatrix;
+  const { rowGroups, colGroups } = m;
   if (rowGroups.length === 0 || colGroups.length === 0) return;
+  wsBuildCells(m);
+  const { cells } = m;
 
-  document.getElementById("whiteSpaceNote").innerHTML = `<i class="static-dot" aria-hidden="true"></i><span>
-    All ${patentCorpus.length.toLocaleString()} patents in the corpus — click a cell for details.
-    <span class="zh">全部 ${patentCorpus.length.toLocaleString()} 筆專利語料庫——點格子看詳情。</span>
-  </span>`;
+  document.getElementById("whiteSpaceNote").innerHTML = wsNoteHtml();
 
   document.getElementById("whiteSpaceEmpty").hidden = true;
   document.getElementById("whiteSpaceTable").hidden = true;
@@ -1192,17 +1238,43 @@ function renderDefaultWhiteSpaceMatrix() {
       ${colGroups.map((b) => {
         const key = `${a}|${b}`;
         const cell = cells.get(key);
+        const split = cell.useKb ? `<small class="ws-split">${cell.corpus.toLocaleString()} + ${cell.kb.toLocaleString()}</small>` : "";
         return `<td class="${statusClass(cell.status)}" data-cell="${key}" tabindex="0" role="button"
-          aria-label="${cell.count.toLocaleString()} patents: ${escapeHtml(cell.combo_a)} × ${escapeHtml(cell.combo_b)}">${cell.count.toLocaleString()}</td>`;
+          aria-label="${cell.count.toLocaleString()} patents${cell.useKb ? ` (${cell.corpus} corpus + ${cell.kb} knowledge base)` : ""}: ${escapeHtml(cell.combo_a)} × ${escapeHtml(cell.combo_b)}">${cell.count.toLocaleString()}${split}</td>`;
       }).join("")}
     </tr>
   `).join("");
 
+  const keep = activeMatrixCellKey && cells.has(activeMatrixCellKey) ? activeMatrixCellKey : null;
   const firstGapKey = [...cells.entries()].find(([, c]) => c.status === "gap")?.[0];
-  const initialKey = firstGapKey || [...cells.keys()][0];
+  const initialKey = keep || firstGapKey || [...cells.keys()][0];
   if (initialKey) selectMatrixCell(initialKey);
   updateMatrixScrollHint();
 }
+
+async function loadKbMatrix() {
+  const m = defaultWhitespaceMatrix;
+  if (!m || !m.rowGroups.length) return;
+  try {
+    const qs = new URLSearchParams({ rows: m.rowGroups.join(","), cols: m.colGroups.join(",") });
+    const res = await fetchWithTimeout(`${SEARCH_API_BASE}/api/kb-matrix?${qs}`, {}, 30000);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || typeof data.counts !== "object" || !Number.isFinite(data.kb_classified)) return;
+    kbMatrix = data;
+    // Not while a paper's own white-space table (renderWhiteSpaceFromAnalysis) is on show.
+    if (!document.getElementById("whiteSpaceMatrix").hidden) renderDefaultWhiteSpaceMatrix();
+  } catch {
+    // The corpus-only matrix stays as it is.
+  }
+}
+
+document.getElementById("whiteSpaceNote").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-ws-source]");
+  if (!btn || btn.dataset.wsSource === wsMatrixSource) return;
+  wsMatrixSource = btn.dataset.wsSource;
+  renderDefaultWhiteSpaceMatrix();
+});
 
 function selectMatrixCell(key) {
   const cell = defaultWhitespaceMatrix?.cells.get(key);
@@ -1242,7 +1314,10 @@ document.getElementById("whiteSpaceMatrixBody").addEventListener("keydown", (e) 
   target.focus();
 });
 
-patentCorpusPromise.then(renderDefaultWhiteSpaceMatrix);
+patentCorpusPromise.then(() => {
+  renderDefaultWhiteSpaceMatrix();
+  loadKbMatrix();
+});
 
 function showGapCard(row) {
   document.getElementById("gapCount").textContent = row.count.toLocaleString();
@@ -1252,7 +1327,7 @@ function showGapCard(row) {
   document.getElementById("gapDescription").textContent = row.evidence_en;
   document.getElementById("gapDescriptionZh").textContent = row.evidence_zh;
   const ask = document.getElementById("gapAsk");
-  if (ask) ask.dataset.q = `Is "${row.combo_a} × ${row.combo_b}" (${row.count} patents in the corpus) a white space worth exploring? What does the literature say?`;
+  if (ask) ask.dataset.q = `Is "${row.combo_a} × ${row.combo_b}" (${row.useKb ? `${row.corpus} patents in the corpus + ${row.kb} in the knowledge base` : `${row.count} patents in the corpus`}) a white space worth exploring? What does the literature say?`;
   const scoreEl = document.querySelector(".score");
   if (scoreEl) popValue(scoreEl);
 }

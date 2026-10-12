@@ -215,4 +215,35 @@ function computeKbPatents(query, { from, to, country, offset = 0, limit = 20 } =
   };
 }
 
-module.exports = { topicLandscape, searchKbPatents, hhiOf, concentrationLabel, _clearCache };
+// White-space matrix, knowledge-base side: for the row × column IPC main groups the page derived
+// from the corpus (e.g. "H04L 41"), count knowledge-base patents whose CPC codes fall in both.
+// CPC and IPC share main groups, so "H04L41/0893" counts toward "H04L 41".
+function cpcMainGroup(code) {
+  const m = /^([A-H]\d{2}[A-Z])\s*(\d+)/.exec(String(code || "").trim());
+  return m ? `${m[1]} ${m[2]}` : null;
+}
+
+function kbMatrixCounts(rows, cols) {
+  return cached(JSON.stringify(["kb-matrix", rows, cols]), () => {
+    const known = new Set([...rows, ...cols]);
+    const kb = knowledgeStore.getStore().load();
+    const counts = Object.fromEntries(rows.flatMap((a) => cols.map((b) => [`${a}|${b}`, 0])));
+    let patents = 0, classified = 0;
+    for (const { item } of kb.docs) {
+      if (item.type !== "patent") continue;
+      patents++;
+      if (!Array.isArray(item.cpc) || !item.cpc.length) continue;
+      classified++;
+      const groups = new Set();
+      for (const c of item.cpc) {
+        const g = cpcMainGroup(c);
+        if (g && known.has(g)) groups.add(g);
+      }
+      if (groups.size < 2) continue;
+      for (const a of rows) if (groups.has(a)) for (const b of cols) if (groups.has(b)) counts[`${a}|${b}`]++;
+    }
+    return { kb_patents: patents, kb_classified: classified, counts };
+  });
+}
+
+module.exports = { topicLandscape, searchKbPatents, kbMatrixCounts, cpcMainGroup, hhiOf, concentrationLabel, _clearCache };

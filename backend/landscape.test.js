@@ -49,3 +49,20 @@ test("search bar KB patents: synonyms, filters, paging", () => {
   assert.equal(searchKbPatents("SDN").total, 1);
   assert.ok(searchKbPatents("").error);
 });
+
+test("white-space matrix counts knowledge-base patents by CPC main group pairs", () => {
+  const { kbMatrixCounts, cpcMainGroup, _clearCache } = require("./landscape");
+  assert.equal(cpcMainGroup("H04L41/0893"), "H04L 41");
+  assert.equal(cpcMainGroup("H04W 48/18"), "H04W 48");
+  assert.equal(cpcMainGroup("garbage"), null);
+  for (const d of kb.docs) {
+    if (d.item.publication_number === "CN112153700B") d.item.cpc = ["H04L41/0893", "H04W48/18", "H04L41/00"];
+    if (d.item.publication_number === "KR102894411B1") d.item.cpc = ["H04W48/18"];
+  }
+  _clearCache();
+  const r = kbMatrixCounts(["H04L 41", "H04L 12"], ["H04W 48"]);
+  assert.equal(r.kb_patents, 3);
+  assert.equal(r.kb_classified, 2, "patents without CPC are reported as unclassified, not counted");
+  assert.equal(r.counts["H04L 41|H04W 48"], 1, "counted once even with two codes in the same group");
+  assert.equal(r.counts["H04L 12|H04W 48"], 0);
+});
