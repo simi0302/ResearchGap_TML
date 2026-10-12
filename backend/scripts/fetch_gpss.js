@@ -87,12 +87,16 @@ async function call(code, q, qty, skip) {
 }
 
 const list = (x) => [].concat(x || []);
+// Corpus (also from GPSS) keeps the zero-padded form; compare on a padding-free base.
+const baseOf = (n) => patentBase(n).replace(/^US0(\d{7})$/, "US$1");
 const uniq = (xs) => [...new Set(xs.filter(Boolean).map((x) => String(x).trim()))];
 const decode = (s) => (s ? String(s).replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim() : s);
 const ymd = (d) => (/^\d{8}$/.test(d || "") ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : null);
 
 function toRecord(pc, queryId) {
-  const number = pc["publication-reference"]?.["doc-number"];
+  // GPSS zero-pads 7-digit US grants (US08448238B1); everywhere else, Google Patents included,
+  // they are US8448238B1 — normalised so links resolve and de-duplication matches.
+  const number = String(pc["publication-reference"]?.["doc-number"] || "").replace(/^US0(\d{7}[A-Z]\d?)$/, "US$1") || null;
   const date = ymd(pc["publication-reference"]?.date);
   if (!number || !date) return null;
   const t = pc["patent-title"] || {};
@@ -142,12 +146,12 @@ async function main() {
     return;
   }
 
-  const corpusBases = new Set(corpus.loadRawCorpus().map((p) => patentBase(p.publication_number)));
+  const corpusBases = new Set(corpus.loadRawCorpus().map((p) => baseOf(p.publication_number)));
   const kbBases = new Set();
   const seedFile = path.join(DATA, "patent_seed.jsonl.gz");
   if (fs.existsSync(seedFile)) {
     for (const line of zlib.gunzipSync(fs.readFileSync(seedFile)).toString("utf-8").split("\n")) {
-      if (line.trim()) kbBases.add(patentBase(JSON.parse(line).publication_number));
+      if (line.trim()) kbBases.add(baseOf(JSON.parse(line).publication_number));
     }
   }
 
@@ -169,7 +173,7 @@ async function main() {
         for (const pc of r.items) {
           const rec = toRecord(pc, id);
           if (!rec) { c.domain_rejected++; continue; }
-          const base = patentBase(rec.publication_number);
+          const base = baseOf(rec.publication_number);
           if (corpusBases.has(base)) { c.in_corpus++; continue; }
           if (accepted.has(base)) { c.duplicate++; continue; }
           accepted.set(base, rec);

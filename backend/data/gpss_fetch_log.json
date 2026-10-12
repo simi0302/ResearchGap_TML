@@ -1,6 +1,6 @@
 {
   "method": "TIPO GPSS search API (same source as the 2,799-patent corpus): title/abstract keyword queries for SDN, NFV and network slicing over TW/US/EP/JP/KR/CN/WO invention patents published on or before the corpus extraction date; each hit passed through the knowledge base's domain gate; corpus patents and duplicates removed.",
-  "run_at": "2026-10-12T12:31:03.122Z",
+  "run_at": "2026-10-12T12:40:32.010Z",
   "until": "20260603",
   "databases": "TWA,TWB,USA,USB,EPA,EPB,JPA,JPB",
   "queries": [
@@ -29,7 +29,7 @@
     "duplicate": 378,
     "domain_rejected": 76,
     "accepted": 3457,
-    "also_in_citation_kb": 1111,
+    "also_in_citation_kb": 1198,
     "by_query": {
       "sdn": {
         "hits": 2808,
