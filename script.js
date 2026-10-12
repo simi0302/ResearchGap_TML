@@ -1240,7 +1240,7 @@ function renderDefaultWhiteSpaceMatrix() {
         const cell = cells.get(key);
         const split = cell.useKb ? `<small class="ws-split">${cell.corpus.toLocaleString()} + ${cell.kb.toLocaleString()}</small>` : "";
         return `<td class="${statusClass(cell.status)}" data-cell="${key}" tabindex="0" role="button"
-          aria-label="${cell.count.toLocaleString()} patents${cell.useKb ? ` (${cell.corpus} corpus + ${cell.kb} knowledge base)` : ""}: ${escapeHtml(cell.combo_a)} × ${escapeHtml(cell.combo_b)}">${cell.count.toLocaleString()}${split}</td>`;
+          aria-label="${cell.useKb ? `${cell.count.toLocaleString()} ${cell.corpus.toLocaleString()} + ${cell.kb.toLocaleString()} patents (corpus + knowledge base)` : `${cell.count.toLocaleString()} patents`}: ${escapeHtml(cell.combo_a)} × ${escapeHtml(cell.combo_b)}">${cell.count.toLocaleString()}${split}</td>`;
       }).join("")}
     </tr>
   `).join("");
