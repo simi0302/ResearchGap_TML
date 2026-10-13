@@ -851,9 +851,32 @@ function urlForSearch(st) {
   return `${location.pathname}${qs ? `?${qs}` : ""}#overview`;
 }
 let replayingHistory = false;
+const START_SUMMARY = document.getElementById("analysisSummary").innerHTML;
+// Back to the state before any search: topic chips, empty search box, default filters.
+// Bumping searchToken drops any AI / paper / KB reply still in flight for the old search.
+function resetToStart() {
+  ++searchToken;
+  applySearchState({});
+  resetSearchExtras();
+  document.getElementById("resultsWrap").hidden = true;
+  document.getElementById("quickStart").hidden = false;
+  document.getElementById("backToStart").hidden = true;
+  document.getElementById("analysisSummary").innerHTML = START_SUMMARY;
+}
+document.getElementById("backToStart").addEventListener("click", () => {
+  resetToStart();
+  const next = `${location.pathname}#overview`;
+  if (next !== `${location.pathname}${location.search}${location.hash}`) history.pushState(null, "", next);
+  document.getElementById("overview").scrollIntoView({ behavior: "smooth" });
+  document.getElementById("keyword").focus({ preventScroll: true });
+});
 window.addEventListener("popstate", () => {
   const params = new URLSearchParams(location.search);
-  if (!params.has("q")) return;
+  if (!params.has("q")) {
+    // The browser back button lands on the page before the first search.
+    if (!document.getElementById("resultsWrap").hidden) resetToStart();
+    return;
+  }
   replayingHistory = true;
   applySearchState(Object.fromEntries(params));
   document.getElementById("searchForm").requestSubmit();
@@ -862,6 +885,7 @@ window.addEventListener("popstate", () => {
 document.getElementById("searchForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   document.getElementById("quickStart").hidden = true;
+  document.getElementById("backToStart").hidden = false;
   if (!replayingHistory) {
     const next = urlForSearch(searchStateFromForm());
     if (next !== `${location.pathname}${location.search}${location.hash}`) history.pushState(null, "", next);
