@@ -872,3 +872,16 @@ footer .muted{opacity:.85;font-size:15.5px}
   .result-jurisdiction,mark,.kb-dot{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 @media(max-width:560px){.ws-source{margin-left:0}.ws-source button{font-size:14px;padding:6px 12px}}
+/* Phone: topic groups stay one line each (IPC code hidden), candidate table becomes cards */
+.ls-n{white-space:nowrap}
+@media(max-width:760px){
+  .ls-groups li{font-size:14px;padding:5px 12px}
+  .ls-groups .ls-ipc{display:none}
+  .ws-cand-table thead{display:none}
+  .ws-cand-table tbody tr{display:grid;grid-template-columns:repeat(3,1fr);gap:2px 8px;border-top:1px solid #f3e6dc;padding:10px 4px}
+  .ws-cand-table td{border-top:0;padding:0}
+  .ws-cand-table td:first-child{grid-column:1/-1;margin-bottom:4px}
+  .ws-cand-table td:nth-child(2)::before{content:"實際 ";color:#8c6a54;font-size:13px}
+  .ws-cand-table td:nth-child(3)::before{content:"預期 ";color:#8c6a54;font-size:13px}
+  .ws-cand-table td:nth-child(4)::before{content:"Lift ";color:#8c6a54;font-size:13px}
+}
