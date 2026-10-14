@@ -11,7 +11,8 @@ const { expandQuery, cleanQuery } = require("./queryExpansion");
 const { loadRawCorpus } = require("./corpus");
 const literature = require("./literature");
 const knowledgeStore = require("./knowledgeStore");
-const { topicLandscape, searchKbPatents, kbMatrixCounts } = require("./landscape");
+const { topicLandscapeWithWorld, searchKbPatents, kbMatrixCounts } = require("./landscape");
+const whiteSpace = require("./whiteSpace");
 const BUILD = require("./package.json").version;
 
 const {
@@ -116,11 +117,24 @@ app.get("/api/knowledge/stats", knowledgeLimit, (_req, res) => {
 
 // Topic landscape for the dashboard (same deterministic function the agent's topic_landscape
 // tool calls), so the numbers on the page and in the chat are the same numbers.
-app.post("/api/landscape", searchLimit, dailyCap, (req, res) => {
+app.post("/api/landscape", searchLimit, dailyCap, async (req, res) => {
   const query = cleanQuery(req.body?.query);
   if (!query) return res.status(400).json({ error: "Query must be 1-100 characters." });
   const y = Number(req.body?.cutoff_year);
-  res.json(topicLandscape(query, { cutoffYear: Number.isInteger(y) && y >= 1990 && y <= 2030 ? y : undefined }));
+  res.json(await topicLandscapeWithWorld(query, { cutoffYear: Number.isInteger(y) && y >= 1990 && y <= 2030 ? y : undefined }));
+});
+
+// Field-wide white-space candidates, and one pair's detail (?a=H04W 48&b=G06F 9) — the same
+// deterministic scan the agent's find_white_space tool calls. Read-only, no AI.
+app.get("/api/white-space", knowledgeLimit, (req, res) => {
+  const ok = (g) => /^[A-H]\d{2}[A-Z] \d{1,4}$/.test(String(g || "").trim());
+  const { a, b } = req.query;
+  if (a || b) {
+    if (!ok(a) || !ok(b)) return res.status(400).json({ error: "a and b must be IPC main groups like 'H04L 41'." });
+    const detail = whiteSpace.cellDetail(String(a).trim(), String(b).trim());
+    return detail.error ? res.status(404).json(detail) : res.json(detail);
+  }
+  res.json(whiteSpace.scanWhiteSpace());
 });
 
 // Knowledge-base patents for the search bar (the corpus itself is searched in the browser).

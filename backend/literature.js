@@ -163,6 +163,31 @@ async function fetchYearlyLiteratureCounts(query, y0, y1) {
   }
 }
 
+// Topic-level yearly counts over everything OpenAlex indexes (title + abstract match), for the
+// landscape's paper trend. The knowledge base is a crawled sample (at most a few hundred records
+// per crawl query), so its yearly counts say nothing about how much is published; these do.
+// oaQuery is an OpenAlex boolean expression, e.g. ("network slicing" OR "network slice") AND
+// ("digital twin"). Returns { counts, total } or null on any failure / timeout.
+async function fetchTopicYearCounts(oaQuery, y0, y1) {
+  const key = cacheKey(["openalex_topic_years", oaQuery, y0, y1]);
+  const cached = getCached(key);
+  if (cached) return cached;
+  try {
+    const url = `https://api.openalex.org/works?filter=title_and_abstract.search:${encodeURIComponent(oaQuery)},publication_year:${y0}-${y1}&group_by=publication_year&mailto=researchgap-tool@example.org${OPENALEX_KEY_PARAM}`;
+    const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error(`OpenAlex ${res.status}`);
+    const data = await res.json();
+    const counts = {};
+    for (const g of data.group_by || []) {
+      const y = Number(g.key);
+      if (Number.isFinite(y)) counts[y] = g.count;
+    }
+    return setCached(key, { counts, total: Number(data.meta?.count) || 0 });
+  } catch {
+    return null;
+  }
+}
+
 // Field baseline for the Temporal factor: per-year counts for the whole SDN / NFV / network
 // slicing field. Comparing a topic's growth with the field's growth is what gives Temporal its
 // discriminating power — in the 2026-10-10 scenario test, absolute growth was >= 100% for every
@@ -172,4 +197,4 @@ async function fetchFieldBaselineCounts(y0, y1) {
   return fetchYearlyLiteratureCounts(FIELD_BASELINE_QUERY, y0, y1);
 }
 
-module.exports = { searchSemanticScholar, searchCrossref, searchArxiv, searchLiteratureAllSources, searchWithKnowledge, fetchYearlyLiteratureCounts, fetchFieldBaselineCounts, FIELD_BASELINE_QUERY };
+module.exports = { searchSemanticScholar, searchCrossref, searchArxiv, searchLiteratureAllSources, searchWithKnowledge, fetchYearlyLiteratureCounts, fetchTopicYearCounts, fetchFieldBaselineCounts, FIELD_BASELINE_QUERY };

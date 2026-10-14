@@ -151,12 +151,17 @@
         <button type="button" class="back-to-start" id="backToStart" hidden><span aria-hidden="true">←</span> Back to start <span class="zh">返回</span></button>
         <p class="eyebrow">ANALYSIS DASHBOARD</p>
         <h3>Research Topic Overview <span>/ 研究主題概覽</span></h3>
+        <form class="overview-search" id="overviewSearch" role="search">
+          <label class="visually-hidden" for="overviewKeyword">Topic to analyze / 要分析的主題</label>
+          <input id="overviewKeyword" type="search" autocomplete="off" placeholder="Type a topic, e.g. network slicing / 輸入主題，例如 網路切片" />
+          <button type="submit">Analyze <span class="zh">分析</span></button>
+        </form>
         <p id="analysisSummary">Enter a keyword to start the analysis. <span class="zh">輸入關鍵字後開始分析。</span></p>
         <p class="kb-pill" id="kbPill" hidden></p>
       </div>
 
       <div class="quick-start" id="quickStart">
-        <p class="quick-start__label">Type a topic in the search box above, or try one: <span class="zh">在上方搜尋框輸入主題，或直接點一個：</span></p>
+        <p class="quick-start__label">Or try one: <span class="zh">或直接點一個：</span></p>
         <div class="quick-start__chips">
           <button type="button" class="quick-topic" data-q="network slicing">network slicing</button>
           <button type="button" class="quick-topic" data-q="NFV edge computing">NFV + edge computing</button>
@@ -230,6 +235,7 @@
               <span class="chat-suggestions__label">No upload needed <span class="zh">免上傳</span></span>
               <button type="button" class="tag chat-suggestion" data-q="Is network slicing with digital twin a crowded area?">Is slicing + digital twin crowded?</button>
               <button type="button" class="tag chat-suggestion" data-q="Who is patenting NFV, and how concentrated is it?">Who patents NFV?</button>
+              <button type="button" class="tag chat-suggestion" data-q="Where is the white space in SDN/NFV patents, and how could it be used?">Where is the white space?</button>
             </div>
             <div class="chat-suggestions__group">
               <span class="chat-suggestions__label">With your paper <span class="zh">上傳論文後</span></span>
@@ -333,8 +339,11 @@
             <p class="zh" id="gapDescriptionZh"></p>
             <button type="button" class="pill-btn small gap-ask" id="gapAsk">Ask the AI about this combination <span class="zh">問 AI 這個組合&nbsp;→</span></button>
           </div>
+          <div class="gap-use" id="gapUse" hidden></div>
         </article>
       </div>
+
+      <div class="ws-candidates" id="wsCandidates" hidden></div>
     </section>
 
     <!-- ABOUT -->

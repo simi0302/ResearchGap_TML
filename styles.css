@@ -291,7 +291,7 @@ a{text-decoration:none;color:inherit}
 .dense-dot{background:#ffe1be}.medium-dot{background:#ffc268}.gap-dot{background:var(--orange)}
 
 .gap-cards{max-width:1120px;margin:32px auto 0;display:grid;grid-template-columns:1.7fr 1fr;gap:18px}
-.gap-cards.single{grid-template-columns:1fr;max-width:640px}
+.gap-cards.single{grid-template-columns:1fr;max-width:900px}
 .gap-cards[hidden]{display:none}
 .gap-card{border:1px solid rgba(255,255,255,.3);border-radius:24px;padding:32px;background:rgba(255,255,255,.08)}
 .gap-card.featured{
@@ -308,6 +308,38 @@ a{text-decoration:none;color:inherit}
 .card-kicker{font-size:15px;letter-spacing:1.5px;font-weight:900;color:var(--orange-text)}
 .gap-card h4{font-size:27px;margin:5px 0 10px}
 .gap-card p{line-height:1.6;margin:10px 0}
+.gap-use{grid-column:1/-1;border-top:1px solid #f3dccb;padding-top:16px}
+.gap-use[hidden]{display:none}
+.gap-use h5{margin:0 0 10px;font-size:19px}
+.gap-use h5 .zh,.gap-use h6 .zh{margin-left:6px;color:#6f4f3d;font-weight:700}
+.gap-use__grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.gap-use h6{margin:0 0 6px;font-size:16px;color:var(--orange-text)}
+.gap-use p{margin:6px 0;font-size:15.5px}
+.gap-use p .zh{display:block;color:#6f4f3d;font-size:14.5px}
+.gap-use__patents{margin:6px 0 0;padding-left:18px;font-size:15px;line-height:1.5}
+.gap-use__patents li{margin:4px 0}
+.gap-use__patents small{color:#8c6a54}
+.gap-use__names{font-weight:700}
+.gap-use__side{font-size:15px}
+.gap-use__src,.gap-use__loading{font-size:14px!important;color:#7a5a48}
+.gap-use__caveat{background:#fff4e5;border-radius:10px;padding:8px 12px}
+.ws-candidates{max-width:900px;margin:28px auto 0;background:#fff;border-radius:24px;padding:22px 24px}
+.ws-candidates[hidden]{display:none}
+.ws-candidates h4{margin:0 0 6px;font-size:21px}
+.ws-candidates h4 .zh{margin-left:6px;color:#6f4f3d;font-size:17px}
+.ws-candidates__lead{margin:0 0 12px;line-height:1.6;font-size:15.5px}
+.ws-candidates__lead .zh,.ws-candidates__src .zh{display:block;color:#6f4f3d;font-size:14.5px}
+.ws-candidates__src{margin:10px 0 0;font-size:14px;color:#7a5a48}
+.ws-cand-table{width:100%;border-collapse:collapse;font-size:15.5px}
+.ws-cand-table th{text-align:left;font-size:14px;color:#6f4f3d;padding:6px 8px;font-weight:800}
+.ws-cand-table th .zh{margin-left:3px}
+.ws-cand-table td{border-top:1px solid #f3e6dc;padding:10px 8px;vertical-align:top}
+.ws-cand-table tr[data-i]{cursor:pointer}
+.ws-cand-table tr[data-i]:hover,.ws-cand-table tr.active{background:#fff4ea}
+.ws-cand-table td small{display:block;color:#8c6a54;font-size:13.5px}
+.ws-cand-btn{border:0;background:none;padding:0;font:inherit;font-weight:800;color:var(--ink);text-align:left;cursor:pointer;text-decoration:underline;text-decoration-color:#f0cdb4;text-underline-offset:3px}
+.ws-cand-btn:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+@media(max-width:760px){.gap-use__grid{grid-template-columns:1fr}.ws-cand-table{font-size:14.5px}.ws-cand-table td,.ws-cand-table th{padding:8px 4px}}
 .pill-btn{border:0;background:var(--orange-text);color:#fff;border-radius:999px;padding:11px 16px;font-weight:800;margin-top:12px;cursor:pointer}
 .pill-btn:hover{transform:translateX(3px)}
 .inline-note{margin:10px 0 0;font-size:15px;line-height:1.5;color:#8c6a54}
@@ -689,6 +721,20 @@ footer .muted{opacity:.85;font-size:15.5px}
 .ls-legend{margin:8px 0 0;font-size:13.5px;color:#8c6a54;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
 .ls-key{display:inline-block;width:10px;height:10px;border-radius:3px}
 .ls-scale{color:#6f4f3d}
+.overview-search{display:flex;gap:10px;max-width:640px;margin:14px 0 6px}
+.overview-search input{flex:1;min-width:0;border:2px solid #f0cdb4;border-radius:999px;padding:11px 18px;font-size:17px;background:#fff;color:var(--ink)}
+.overview-search input:focus{outline:0;border-color:var(--orange-text)}
+.overview-search button{border:0;border-radius:999px;background:var(--orange-text);color:#fff;font-weight:800;font-size:16px;padding:0 20px;cursor:pointer;white-space:nowrap}
+.overview-search button .zh{margin-left:4px}
+.overview-search button:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.ls-head h4 q{color:var(--orange-text)}
+.ls-groups{margin:0 0 14px}
+.ls-groups__label{margin:0 0 8px;font-size:15px;font-weight:800;color:var(--ink)}
+.ls-groups__label .zh{font-weight:700;color:#6f4f3d;margin-left:4px}
+.ls-groups ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}
+.ls-groups li{background:#fff8f2;border:1px solid #f6e3d4;border-radius:999px;padding:6px 14px;font-size:15px;color:var(--ink)}
+.ls-ipc{color:#8c6a54;font-size:13.5px;margin-left:4px}
+.ls-n{font-weight:800;color:var(--orange-text);margin-left:6px}
 @media(max-width:760px){.ls-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ls-stat strong{font-size:22px}}
 
 /* ===== Assistant: what differs from a general chatbot, evidence trail, links ===== */

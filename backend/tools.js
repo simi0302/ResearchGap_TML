@@ -17,8 +17,9 @@
 const { handlePatentabilityRequest } = require("./patentability");
 const literature = require("./literature");
 const webSearch = require("./webSearch");
-const { topicLandscape } = require("./landscape");
+const { topicLandscapeWithWorld } = require("./landscape");
 const knowledgeStore = require("./knowledgeStore");
+const whiteSpace = require("./whiteSpace");
 
 const TOOL_DEFINITIONS = [
   {
@@ -81,6 +82,21 @@ const TOOL_DEFINITIONS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "find_white_space",
+      description:
+        "Field-wide white-space scan for SDN/NFV/network slicing when the user has NOT uploaded a document: which pairs of the 12 largest IPC technology groups are combined by far fewer patents than the size of the two groups predicts (lift = observed / expected). Population: the 2,799-patent corpus + classified knowledge-base patents (both from GPSS). Call without arguments for the ranked candidates; call with a and b (IPC main groups like 'H04W 48') for one pair's detail: patents that combine both (or the newest on each side), top applicants per side and applicants present on both sides, trend. Every number is computed by the backend; quote them, never estimate.",
+      parameters: {
+        type: "object",
+        properties: {
+          a: { type: "string", description: "Optional IPC main group, e.g. 'H04W 48'. Give with b for one pair's detail." },
+          b: { type: "string", description: "Optional second IPC main group, e.g. 'G06F 9'." },
+        },
+      },
+    },
+  },
 ];
 
 async function executeTool(name, args) {
@@ -122,7 +138,13 @@ async function executeTool(name, args) {
     const { query, cutoff_year: cutoffYear } = args || {};
     if (!query) return { error: "Missing query." };
     const y = Number(cutoffYear);
-    return topicLandscape(query, { cutoffYear: Number.isInteger(y) && y >= 1990 && y <= 2030 ? y : undefined });
+    return topicLandscapeWithWorld(query, { cutoffYear: Number.isInteger(y) && y >= 1990 && y <= 2030 ? y : undefined });
+  }
+
+  if (name === "find_white_space") {
+    const { a, b } = args || {};
+    if (a && b) return whiteSpace.cellDetail(String(a).trim(), String(b).trim());
+    return whiteSpace.scanWhiteSpace();
   }
 
   return { error: `Unknown tool: ${name}` };

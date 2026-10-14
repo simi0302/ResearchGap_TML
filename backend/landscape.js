@@ -16,6 +16,7 @@
 const corpus = require("./corpus");
 const QueryMatch = require("./queryMatch");
 const knowledgeStore = require("./knowledgeStore");
+const literature = require("./literature");
 
 const JURISDICTIONS = ["US", "EP", "JP", "TW", "SG", "MY"];
 
@@ -84,7 +85,8 @@ function computeLandscape(query, { cutoffYear } = {}) {
     if (g) ipcCounts.set(g, (ipcCounts.get(g) || 0) + 1);
   }
   const topIpc = [...ipcCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5).map(([group, n]) => ({ ipc: group, label: corpus.representativeLabel(group), patents: n }));
-  const applicants = patents.map((p) => p.assignees[0] || p.company_name || "unknown");
+  // company_name is the clean applicant; the split assignees list breaks names like "AT&T".
+  const applicants = patents.map((p) => p.company_name || p.assignees[0] || "unknown");
   const conc = patents.length ? hhiOf(applicants) : { hhi: null, top: [] };
 
   // --- papers and patents (knowledge base) ---
@@ -169,6 +171,54 @@ function computeLandscape(query, { cutoffYear } = {}) {
   };
 }
 
+// The query as an OpenAlex boolean expression: each concept's English variants OR-ed (quoted if
+// multi-word), concepts AND-ed — the same "every concept must appear" rule as the patent matcher.
+function openAlexQuery(concepts) {
+  const parts = [];
+  for (const c of concepts) {
+    const vs = [...new Set(c.variants.filter((v) => /^[ -~]+$/.test(v)).map((v) => v.replace(/["()]/g, "").trim()).filter(Boolean))].slice(0, 4);
+    if (!vs.length) continue;
+    const terms = vs.map((v) => (/\s/.test(v) ? `"${v}"` : v));
+    parts.push(terms.length > 1 ? `(${terms.join(" OR ")})` : terms[0]);
+  }
+  return parts.join(" AND ");
+}
+
+// topicLandscape plus the topic's paper counts over all of OpenAlex. Papers in the knowledge base
+// are a crawled sample, so comparing their count with the (near-complete) patent corpus would
+// make patents look more numerous than papers; the research-to-patent ratio therefore uses the
+// OpenAlex counts whenever they are available.
+async function topicLandscapeWithWorld(query, opts = {}) {
+  const base = topicLandscape(query, opts);
+  if (base.error) return base;
+  const years = Object.keys(base.patents.by_year).map(Number);
+  const concepts = QueryMatch.parseQuery(String(query || "").trim().slice(0, 100));
+  const oaQuery = openAlexQuery(concepts);
+  const world = oaQuery ? await literature.fetchTopicYearCounts(oaQuery, years[0], years[years.length - 1]) : null;
+  const out = { ...base, papers: { ...base.papers, note: "Knowledge-base papers are a crawled sample (for reading and citing), not a count of how much is published; see papers_world for that." } };
+  if (!world) {
+    out.papers_world = null;
+    out.ratio_basis = "knowledge-base paper sample vs corpus patents (OpenAlex unavailable this time)";
+    return out;
+  }
+  const byYear = Object.fromEntries(years.map((y) => [y, world.counts[y] || 0]));
+  const recent = years.slice(-5);
+  const prior = years.slice(-10, -5);
+  const sum = (obj, ys) => ys.reduce((t, y) => t + (obj[y] || 0), 0);
+  const a = sum(byYear, prior);
+  out.papers_world = {
+    population: "OpenAlex — all indexed scholarly works, title or abstract matching every concept of the query",
+    openalex_query: oaQuery,
+    matched: sum(byYear, years),
+    by_year: byYear,
+    growth_last5_vs_prev5_pct: a ? Math.round(((sum(byYear, recent) - a) / a) * 1000) / 10 : null,
+  };
+  const recentPatents = sum(base.patents.by_year, recent);
+  out.research_to_patent_ratio_last5 = recentPatents ? Math.round((sum(byYear, recent) / recentPatents) * 100) / 100 : null;
+  out.ratio_basis = "OpenAlex papers (worldwide) vs corpus patents (US/EP/JP/TW/SG/MY), last five years";
+  return out;
+}
+
 // Search bar companion: knowledge-base patents matching the query with the same concept
 // matcher as the corpus search (synonyms, Chinese <-> English), filtered by publication year and
 // jurisdiction. Returns the total, a jurisdiction breakdown and one page of results.
@@ -245,4 +295,4 @@ function kbMatrixCounts(rows, cols) {
   });
 }
 
-module.exports = { topicLandscape, searchKbPatents, kbMatrixCounts, cpcMainGroup, hhiOf, concentrationLabel, _clearCache };
+module.exports = { topicLandscape, topicLandscapeWithWorld, openAlexQuery, searchKbPatents, kbMatrixCounts, cpcMainGroup, hhiOf, concentrationLabel, _clearCache };

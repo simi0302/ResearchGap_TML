@@ -372,15 +372,16 @@ async function loadPaperResults(keyword, { start, end }, token) {
 function fmtPct(v) {
   return v == null ? "—" : `${v > 0 ? "+" : ""}${v}%`;
 }
+// Patents and papers on one shared scale, so a taller bar always means more documents.
 function landscapeBars(patentsByYear, papersByYear) {
   const years = Object.keys(patentsByYear);
-  const maxP = Math.max(1, ...years.map((y) => patentsByYear[y]));
-  const maxR = Math.max(1, ...years.map((y) => papersByYear[y] || 0));
+  const max = Math.max(1, ...years.map((y) => Math.max(patentsByYear[y] || 0, papersByYear[y] || 0)));
+  const h = (n) => Math.round(((n || 0) / max) * 100);
   return `<div class="ls-bars" role="img" aria-label="Patents and papers per year">${years.map((y) => `
-    <div class="ls-col" title="${y}: ${patentsByYear[y]} patents, ${papersByYear[y] || 0} papers">
+    <div class="ls-col" title="${y}: ${(patentsByYear[y] || 0).toLocaleString()} patents, ${(papersByYear[y] || 0).toLocaleString()} papers">
       <div class="ls-pair">
-        <i class="ls-bar ls-bar--patent" style="height:${Math.round((patentsByYear[y] / maxP) * 100)}%"></i>
-        <i class="ls-bar ls-bar--paper" style="height:${Math.round(((papersByYear[y] || 0) / maxR) * 100)}%"></i>
+        <i class="ls-bar ls-bar--patent" style="height:${h(patentsByYear[y])}%"></i>
+        <i class="ls-bar ls-bar--paper" style="height:${h(papersByYear[y])}%"></i>
       </div>
       <span>${String(y).slice(2)}</span>
     </div>`).join("")}</div>`;
@@ -403,21 +404,34 @@ async function loadLandscape(keyword, { end }, token) {
     if (token !== searchToken || !d.patents) return;
     const top = d.patents.top_applicants?.[0];
     const ratio = d.research_to_patent_ratio_last5;
+    const world = d.papers_world;
+    const topic = (d.understood_as || []).join(" + ") || keyword;
+    const groups = (d.patents.top_ipc_groups || []).filter((g) => g.patents > 0);
+    const paperYears = world ? world.by_year : d.papers.by_year;
     el.innerHTML = `
       <div class="ls-head">
-        <h4>Topic landscape <span class="zh">主題全景</span></h4>
+        <h4>Topic landscape: <q>${escapeHtml(topic)}</q> <span class="zh">主題全景：${escapeHtml(topic)}</span></h4>
         <button type="button" class="pill-btn small ls-ask" data-q="${escapeHtml(`Is ${keyword} a crowded area? Who is patenting it?`)}">Ask the AI about this <span class="zh">問 AI</span> →</button>
       </div>
+      ${groups.length ? `<div class="ls-groups">
+        <p class="ls-groups__label">What this topic's patents are about <span class="zh">這個主題的專利主要在做什麼（依國際專利分類）</span></p>
+        <ul>${groups.map((g) => `<li><strong>${escapeHtml(g.label)}</strong> <span class="ls-ipc">IPC ${escapeHtml(g.ipc)}</span> <span class="ls-n">${g.patents.toLocaleString()} <span class="zh">件</span></span></li>`).join("")}</ul>
+      </div>` : ""}
       <div class="ls-grid">
         <div class="ls-stat"><strong>${d.patents.matched.toLocaleString()}</strong><span>corpus patents <span class="zh">語料庫專利</span></span><small>${d.patents.share_of_corpus_pct}% of N=2,799 · 5-yr ${fmtPct(d.patents.growth_last5_vs_prev5_pct)}</small></div>
         ${d.patents_kb ? `<div class="ls-stat"><strong>${d.patents_kb.matched.toLocaleString()}</strong><span>knowledge-base patents <span class="zh">知識庫專利</span></span><small>${Object.entries(d.patents_kb.by_jurisdiction || {}).slice(0, 4).map(([j, n]) => `${escapeHtml(j)} ${n.toLocaleString()}`).join(" · ") || "none"}</small></div>` : ""}
-        <div class="ls-stat"><strong>${d.papers.matched.toLocaleString()}</strong><span>knowledge-base papers <span class="zh">知識庫論文</span></span><small>5-yr ${fmtPct(d.papers.growth_last5_vs_prev5_pct)}</small></div>
+        ${world
+          ? `<div class="ls-stat"><strong>${world.matched.toLocaleString()}</strong><span>papers worldwide <span class="zh">全球論文（OpenAlex）</span></span><small>${Object.keys(world.by_year)[0]}–${Object.keys(world.by_year).slice(-1)[0]} · 5-yr ${fmtPct(world.growth_last5_vs_prev5_pct)}</small></div>`
+          : `<div class="ls-stat"><strong>${d.papers.matched.toLocaleString()}</strong><span>knowledge-base papers <span class="zh">知識庫論文（樣本）</span></span><small>a crawled sample, not a count of the field</small></div>`}
         <div class="ls-stat"><strong>${ratio == null ? "—" : ratio}</strong><span>papers per patent, last 5 yrs <span class="zh">近五年論文／專利比</span></span><small>${ratio == null ? "no patents in this window" : ratio >= 5 ? "research ahead of filings" : "filings keep pace"}</small></div>
         <div class="ls-stat"><strong>${d.patents.applicant_hhi ?? "—"}</strong><span>applicant HHI <span class="zh">申請人集中度</span></span><small>${top ? `${escapeHtml(d.patents.applicant_concentration)} · top: ${escapeHtml(top.name)} ${top.share_pct}%` : "no applicants"}</small></div>
       </div>
-      ${landscapeBars(d.patents.by_year, d.papers.by_year)}
-      <p class="ls-legend"><i class="ls-key ls-bar--patent"></i>Patents per year <span class="zh">每年專利</span> <i class="ls-key ls-bar--paper"></i>Papers per year <span class="zh">每年論文</span> <span class="ls-scale">(each scaled to its own maximum <span class="zh">各自以最大值為基準</span>)</span></p>
-      <p class="ls-src">Computed by the backend — the same numbers the AI assistant cites. <span class="zh">由後端計算，與 AI 助手引用的數字相同。</span></p>`;
+      ${landscapeBars(d.patents.by_year, paperYears)}
+      <p class="ls-legend"><i class="ls-key ls-bar--patent"></i>Corpus patents per year <span class="zh">每年語料庫專利</span> <i class="ls-key ls-bar--paper"></i>${world ? `Papers per year, all of OpenAlex <span class="zh">每年全球論文（OpenAlex 全量）</span>` : `Knowledge-base papers per year (sample) <span class="zh">每年知識庫論文（樣本）</span>`} <span class="ls-scale">(same scale <span class="zh">同一比例尺</span>)</span></p>
+      <p class="ls-src">${world
+        ? `Patents: the GPSS corpus. Papers: every work OpenAlex indexes whose title or abstract matches the topic — our knowledge base (${d.papers.matched.toLocaleString()} matching papers) is a crawled sample for reading and citing, so it is not used for counts. <span class="zh">專利：GPSS 語料庫；論文：OpenAlex 收錄、標題或摘要符合此主題的全部文獻。知識庫中符合的 ${d.papers.matched.toLocaleString()} 篇論文是爬取的樣本，只用於閱讀與引用，不拿來計數。</span>`
+        : `OpenAlex did not answer this time, so papers come from the knowledge-base sample and undercount the field. <span class="zh">這次 OpenAlex 沒有回應，論文改用知識庫樣本，數量會低於實際。</span>`}
+        Computed by the backend — the same numbers the AI assistant cites. <span class="zh">由後端計算，與 AI 助手引用的數字相同。</span></p>`;
     el.hidden = false;
   } catch {
     if (token === searchToken) el.hidden = true;
@@ -861,6 +875,7 @@ function resetToStart() {
   document.getElementById("resultsWrap").hidden = true;
   document.getElementById("quickStart").hidden = false;
   document.getElementById("backToStart").hidden = true;
+  document.getElementById("overviewKeyword").value = "";
   document.getElementById("analysisSummary").innerHTML = START_SUMMARY;
 }
 document.getElementById("backToStart").addEventListener("click", () => {
@@ -882,6 +897,19 @@ window.addEventListener("popstate", () => {
   document.getElementById("searchForm").requestSubmit();
 });
 
+// The overview has its own input, so a topic can be typed where the results are shown instead of
+// scrolling back to the top; both inputs feed the one search.
+document.getElementById("overviewSearch").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const q = document.getElementById("overviewKeyword").value.trim();
+  if (!q) {
+    document.getElementById("overviewKeyword").focus();
+    return;
+  }
+  document.getElementById("keyword").value = q;
+  document.getElementById("searchForm").requestSubmit();
+});
+
 document.getElementById("searchForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   document.getElementById("quickStart").hidden = true;
@@ -893,6 +921,7 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
   replayingHistory = false;
 
   const keywordInput = document.getElementById("keyword").value.trim();
+  document.getElementById("overviewKeyword").value = keywordInput;
   const start = document.getElementById("yearStart").value;
   const end = document.getElementById("yearEnd").value;
   const jurisdiction = document.getElementById("country").value;
@@ -1346,7 +1375,7 @@ patentCorpusPromise.then(() => {
 function showGapCard(row) {
   document.getElementById("gapCount").textContent = row.count.toLocaleString();
   document.getElementById("gapCountUnit").innerHTML = `patents <span class="zh">件專利</span>`;
-  document.getElementById("gapKicker").textContent = row.status === "gap" ? "POTENTIAL GAP" : row.status.toUpperCase();
+  document.getElementById("gapKicker").textContent = row.fieldWide ? `UNDER-EXPLORED · LIFT ${row.lift}` : row.status === "gap" ? "POTENTIAL GAP" : row.status.toUpperCase();
   document.getElementById("gapTitle").textContent = `${row.combo_a} × ${row.combo_b}`;
   document.getElementById("gapDescription").textContent = row.evidence_en;
   document.getElementById("gapDescriptionZh").textContent = row.evidence_zh;
@@ -1354,7 +1383,121 @@ function showGapCard(row) {
   if (ask) ask.dataset.q = `Is "${row.combo_a} × ${row.combo_b}" (${row.useKb ? `${row.corpus} patents in the corpus + ${row.kb} in the knowledge base` : `${row.count} patents in the corpus`}) a white space worth exploring? What does the literature say?`;
   const scoreEl = document.querySelector(".score");
   if (scoreEl) popValue(scoreEl);
+  // Matrix cells and field-wide candidates are pairs of IPC main groups: show how the pair could
+  // be used. (A paper's own white-space rows come from a different population — skip those.)
+  if (row.ipc_a && row.ipc_b && (row.useKb || row.fieldWide)) loadPairUse(row.ipc_a, row.ipc_b);
+  else document.getElementById("gapUse").hidden = true;
 }
+
+/* ===== White space → use: for one pair of technology groups, the patents a new idea would have
+   to be distinguished from, and the applicants on each side (licensing / partnering / competing).
+   GET /api/white-space?a=&b= — deterministic counts over corpus + knowledge-base patents. */
+const pairUseCache = new Map();
+let pairUseToken = 0;
+function patentLi(p) {
+  const meta = [p.applicant, p.year, p.jurisdiction].filter(Boolean).map((x) => escapeHtml(String(x))).join(" · ");
+  return `<li><a href="${escapeHtml(p.url || googlePatentsUrl(p.publication_number))}" target="_blank" rel="noopener">${escapeHtml(p.publication_number)}</a> ${escapeHtml(p.title || "")}${meta ? ` <small>${meta}</small>` : ""}</li>`;
+}
+function applicantList(list) {
+  return list.map((x) => `${escapeHtml(x.name)} (${x.patents.toLocaleString()})`).join(", ");
+}
+async function loadPairUse(a, b) {
+  const el = document.getElementById("gapUse");
+  const token = ++pairUseToken;
+  const key = `${a}|${b}`;
+  el.hidden = false;
+  el.innerHTML = `<p class="gap-use__loading">Loading how this combination can be used… <span class="zh">正在整理這個組合的用途……</span></p>`;
+  try {
+    let d = pairUseCache.get(key);
+    if (!d) {
+      const res = await fetchWithTimeout(`${SEARCH_API_BASE}/api/white-space?${new URLSearchParams({ a, b })}`, {}, 20000);
+      if (!res.ok) throw new Error(String(res.status));
+      d = await res.json();
+      pairUseCache.set(key, d);
+    }
+    if (token !== pairUseToken) return;
+    const p = d.pair;
+    const combined = d.combined_patents || [];
+    const sides = [...(d.newest_side_a || []), ...(d.newest_side_b || [])];
+    const both = d.applicants_on_both_sides || [];
+    el.innerHTML = `
+      <h5>How this combination can be used <span class="zh">這個組合可以怎麼用</span></h5>
+      ${p.caveat ? `<p class="gap-use__caveat">${escapeHtml(p.caveat)} <span class="zh">此分類於 2022 年改版後很少使用，件數偏低可能是分類造成，不代表真的沒人做。</span></p>` : ""}
+      <div class="gap-use__grid">
+        <div>
+          <h6>Research or patent entry point <span class="zh">研究與專利切入點</span></h6>
+          <p>${combined.length
+            ? `${p.patents.toLocaleString()} patents already combine the two. A new idea here has to be distinguished from them; the newest: <span class="zh">已有 ${p.patents.toLocaleString()} 件專利同時涵蓋兩者，新的構想必須與它們區隔，最新幾件：</span>`
+            : `No patent in the population combines the two yet. A first claim would build on, and must differ from, the newest patents on each side: <span class="zh">目前沒有任何專利同時涵蓋兩者。新的請求項會建立在兩側最新的專利之上，也必須與它們區隔：</span>`}</p>
+          <ul class="gap-use__patents">${(combined.length ? combined.slice(0, 4) : sides).map(patentLi).join("")}</ul>
+        </div>
+        <div>
+          <h6>Technology transfer and licensing <span class="zh">技轉與授權對象</span></h6>
+          ${both.length
+            ? `<p>Active on both sides, so the likeliest to license, partner or compete: <span class="zh">兩側都有布局、最可能授權、合作或競爭的申請人：</span></p>
+               <p class="gap-use__names">${both.map((x) => `${escapeHtml(x.name)} (${x.side_a} + ${x.side_b})`).join(", ")}</p>`
+            : `<p>No applicant leads on both sides — the gap sits between two different groups of companies. <span class="zh">沒有申請人同時在兩側領先，空缺正好落在兩群不同的公司之間。</span></p>`}
+          <p class="gap-use__side"><strong>${escapeHtml(p.label_a)}</strong>: ${applicantList(d.top_applicants_side_a.slice(0, 3))}</p>
+          <p class="gap-use__side"><strong>${escapeHtml(p.label_b)}</strong>: ${applicantList(d.top_applicants_side_b.slice(0, 3))}</p>
+        </div>
+      </div>
+      <p class="gap-use__src">${p.side_a_patents.toLocaleString()} patents in ${escapeHtml(p.label_a)} and ${p.side_b_patents.toLocaleString()} in ${escapeHtml(p.label_b)} would predict about ${p.expected.toLocaleString()} combining both; ${p.patents.toLocaleString()} do (lift ${p.lift}). A low count is a candidate to examine, not proof of novelty.
+        <span class="zh">依兩側規模（${p.side_a_patents.toLocaleString()} 件與 ${p.side_b_patents.toLocaleString()} 件）預期約 ${p.expected.toLocaleString()} 件同時涵蓋兩者，實際 ${p.patents.toLocaleString()} 件（lift ${p.lift}）。件數低代表值得檢視，不代表已確定具新穎性。母體：語料庫＋已分類的知識庫專利，皆取自 GPSS。</span></p>`;
+  } catch {
+    if (token === pairUseToken) el.hidden = true;
+  }
+}
+
+/* ===== Field-wide white-space candidates (GET /api/white-space): pairs of the 12 largest
+   technology groups that far fewer patents combine than the two groups' sizes predict. */
+async function loadWhiteSpaceCandidates() {
+  const el = document.getElementById("wsCandidates");
+  try {
+    const res = await fetchWithTimeout(`${SEARCH_API_BASE}/api/white-space`, {}, 20000);
+    if (!res.ok) return;
+    const d = await res.json();
+    const rows = (d.candidates || []).filter((c) => !c.caveat).slice(0, 5);
+    if (!rows.length) return;
+    el.innerHTML = `
+      <h4>Under-explored combinations across the field <span class="zh">全領域白地候選</span></h4>
+      <p class="ws-candidates__lead">Pairs of the 12 largest technology groups that far fewer patents combine than the size of the two groups predicts. Click one to see how it could be used. <span class="zh">在專利最多的 12 個技術分類之間，兩側都很熱、但同時涵蓋兩者的專利遠少於預期的組合。點選查看可以怎麼用。</span></p>
+      <table class="ws-cand-table">
+        <thead><tr>
+          <th scope="col">Combination <span class="zh">技術組合</span></th>
+          <th scope="col">Patents <span class="zh">實際</span></th>
+          <th scope="col">Expected <span class="zh">預期</span></th>
+          <th scope="col">Lift</th>
+        </tr></thead>
+        <tbody>${rows.map((c, i) => `<tr data-i="${i}">
+          <td><button type="button" class="ws-cand-btn" data-i="${i}">${escapeHtml(c.label_a)} × ${escapeHtml(c.label_b)}</button><small>${escapeHtml(c.a)} × ${escapeHtml(c.b)}</small></td>
+          <td>${c.patents.toLocaleString()}</td>
+          <td>${c.expected.toLocaleString()}</td>
+          <td>${c.lift}</td>
+        </tr>`).join("")}</tbody>
+      </table>
+      <p class="ws-candidates__src">${escapeHtml(d.population)}. <span class="zh">母體：語料庫＋已分類的知識庫專利（皆取自 GPSS）。</span></p>`;
+    el.hidden = false;
+    el.addEventListener("click", (e) => {
+      const tr = e.target.closest("tr[data-i]");
+      if (!tr || e.target.closest("a")) return;
+      const c = rows[Number(tr.dataset.i)];
+      activeMatrixCellKey = null;
+      document.querySelectorAll("#whiteSpaceMatrixBody td").forEach((td) => td.classList.remove("active"));
+      el.querySelectorAll("tr[data-i]").forEach((x) => x.classList.toggle("active", x === tr));
+      showGapCard({
+        combo_a: c.label_a, combo_b: c.label_b, ipc_a: c.a, ipc_b: c.b, count: c.patents, corpus: c.corpus, kb: c.knowledge_base,
+        status: "gap", fieldWide: true, useKb: true, lift: c.lift,
+        evidence_en: `Only ${c.patents} patents are classified under both "${c.label_a}" (${c.a}) and "${c.label_b}" (${c.b}) — ${c.corpus} in the corpus and ${c.knowledge_base} in the knowledge base — although the two groups hold ${c.side_a_patents.toLocaleString()} and ${c.side_b_patents.toLocaleString()} patents.`,
+        evidence_zh: `同時歸類於「${c.label_a}」(${c.a}) 與「${c.label_b}」(${c.b}) 的專利只有 ${c.patents} 件（語料庫 ${c.corpus}、知識庫 ${c.knowledge_base}），但這兩個分類各有 ${c.side_a_patents.toLocaleString()} 與 ${c.side_b_patents.toLocaleString()} 件。`,
+      });
+      document.getElementById("whiteSpaceGapCards").scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "nearest" });
+    });
+  } catch {
+    // the matrix above still works without the candidate list
+  }
+}
+loadWhiteSpaceCandidates();
+
 
 document.getElementById("whiteSpaceTbody").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-gap]");
