@@ -176,7 +176,11 @@ function computeLandscape(query, { cutoffYear } = {}) {
 function openAlexQuery(concepts) {
   const parts = [];
   for (const c of concepts) {
-    const vs = [...new Set(c.variants.filter((v) => /^[ -~]+$/.test(v)).map((v) => v.replace(/["()]/g, "").trim()).filter(Boolean))].slice(0, 4);
+    let vs = [...new Set(c.variants.filter((v) => /^[ -~]+$/.test(v)).map((v) => v.replace(/["()]/g, "").trim()).filter((v) => v.length >= 2))];
+    // A bare acronym also means other things across all of science ("SDN", "RAN"), so it is
+    // left out whenever the spelled-out form is there to search instead.
+    if (vs.some((v) => v.length > 4)) vs = vs.filter((v) => v.length > 4);
+    vs = vs.slice(0, 4);
     if (!vs.length) continue;
     const terms = vs.map((v) => (/\s/.test(v) ? `"${v}"` : v));
     parts.push(terms.length > 1 ? `(${terms.join(" OR ")})` : terms[0]);
@@ -212,6 +216,7 @@ async function topicLandscapeWithWorld(query, opts = {}) {
     matched: sum(byYear, years),
     by_year: byYear,
     growth_last5_vs_prev5_pct: a ? Math.round(((sum(byYear, recent) - a) / a) * 1000) / 10 : null,
+    counted_at: world.counted_at || null,
   };
   const recentPatents = sum(base.patents.by_year, recent);
   out.research_to_patent_ratio_last5 = recentPatents ? Math.round((sum(byYear, recent) / recentPatents) * 100) / 100 : null;

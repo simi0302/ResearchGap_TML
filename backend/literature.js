@@ -168,10 +168,51 @@ async function fetchYearlyLiteratureCounts(query, y0, y1) {
 // per crawl query), so its yearly counts say nothing about how much is published; these do.
 // oaQuery is an OpenAlex boolean expression, e.g. ("network slicing" OR "network slice") AND
 // ("digital twin"). Returns { counts, total } or null on any failure / timeout.
+// Keyless OpenAlex use has a small daily budget per IP, and yearly counts change slowly, so each
+// answer is kept on disk for 30 days (the knowledge base's persistent directory on Azure) and
+// returned with the date it was counted.
+const TOPIC_COUNTS_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+let topicCountsFile = null;
+let topicCounts = null;
+function topicCountsStore() {
+  if (topicCounts) return topicCounts;
+  topicCounts = {};
+  if (process.env.NODE_TEST_CONTEXT) return topicCounts;
+  try {
+    topicCountsFile = require("path").join(require("./knowledgeStore").defaultKnowledgeDir(), "openalex_topic_counts.json");
+    topicCounts = JSON.parse(require("fs").readFileSync(topicCountsFile, "utf8"));
+  } catch {
+    // no file yet
+  }
+  return topicCounts;
+}
+function saveTopicCounts() {
+  if (!topicCountsFile) return;
+  try {
+    const fs = require("fs");
+    fs.mkdirSync(require("path").dirname(topicCountsFile), { recursive: true });
+    fs.writeFileSync(topicCountsFile, JSON.stringify(topicCounts));
+  } catch {
+    // counting still works, it just is not remembered
+  }
+}
+
 async function fetchTopicYearCounts(oaQuery, y0, y1) {
   const key = cacheKey(["openalex_topic_years", oaQuery, y0, y1]);
   const cached = getCached(key);
   if (cached) return cached;
+  const stored = topicCountsStore()[key];
+  if (stored && Date.now() - Date.parse(stored.counted_at) < TOPIC_COUNTS_TTL_MS) return setCached(key, stored);
+  const fresh = await fetchTopicYearCountsLive(oaQuery, y0, y1);
+  if (fresh) {
+    topicCounts[key] = fresh;
+    saveTopicCounts();
+    return setCached(key, fresh);
+  }
+  return stored || null; // an older count beats none
+}
+
+async function fetchTopicYearCountsLive(oaQuery, y0, y1) {
   try {
     const url = `https://api.openalex.org/works?filter=title_and_abstract.search:${encodeURIComponent(oaQuery)},publication_year:${y0}-${y1}&group_by=publication_year&mailto=researchgap-tool@example.org${OPENALEX_KEY_PARAM}`;
     const res = await fetch(url, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(8000) });
@@ -182,7 +223,7 @@ async function fetchTopicYearCounts(oaQuery, y0, y1) {
       const y = Number(g.key);
       if (Number.isFinite(y)) counts[y] = g.count;
     }
-    return setCached(key, { counts, total: Number(data.meta?.count) || 0 });
+    return { counts, total: Number(data.meta?.count) || 0, counted_at: new Date().toISOString() };
   } catch {
     return null;
   }

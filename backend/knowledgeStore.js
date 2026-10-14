@@ -354,4 +354,4 @@ function _setStore(s) {
   _store = s;
 }
 
-module.exports = { KnowledgeStore, getStore, _setStore, normalize, idFor, tokenize, patentBase, inScope };
+module.exports = { KnowledgeStore, getStore, defaultKnowledgeDir, _setStore, normalize, idFor, tokenize, patentBase, inScope };

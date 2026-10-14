@@ -150,14 +150,20 @@ function scanWhiteSpace({ limit = 8, minSide = 150 } = {}) {
     const x = cellDetail(c.a, c.b);
     return { a: c.a, b: c.b, combined_patents: x.combined_patents.slice(0, 3), newest_side_a: x.newest_side_a, newest_side_b: x.newest_side_b, top_applicants_side_a: x.top_applicants_side_a.slice(0, 3), top_applicants_side_b: x.top_applicants_side_b.slice(0, 3), applicants_on_both_sides: x.applicants_on_both_sides, trend: x.trend };
   });
+  const table_markdown = [
+    "| Combination | Patents combining both | Expected from side sizes | Lift | Side A / side B patents |",
+    "|---|---|---|---|---|",
+    ...candidates.filter((c) => !c.caveat).slice(0, 5).map((c) => `| ${c.label_a} (${c.a}) × ${c.label_b} (${c.b}) | ${c.patents} | ${c.expected} | ${c.lift} | ${c.side_a_patents} / ${c.side_b_patents} |`),
+  ].join("\n");
   return {
     population: populationText(d),
+    table_markdown,
     groups: d.groups.map((g) => ({ ipc: g, label: corpus.representativeLabel(g), patents: d.groupTotals[g], caveat: RECLASSIFIED[g] || undefined })),
     method:
       "Pairs of the 12 largest IPC main groups. patents = patents classified under both groups; expected = (side A × side B) / population, i.e. the count if the two classifications were unrelated; lift = patents / expected. Lift well below 1 with two large sides = a combination the field has under-explored: a white-space candidate to examine, not proof of patentability.",
     no_cutoff: "Field-wide scan over every patent in the population; no cutoff year applies.",
     answer_format:
-      "Not the Stage 3 table. (1) One sentence naming the strongest candidate with patents vs expected. (2) Table: Combination (labels + IPC) | Patents combining both | Expected from side sizes | Lift | Side A / side B patents — top 5 candidates, numbers copied. (3) 'How this can be used' for the top two (top_candidate_details): research or patent entry point — the patents that already combine the two (or the newest on each side), number + link, are what a new claim must be distinguished from; technology transfer — applicants on both sides and each side's top applicants are the likeliest licensees, partners or competitors. (4) What this suggests / does not prove, naming the population. (5) References and Evidence map.",
+      "Not the Stage 3 table. (1) One sentence naming the strongest candidate with patents vs expected. (2) table_markdown, pasted exactly. (3) 'How this can be used' for the top two (top_candidate_details): research or patent entry point — the patents that already combine the two (or the newest on each side), number + link, are what a new claim must be distinguished from; technology transfer — applicants on both sides and each side's top applicants are the likeliest licensees, partners or competitors. (4) What this suggests / does not prove, naming the population. (5) References and Evidence map.",
     candidates,
     top_candidate_details: details,
     most_crowded: crowded,
