@@ -5,7 +5,7 @@
 // fetches the real Google Patents page itself, parses title / publication date / abstract /
 // jurisdiction from the page, drops anything not published on/before the cutoff or already in
 // the internal corpus, and hands the survivors to retrieval.js, where the same deterministic
-// BM25 + word-boundary feature matching used for the 2,799-patent corpus runs over them.
+// BM25 + word-boundary feature matching used for the GPSS corpus runs over them.
 // A hallucinated patent number simply 404s and is dropped.
 //
 // Scope: external patents feed Novelty (prior-art overlap) ONLY. Crowding / Regional /

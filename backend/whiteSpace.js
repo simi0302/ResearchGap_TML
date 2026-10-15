@@ -1,10 +1,11 @@
 // White-space scan — "which technology combinations are still (nearly) empty, and what can be
 // done with them?" — answered from patent data, deterministically.
 //
-// Technology groups = the 12 most frequent primary IPC main groups of the 2,799-patent corpus
-// (the same groups the site's white-space matrix uses). For every pair of groups we count the
-// patents classified under BOTH: corpus patents by their IPC codes, knowledge-base patents (GPSS,
-// beyond the corpus) by their CPC codes — CPC and IPC share main groups.
+// Technology groups = the 12 most frequent primary IPC main groups of the GPSS corpus (6,030
+// patents after the 2026-10-15 merge; the same groups the site's white-space matrix uses). For
+// every pair of groups we count the patents classified under BOTH: corpus patents by their IPC
+// codes, knowledge-base patents not in the corpus (verified online during live scoring) by their
+// CPC codes — CPC and IPC share main groups.
 //
 // A pair is a white-space candidate when both sides are active but few patents combine them.
 // "Few" is measured against what the two sides' sizes would predict if classification were
@@ -67,7 +68,7 @@ function build() {
   let kbPatents = 0;
   let kbClassified = 0;
   for (const { item } of knowledgeStore.getStore().load().docs) {
-    if (item.type !== "patent") continue;
+    if (item.type !== "patent" || corpus.inCorpus(item.publication_number)) continue;
     kbPatents++;
     if (!Array.isArray(item.cpc) || !item.cpc.length) continue;
     kbClassified++;
@@ -132,7 +133,9 @@ function _clearCache() {
 }
 
 function populationText(d) {
-  return `${d.population - d.kbClassified} corpus patents (GPSS, extracted 2026-06-03) + ${d.kbClassified} classified knowledge-base patents (GPSS, beyond the corpus; ${d.kbPatents - d.kbClassified} without CPC codes left out)`;
+  const nCorpus = (d.population - d.kbClassified).toLocaleString("en-US");
+  if (!d.kbClassified) return `${nCorpus} GPSS corpus patents (published on/before 2026-06-03)`;
+  return `${nCorpus} GPSS corpus patents (published on/before 2026-06-03) + ${d.kbClassified} classified knowledge-base patents (verified online, not in the corpus; ${d.kbPatents - d.kbClassified} without CPC codes left out)`;
 }
 
 // Candidates: both sides must be sizeable (otherwise a low count means nothing), artefact pairs

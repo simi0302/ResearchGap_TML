@@ -1,0 +1,19 @@
+{
+  "merged_at": "2026-10-15T14:47:39.729Z",
+  "original": 2799,
+  "gpss_api": 3457,
+  "duplicates_removed": {
+    "within_original_ep_a1_b1": 226,
+    "gpss_already_in_corpus": 0
+  },
+  "total": 6030,
+  "by_jurisdiction": {
+    "TW": 274,
+    "US": 4460,
+    "EP": 990,
+    "JP": 296,
+    "SG": 7,
+    "MY": 3
+  },
+  "publication_cutoff": "2026-06-03"
+}

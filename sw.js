@@ -1,10 +1,10 @@
 // Service worker: faster repeat visits and an offline-capable patent search.
 // - Page, scripts, styles: network first (a new deploy shows up immediately when online),
 //   falling back to the cached copy when offline.
-// - data/patents.json (the 2,799-patent corpus, the largest file): served from cache at once
+// - data/patents.json (the 6,030-patent corpus, the largest file): served from cache at once
 //   and refreshed in the background (stale-while-revalidate).
 // - Everything cross-origin (the AI backend, pdf.js on cdnjs) is never intercepted.
-const CACHE = "researchgap-v1";
+const CACHE = "researchgap-v2"; // v2: corpus merged to 6,030 patents (2026-10-15)
 const CORE = ["./", "index.html", "styles.css", "script.js", "query-match.js", "logo.png", "data/patents.json"];
 
 self.addEventListener("install", (event) => {

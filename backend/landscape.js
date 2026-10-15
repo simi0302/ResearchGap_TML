@@ -3,13 +3,13 @@
 // A general chatbot answers that question from memory, in prose, with numbers nobody can check.
 // This tool answers it from data, deterministically: the same query always returns the same
 // numbers, and every number is a count over a named population.
-//   - patents: the fixed 2,799-patent GPSS corpus, matched with the search bar's own concept
+//   - patents: the fixed GPSS corpus (6,030 patents after the 2026-10-15 merge), matched with the search bar's own concept
 //     matcher (queryMatch.js — synonyms, Chinese ↔ English), counted by year / jurisdiction /
 //     IPC group, applicant concentration as HHI;
 //   - papers: the persistent knowledge base (knowledgeStore.js), matched the same way;
-//   - patents_kb: the knowledge base's patents (fetched from the same GPSS source as the corpus,
-//     same jurisdictions, minus the corpus itself, plus patents verified during live scoring).
-//     Reported separately: the corpus figures stay the reproducible reference population;
+//   - patents_kb: the knowledge base's patents not in the corpus (patents found and verified
+//     online during live scoring). Reported separately: the corpus stays the reproducible
+//     reference population;
 //   - the paper-to-patent ratio over the last five years, the signal behind "research is
 //     growing faster than patent filings" (the Temporal idea in POS).
 // Optional cutoffYear applies the 基準日 rule: nothing after Dec 31 of that year is counted.
@@ -95,6 +95,7 @@ function computeLandscape(query, { cutoffYear } = {}) {
   const kbPatents = [];
   let kbPatentTotal = 0;
   for (const { item } of kb.docs) {
+    if (item.type === "patent" && corpus.inCorpus(item.publication_number)) continue;
     if (item.type === "patent") kbPatentTotal++;
     if (cutoffYear && item.year > cutoffYear) continue;
     if (QueryMatch.scorePatent(concepts, item, q) <= 0) continue;
@@ -151,7 +152,7 @@ function computeLandscape(query, { cutoffYear } = {}) {
       most_cited: topPapers,
     },
     patents_kb: {
-      population: `ResearchGap patent knowledge base, N=${kbPatentTotal} (fetched from GPSS, the corpus's own source, beyond the corpus; not the scoring population)`,
+      population: `ResearchGap patent knowledge base, N=${kbPatentTotal} (patents found and verified online during earlier analyses, not in the corpus; not the scoring population)`,
       matched: kbPatents.length,
       by_year: kbPatentsByYear,
       growth_last5_vs_prev5_pct: growth(kbPatentsByYear),
@@ -239,7 +240,7 @@ function computeKbPatents(query, { from, to, country, offset = 0, limit = 20 } =
   let population = 0;
   const hits = [];
   for (const { item } of kb.docs) {
-    if (item.type !== "patent") continue;
+    if (item.type !== "patent" || corpus.inCorpus(item.publication_number)) continue;
     population++;
     if (from && item.year < from) continue;
     if (to && item.year > to) continue;
@@ -284,7 +285,7 @@ function kbMatrixCounts(rows, cols) {
     const counts = Object.fromEntries(rows.flatMap((a) => cols.map((b) => [`${a}|${b}`, 0])));
     let patents = 0, classified = 0;
     for (const { item } of kb.docs) {
-      if (item.type !== "patent") continue;
+      if (item.type !== "patent" || corpus.inCorpus(item.publication_number)) continue;
       patents++;
       if (!Array.isArray(item.cpc) || !item.cpc.length) continue;
       classified++;

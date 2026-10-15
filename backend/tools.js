@@ -21,6 +21,9 @@ const { topicLandscapeWithWorld } = require("./landscape");
 const knowledgeStore = require("./knowledgeStore");
 const whiteSpace = require("./whiteSpace");
 
+const corpus = require("./corpus");
+const N = corpus.loadRawCorpus().length.toLocaleString("en-US");
+
 const TOOL_DEFINITIONS = [
   {
     type: "function",
@@ -71,7 +74,7 @@ const TOOL_DEFINITIONS = [
     function: {
       name: "topic_landscape",
       description:
-        "Deterministic landscape of a technology topic, for questions like 'is X crowded?', 'who files patents on X?', 'is research on X growing faster than patents?' when the user has NOT uploaded a document. Returns counts over the fixed 2,799-patent corpus (by year, jurisdiction, IPC group, applicant HHI, example patents with links), over the ResearchGap knowledge base of papers (by year, most-cited papers) and over the knowledge-base patent set (patents_kb: fetched from GPSS beyond the corpus, US/EP/JP/TW; by year, jurisdiction, applicants), plus the research-to-patent ratio (corpus-based). Every number is computed by the backend; quote them, never estimate.",
+        `Deterministic landscape of a technology topic, for questions like 'is X crowded?', 'who files patents on X?', 'is research on X growing faster than patents?' when the user has NOT uploaded a document. Returns counts over the fixed ${N}-patent GPSS corpus (by year, jurisdiction, IPC group, applicant HHI, example patents with links), over the ResearchGap knowledge base of papers (by year, most-cited papers) and over the few knowledge-base patents not in the corpus (patents_kb: verified online during earlier analyses; by year, jurisdiction, applicants), plus the research-to-patent ratio (corpus-based). Every number is computed by the backend; quote them, never estimate.`,
       parameters: {
         type: "object",
         properties: {
@@ -87,7 +90,7 @@ const TOOL_DEFINITIONS = [
     function: {
       name: "find_white_space",
       description:
-        "Field-wide white-space scan for SDN/NFV/network slicing when the user has NOT uploaded a document: which pairs of the 12 largest IPC technology groups are combined by far fewer patents than the size of the two groups predicts (lift = observed / expected). Population: the 2,799-patent corpus + classified knowledge-base patents (both from GPSS). Call without arguments for the ranked candidates; call with a and b (IPC main groups like 'H04W 48') for one pair's detail: patents that combine both (or the newest on each side), top applicants per side and applicants present on both sides, trend. Every number is computed by the backend; quote them, never estimate.",
+        `Field-wide white-space scan for SDN/NFV/network slicing when the user has NOT uploaded a document: which pairs of the 12 largest IPC technology groups are combined by far fewer patents than the size of the two groups predicts (lift = observed / expected). Population: the ${N}-patent GPSS corpus (+ any classified knowledge-base patents verified online, not in the corpus). Call without arguments for the ranked candidates; call with a and b (IPC main groups like 'H04W 48') for one pair's detail: patents that combine both (or the newest on each side), top applicants per side and applicants present on both sides, trend. Every number is computed by the backend; quote them, never estimate.`,
       parameters: {
         type: "object",
         properties: {
@@ -120,11 +123,12 @@ async function executeTool(name, args) {
       // Retrieved from ResearchGap's persistent knowledge base (stored from earlier searches
       // and the offline crawl) — available even when the live sources fail.
       knowledge_base: litResult.local.map((p) => ({ ...brief(p), type: p.type, relevance: p.relevance })),
-      // Patents from the knowledge base (fetched from GPSS beyond the corpus, plus patents the
-      // backend verified live), on/before the cutoff, BM25-ranked against the query.
+      // Patents from the knowledge base that are not in the corpus (verified live by the backend), on/before the cutoff, BM25-ranked against the query.
       knowledge_base_patents: knowledgeStore
         .getStore()
-        .search(query, { type: "patent", cutoffDate: cutoffDate || undefined, limit: 6 })
+        .search(query, { type: "patent", cutoffDate: cutoffDate || undefined, limit: 12 })
+        .filter((p) => !corpus.inCorpus(p.publication_number))
+        .slice(0, 6)
         .map((p) => ({ publication_number: p.publication_number, title: p.title, date: p.date, jurisdiction: p.jurisdiction, assignee: p.assignee || undefined, url: p.url, abstract: p.abstract ? String(p.abstract).slice(0, 300) : undefined, relevance: p.relevance })),
       literature: litResult.live.map(brief),
       knowledge_base_update: litResult.learned,

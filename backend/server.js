@@ -445,7 +445,7 @@ app.post("/api/chat", chatLimit, dailyCap, async (req, res) => {
         const r = lastScored.result;
         const rows = Array.isArray(r.combination_whitespace) ? r.combination_whitespace : [];
         const table = rows.length
-          ? `Using ${r.cutoff_year} as the cutoff, ${rows.filter((x) => x.status === "gap").length} potential white-space combinations were found (technology classification: ${r.subtech_label}).\n\n${renderWhitespaceTable(rows)}\n\nSource: ResearchGap backend computation, N=2,799, extracted from GPSS.`
+          ? `Using ${r.cutoff_year} as the cutoff, ${rows.filter((x) => x.status === "gap").length} potential white-space combinations were found (technology classification: ${r.subtech_label}).\n\n${renderWhitespaceTable(rows)}\n\nSource: ResearchGap backend computation, N=${loadRawCorpus().length.toLocaleString("en-US")}, extracted from GPSS.`
           : `Using ${r.cutoff_year} as the cutoff, this case's technology classification (${r.subtech_label}) is not in a known technology group, so no combination white-space table is available.`;
         const leakedWrongTopic = /Novelty|Crowding|Temporal factor/i.test(reply);
         finalReply = leakedWrongTopic ? table : `${table}\n\n---\n\n${reply}`;

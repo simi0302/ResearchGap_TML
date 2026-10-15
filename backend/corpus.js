@@ -1,5 +1,6 @@
-// Loads the same real patent corpus the frontend uses (frontend/public/data/patents.json,
-// 2,799 SDN/NFV patents — see frontend/README.md's data pipeline) and derives the
+// Loads the same real patent corpus the frontend uses (data/patents.json: 6,030 SDN/NFV patents
+// from GPSS — the team's original 2,799-patent export merged with 3,457 patents fetched later
+// through the GPSS API, de-duplicated by scripts/merge_corpus.js) and derives the
 // backend-computable inputs for the patentability score (§⑤ of ResearchGap_Agent_Skill_v2.md):
 // cutoff filtering, a data-driven "sub-technology" taxonomy from real IPC codes, prior-art
 // density percentiles, and applicant concentration (HHI). No numbers here are invented —
@@ -36,6 +37,7 @@ const CURATED_IPC_LABELS = {
   "H04W 28": "Wireless Resource Management",
   "H04W 24": "Wireless Monitoring & Testing",
   "H04W 4": "Wireless Network Services",
+  "H04W 16": "Network Planning & Deployment",
 };
 
 let _cache = null;
@@ -314,7 +316,7 @@ function combinationWhitespace(cutoffPatents, subtechLabel, limit = 12) {
 function corpusMeta(cutoffDate) {
   const all = loadRawCorpus();
   const before = filterByCutoff(all, cutoffDate);
-  return { n: all.length, n_before_cutoff: before.length, source: "GPSS (backend/data/patents.json)", extracted: "2026-06-03" };
+  return { n: all.length, n_before_cutoff: before.length, source: "GPSS (original 2,799-patent export + GPSS API fetch, merged and de-duplicated)", extracted: "2026-06-03" };
 }
 
 function findByPublicationNumber(publication_number) {
@@ -340,8 +342,20 @@ function groupBaseRates() {
   return rates;
 }
 
+// Is this patent (any kind code, with or without GPSS's zero padding) already in the corpus?
+// Knowledge-base consumers use it so a patent never counts in both populations.
+function patentKey(n) {
+  return String(n || "").toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/[A-Z]\d?$/, "").replace(/^([A-Z]{2})0+/, "$1");
+}
+let _keys = null;
+function inCorpus(publicationNumber) {
+  if (!_keys) _keys = new Set(loadRawCorpus().map((p) => patentKey(p.publication_number)));
+  return _keys.has(patentKey(publicationNumber));
+}
+
 module.exports = {
   loadRawCorpus,
+  inCorpus,
   ipcMainGroup,
   subtechOf,
   allSubtechLabels,

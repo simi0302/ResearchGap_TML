@@ -3,7 +3,7 @@
 **Patent & Literature White-Space Analysis Platform** — cross-analyzes patents and academic
 literature so researchers can gauge how crowded a technology area is and spot underexplored
 "white-space" opportunities before committing to a research direction or patent filing.
-Pilot domain: **SDN / NFV / network slicing** (2,799 real patents).
+Pilot domain: **SDN / NFV / network slicing** (6,030 real GPSS patents).
 
 https://youtu.be/g3eITbFFzgY
 
@@ -19,7 +19,7 @@ separate build step and no framework: what's in `index.html` is what's live.
 |---|---|---|
 | **Frontend** (`/` root) | Static HTML/CSS/JS. Real client-side patent search, a real click-to-explore White-Space Matrix, and an AI Assistant chat wired to the live backend. | Static hosting (GitHub Pages). |
 | **Backend** (`backend/`) | Express API in front of Azure OpenAI, with function/tool-calling so the model can only report numbers a deterministic backend function computed — never its own. | Azure App Service (Linux, Node 22-LTS). |
-| **Data** | A fixed corpus of 2,799 real patents (statistics) plus a growing knowledge base of papers and verified patents (retrieval) — see [Data](#data-a-fixed-corpus-plus-a-growing-knowledge-base) below. | Corpus committed to the repo; knowledge-base seed committed, learned records on the App Service's persistent `/home` storage. |
+| **Data** | A fixed corpus of 6,030 real GPSS patents (statistics) plus a growing knowledge base of papers and verified patents (retrieval) — see [Data](#data-a-fixed-corpus-plus-a-growing-knowledge-base) below. | Corpus committed to the repo; knowledge-base seed committed, learned records on the App Service's persistent `/home` storage. |
 | `frontend/` (React + TypeScript + Vite) | An early scaffold from before the project pivoted to a dependency-free static site. **Not deployed, not part of the live product.** Kept for history; safe to ignore when reviewing what's actually running. | Not deployed anywhere. |
 
 ## Tech stack
@@ -28,7 +28,7 @@ separate build step and no framework: what's in `index.html` is what's live.
 - HTML5 / CSS3 (Flexbox + Grid, CSS keyframe animations, `prefers-reduced-motion`-aware) / JavaScript (ES6+)
 - [pdf.js](https://mozilla.github.io/pdf.js/) (loaded from a CDN) for client-side PDF text extraction on upload — the extracted text never leaves the browser except as part of the user's own chat message
 - `IntersectionObserver` for scroll-reveal animations, nav scrollspy, and an auto-drawn White-Space Matrix scroll hint on narrow viewports
-- **Real client-side patent search** — `data/patents.json` (2,799 patents) is fetched once and filtered entirely in the browser. Queries go through `query-match.js` (shared with the backend): abbreviations, spelled-out forms and Chinese/English names of the same concept match each other (e.g. NFV ↔ network function virtualization ↔ 網路功能虛擬化), every concept in a multi-word query must appear in the title or abstract, and results are ranked by where they matched. The results show how the query was interpreted and how many hits came only from synonyms.
+- **Real client-side patent search** — `data/patents.json` (6,030 patents) is fetched once and filtered entirely in the browser. Queries go through `query-match.js` (shared with the backend): abbreviations, spelled-out forms and Chinese/English names of the same concept match each other (e.g. NFV ↔ network function virtualization ↔ 網路功能虛擬化), every concept in a multi-word query must appear in the title or abstract, and results are ranked by where they matched. The results show how the query was interpreted and how many hits came only from synonyms.
 - **AI-suggested related terms, verified by the backend** — `POST /api/expand-query`: the model proposes related search terms, and the backend keeps only those that match patents in the corpus under the same rules, returning each with its match count. The model can't add a term that leads to an empty search, and its terms never reach any score.
 - **Live academic-paper search** — with "Academic Paper" ticked, `POST /api/literature` queries Semantic Scholar, Crossref and arXiv (no AI involved); Chinese queries are sent as their English concepts.
 - **Real client-side White-Space Matrix** — a 4×4 click-to-explore grid (rows/columns = the corpus's 8 most frequent IPC classification groups) computed from the same fetched JSON, with row/column labels grounded in real IPC classification scope (not algorithm-guessed words). Clicking a cell shows its real patent count and evidence.
@@ -46,9 +46,12 @@ separate build step and no framework: what's in `index.html` is what's live.
 
 There is **no SQL/NoSQL database server**, by design. Statistics come from a fixed corpus; retrieval
 also uses a file-based knowledge base that grows. The corpus is a single static JSON file (`data/patents.json`, mirrored at `backend/data/patents.json` for the backend's own
-copy): **2,799 real SDN/NFV/network-slicing patents**, sourced from GPSS (台灣專利檢索系統) and
-public patent-office data, extracted 2026-06-03. Jurisdiction breakdown: US 1,836 · EP 690 ·
-JP 135 · TW 128 · SG 7 · MY 3.
+copy): **6,030 real SDN/NFV/network-slicing patents** from GPSS (台灣專利檢索系統), published on or
+before 2026-06-03 — the team's original 2,799-patent GPSS export merged with 3,457 patents fetched
+later through the GPSS API (below), with duplicates removed (the 226 EP applications the original
+export listed twice, as A1 publication and B1 grant, count once). Jurisdiction breakdown: US 4,460 ·
+EP 990 · JP 296 · TW 274 · SG 7 · MY 3. The merge is `backend/scripts/merge_corpus.js` (original kept
+as `backend/data/patents_corpus_2799.json`, counts in `backend/data/merge_log.json`).
 
 Every derived statistic — the IPC-code-driven "sub-technology" taxonomy, patent density,
 applicant concentration (HHI), the White-Space Matrix's cross-tab counts, in-corpus prior-art
@@ -67,19 +70,17 @@ title and year, and is not a duplicate (DOI → arXiv id → title). `GET /api/k
 its size; every score records `external_prior_art.knowledge_base_size`, because a larger knowledge
 base can surface more prior art for Novelty.
 
-The knowledge base also holds a separate **patent set** (`backend/data/gpss_patents.jsonl.gz`, 3,457
-patents) fetched from the same source as the corpus — TIPO's GPSS search API — by
+The 3,457 GPSS API patents (`backend/data/gpss_patents.jsonl.gz`) were fetched by
 `backend/scripts/fetch_gpss.js`: title/abstract queries for SDN, NFV and network slicing (English,
 plus Traditional/Simplified Chinese), invention patents in the corpus's own jurisdictions (US, EP,
-JP, TW), published on or before the corpus extraction date (2026-06-03). Every hit passes the
-knowledge base's domain gate; the 1,302 hits already in the corpus and duplicates are removed. The
-counts are in `backend/data/gpss_fetch_log.json` (the API key is read from `GPSS_USER_CODE` and never
-committed). These patents widen prior-art retrieval for Novelty (cutoff-filtered), appear on the
-site under the corpus results (`POST /api/kb-patents`) and in the topic landscape as their own
-population (`patents_kb`). They are **not** the statistics population: Crowding / Regional /
-white-space keep using the fixed 2,799-patent corpus. (An earlier, larger citation-snowball set built
-from Google Patents — `scripts/crawl_patents.js`, `data/patent_seed.jsonl.gz` — is kept in the repo
-but no longer loaded.)
+JP, TW), published on or before 2026-06-03; every hit passed the domain gate and the 1,302 hits
+already in the original export were dropped (counts in `backend/data/gpss_fetch_log.json`; the API
+key is read from `GPSS_USER_CODE` and never committed). Until 2026-10-15 they were a separate
+knowledge-base population; since then they are part of the corpus, so the AI assistant, the scores
+and the White-Space Matrix all count the same 6,030 patents. The knowledge base now holds papers plus
+only the patents the backend verified online during live scoring that are not in the corpus. (An
+earlier, larger citation-snowball set built from Google Patents — `scripts/crawl_patents.js`,
+`data/patent_seed.jsonl.gz` — is kept in the repo but not loaded.)
 
 ## Architecture principle: the backend decides, the AI only explains
 
@@ -126,7 +127,7 @@ confident number.
 .
 ├── index.html, styles.css, script.js, logo.png   # the deployed static site
 ├── query-match.js                                # search query matcher (byte-identical copy of backend/queryMatch.js)
-├── data/patents.json                             # the 2,799-patent corpus (frontend copy)
+├── data/patents.json                             # the 6,030-patent corpus (frontend copy)
 ├── backend/                                       # Express API
 │   ├── server.js            # routes, Azure OpenAI tool-calling loop, per-turn table steering
 │   ├── tools.js              # compute_patentability / search_prior_art tool implementations
@@ -179,7 +180,7 @@ chat widget end to end.
   after the cutoff or already in the corpus, and runs the same BM25 + feature matching over
   corpus + external patents together (`prior_art[].source` = `corpus` | `external`). A
   hallucinated number 404s and is dropped. Only Novelty uses external patents; Crowding,
-  Temporal, Regional and white-space stay on the fixed 2,799-patent corpus. Trade-offs: external
+  Temporal, Regional and white-space stay on the fixed 6,030-patent corpus. Trade-offs: external
   lookups can vary between runs (cached per process), depend on Google Patents' page layout
   (on failure the score falls back to the corpus alone, with a note), and pages without
   abstract text are skipped. Raw web results shown by `search_prior_art` remain prose-only

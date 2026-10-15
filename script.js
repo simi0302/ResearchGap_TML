@@ -99,8 +99,8 @@ document.querySelectorAll(".try-row .tag").forEach(tag => {
 });
 
 /* ===== Real patent corpus: fetched once, searched entirely client-side —
-   no backend, no database. See data/patents.json (2,799 real SDN/NFV/network-
-   slicing patents). Requires being served over http(s); opening this file
+   no backend, no database. See data/patents.json (6,030 real SDN/NFV/network-
+   slicing patents from GPSS, merged and de-duplicated by backend/scripts/merge_corpus.js). Requires being served over http(s); opening this file
    directly (file://) blocks the fetch under Chrome's CORS rules — see README. */
 let patentCorpus = null;
 let corpusLoadError = null;
@@ -220,7 +220,7 @@ async function loadAiSuggestions(keyword, token) {
       <div class="ai-suggest__chips${terms.length > 4 ? " is-collapsed" : ""}">${terms.map((t) =>
         `<button type="button" class="ai-chip" data-term="${escapeHtml(String(t.term))}">${escapeHtml(String(t.term))} <span class="ai-chip__count">${Number(t.count).toLocaleString()}</span></button>`
       ).join("")}${terms.length > 4 ? `<button type="button" class="ai-chip-more" aria-expanded="false">+${terms.length - 4} more <span class="zh">更多</span></button>` : ""}</div>
-      <p class="ai-suggest__note">AI suggested ${proposed} terms; after removing synonyms of each other and terms with no match in the ${Number(data.corpus_size || 2799).toLocaleString()}-patent corpus, the backend kept ${terms.length} (number = matching patents).
+      <p class="ai-suggest__note">AI suggested ${proposed} terms; after removing synonyms of each other and terms with no match in the ${Number(data.corpus_size || patentCorpus?.length || 6030).toLocaleString()}-patent corpus, the backend kept ${terms.length} (number = matching patents).
         <span class="zh">AI 提出 ${proposed} 個詞，後端去除彼此同義與語料庫查無結果的詞後保留 ${terms.length} 個（數字＝符合的專利數）。</span></p>`;
   } catch {
     if (token === searchToken) el.hidden = true;
@@ -244,9 +244,10 @@ document.getElementById("aiSuggest").addEventListener("click", (e) => {
   document.getElementById("searchForm").requestSubmit();
 });
 
-/* ===== Knowledge-base patents: the GPSS patent set beyond the corpus (backend, /api/kb-patents),
-   matched with the same concept rules as the corpus search. Shown under the corpus results and
-   labelled as a separate population — the score statistics use the 2,799-patent corpus. */
+/* ===== Knowledge-base patents: patents the backend found and verified online during earlier
+   analyses that are not in the corpus (/api/kb-patents), matched with the same concept rules as
+   the corpus search. Shown under the corpus results as a separate population; hidden when there
+   are none. (The GPSS API patents that used to live here were merged into the corpus 2026-10-15.) */
 const KB_PATENTS_PAGE = 6;
 async function loadKbPatents(keyword, { start, end, jurisdiction }, token, offset = 0) {
   const el = document.getElementById("kbPatentResults");
@@ -269,6 +270,10 @@ async function loadKbPatents(keyword, { start, end, jurisdiction }, token, offse
     if (token !== searchToken || !res.ok) return;
     const d = await res.json();
     if (token !== searchToken || !Array.isArray(d.results)) return;
+    if (!offset && !d.total) {
+      el.hidden = true;
+      return;
+    }
     const re = highlightRegexFor(keyword);
     const cards = d.results.map((p) => `
       <article class="result-card">
@@ -290,8 +295,8 @@ async function loadKbPatents(keyword, { start, end, jurisdiction }, token, offse
           <h4>More patents — knowledge base <span class="zh">知識庫擴充專利</span></h4>
           <span class="paper-source">${d.total.toLocaleString()} of ${d.population.toLocaleString()}</span>
         </div>
-        <p class="paper-note kb-note"><span class="kb-dot" aria-hidden="true"></span><span>${d.total ? `${d.total.toLocaleString()} matching patents${jur ? ` (${jur})` : ""}` : "No matching patents"} among ${d.population.toLocaleString()} more patents fetched from GPSS — the corpus's own source, same countries. They widen prior-art search; the score statistics use the 2,799-patent corpus.
-          <span class="zh">專利庫共 ${d.population.toLocaleString()} 筆（與語料庫同樣取自 GPSS、同樣國別），符合 ${d.total.toLocaleString()} 筆。用於擴大先前技術比對；評分統計仍以 2,799 筆語料庫為母體。</span></span></p>
+        <p class="paper-note kb-note"><span class="kb-dot" aria-hidden="true"></span><span>${d.total ? `${d.total.toLocaleString()} matching patents${jur ? ` (${jur})` : ""}` : "No matching patents"} among ${d.population.toLocaleString()} patents the backend found and verified online during earlier analyses (not in the corpus). They widen prior-art search; the score statistics use the ${patentCorpus.length.toLocaleString()}-patent corpus.
+          <span class="zh">知識庫另有 ${d.population.toLocaleString()} 筆後端先前上網查到並驗證、不在語料庫內的專利，符合 ${d.total.toLocaleString()} 筆。用於擴大先前技術比對；評分統計仍以 ${patentCorpus.length.toLocaleString()} 筆語料庫為母體。</span></span></p>
         <div class="results-list kb-patent-list">${cards}</div>`;
     }
     el.querySelector(".kb-more")?.remove();
@@ -418,7 +423,7 @@ async function loadLandscape(keyword, { end }, token) {
         <ul>${groups.map((g) => `<li><strong>${escapeHtml(g.label)}</strong> <span class="ls-ipc">IPC ${escapeHtml(g.ipc)}</span> <span class="ls-n">${g.patents.toLocaleString()} <span class="zh">件</span></span></li>`).join("")}</ul>
       </div>` : ""}
       <div class="ls-grid">
-        <div class="ls-stat"><strong>${d.patents.matched.toLocaleString()}</strong><span>corpus patents <span class="zh">語料庫專利</span></span><small>${d.patents.share_of_corpus_pct}% of N=2,799 · 5-yr ${fmtPct(d.patents.growth_last5_vs_prev5_pct)}</small></div>
+        <div class="ls-stat"><strong>${d.patents.matched.toLocaleString()}</strong><span>corpus patents <span class="zh">語料庫專利</span></span><small>${d.patents.share_of_corpus_pct}% of N=${(patentCorpus?.length || 6030).toLocaleString()} · 5-yr ${fmtPct(d.patents.growth_last5_vs_prev5_pct)}</small></div>
         ${d.patents_kb ? `<div class="ls-stat"><strong>${d.patents_kb.matched.toLocaleString()}</strong><span>knowledge-base patents <span class="zh">知識庫專利</span></span><small>${Object.entries(d.patents_kb.by_jurisdiction || {}).slice(0, 4).map(([j, n]) => `${escapeHtml(j)} ${n.toLocaleString()}`).join(" · ") || "none"}</small></div>` : ""}
         ${world
           ? `<div class="ls-stat"><strong>${world.matched.toLocaleString()}</strong><span>papers worldwide <span class="zh">全球論文（OpenAlex）</span></span><small>${Object.keys(world.by_year)[0]}–${Object.keys(world.by_year).slice(-1)[0]} · 5-yr ${fmtPct(world.growth_last5_vs_prev5_pct)}${world.counted_at ? ` · counted ${escapeHtml(world.counted_at.slice(0, 10))}` : ""}</small></div>`
@@ -449,9 +454,10 @@ async function loadKnowledgeStats() {
     const learned = st.learned || 0;
     const papers = (st.by_type?.paper || 0).toLocaleString();
     const patents = (st.by_type?.patent || 0).toLocaleString();
-    const gpss = (st.patents_by_origin?.gpss || 0).toLocaleString();
-    pill.innerHTML = `<span class="kb-dot" aria-hidden="true"></span><span><strong>Knowledge base: ${st.total.toLocaleString()} records</strong> — ${papers} papers and ${patents} patents (${gpss} fetched from GPSS, the corpus's own source); ${learned.toLocaleString()} saved back from live searches${st.last_learned_at ? `, latest ${new Date(st.last_learned_at).toLocaleDateString()}` : ""}.
-      <span class="zh">知識庫共 ${st.total.toLocaleString()} 筆：論文 ${papers}、專利 ${patents}（其中 ${gpss} 筆與語料庫同樣取自 GPSS），${learned.toLocaleString()} 筆由即時搜尋寫回，每次搜尋都會持續累積。</span></span>`;
+    const patentPart = st.by_type?.patent ? ` and ${patents} patents verified online (outside the corpus)` : "";
+    const patentPartZh = st.by_type?.patent ? `、上網驗證過且不在語料庫內的專利 ${patents}` : "";
+    pill.innerHTML = `<span class="kb-dot" aria-hidden="true"></span><span><strong>Knowledge base: ${st.total.toLocaleString()} records</strong> — ${papers} papers${patentPart}; ${learned.toLocaleString()} saved back from live searches${st.last_learned_at ? `, latest ${new Date(st.last_learned_at).toLocaleDateString()}` : ""}.
+      <span class="zh">知識庫共 ${st.total.toLocaleString()} 筆：論文 ${papers}${patentPartZh}，${learned.toLocaleString()} 筆由即時搜尋寫回，每次搜尋都會持續累積。</span></span>`;
     pill.hidden = false;
     const setText = (id, v) => {
       const el = document.getElementById(id);
@@ -459,8 +465,6 @@ async function loadKnowledgeStats() {
     };
     setText("kbChatCount", papers);
     setText("kbChatCountZh", papers);
-    setText("kbChatPatents", patents);
-    setText("kbChatPatentsZh", patents);
   } catch {
     // stats are informational; the page works without them
   }
@@ -975,7 +979,7 @@ document.getElementById("searchForm").addEventListener("submit", async (e) => {
     return;
   }
   document.getElementById("resultsList").innerHTML =
-    `<div class="results-loading">Searching the 2,799-patent corpus… <span class="zh">搜尋 2,799 筆專利語料庫中…</span></div>`;
+    `<div class="results-loading">Searching the patent corpus… <span class="zh">搜尋專利語料庫中…</span></div>`;
 
   await patentCorpusPromise;
   if (token !== searchToken) return;
@@ -1103,8 +1107,8 @@ function renderWhiteSpaceFromAnalysis(result) {
 
 /*
  * Default (whole-corpus) White-Space matrix: a real click-to-explore grid computed
- * entirely client-side from data/patents.json — the same 2,799-patent corpus the
- * search bar already uses — so the section shows a real matrix (N=2,799) on page load
+ * entirely client-side from data/patents.json — the same GPSS corpus (6,030 patents) the
+ * search bar already uses — so the section shows a real matrix on page load
  * instead of an empty "not yet analyzed" state. Same IPC-grouping approach as
  * backend/corpus.js's deriveSubtechGroups (top-12 most frequent IPC main-groups), just
  * run in the browser since this default view isn't tied to any single AI-analyzed case.
@@ -1133,6 +1137,7 @@ const WS_IPC_LABELS = {
   "H04W 28": "Wireless Resource Management",
   "H04W 24": "Wireless Monitoring & Testing",
   "H04W 4": "Wireless Network Services",
+  "H04W 16": "Network Planning & Deployment",
 };
 function wsLabelFor(code) {
   return WS_IPC_LABELS[code] || `IPC ${code}`;
@@ -1313,7 +1318,8 @@ async function loadKbMatrix() {
     const res = await fetchWithTimeout(`${SEARCH_API_BASE}/api/kb-matrix?${qs}`, {}, 30000);
     if (!res.ok) return;
     const data = await res.json();
-    if (!data || typeof data.counts !== "object" || !Number.isFinite(data.kb_classified)) return;
+    // Only knowledge-base patents outside the corpus are counted; with none, no toggle is shown.
+    if (!data || typeof data.counts !== "object" || !Number.isFinite(data.kb_classified) || !data.kb_classified) return;
     kbMatrix = data;
     // Not while a paper's own white-space table (renderWhiteSpaceFromAnalysis) is on show.
     if (!document.getElementById("whiteSpaceMatrix").hidden) renderDefaultWhiteSpaceMatrix();
@@ -1385,13 +1391,13 @@ function showGapCard(row) {
   if (scoreEl) popValue(scoreEl);
   // Matrix cells and field-wide candidates are pairs of IPC main groups: show how the pair could
   // be used. (A paper's own white-space rows come from a different population — skip those.)
-  if (row.ipc_a && row.ipc_b && (row.useKb || row.fieldWide)) loadPairUse(row.ipc_a, row.ipc_b);
+  if (row.ipc_a && row.ipc_b) loadPairUse(row.ipc_a, row.ipc_b);
   else document.getElementById("gapUse").hidden = true;
 }
 
 /* ===== White space → use: for one pair of technology groups, the patents a new idea would have
    to be distinguished from, and the applicants on each side (licensing / partnering / competing).
-   GET /api/white-space?a=&b= — deterministic counts over corpus + knowledge-base patents. */
+   GET /api/white-space?a=&b= — deterministic counts over the corpus (+ any knowledge-base patents outside it). */
 const pairUseCache = new Map();
 let pairUseToken = 0;
 function patentLi(p) {
@@ -1442,7 +1448,7 @@ async function loadPairUse(a, b) {
         </div>
       </div>
       <p class="gap-use__src">${p.side_a_patents.toLocaleString()} patents in ${escapeHtml(p.label_a)} and ${p.side_b_patents.toLocaleString()} in ${escapeHtml(p.label_b)} would predict about ${p.expected.toLocaleString()} combining both; ${p.patents.toLocaleString()} do (lift ${p.lift}). A low count is a candidate to examine, not proof of novelty.
-        <span class="zh">依兩側規模（${p.side_a_patents.toLocaleString()} 件與 ${p.side_b_patents.toLocaleString()} 件）預期約 ${p.expected.toLocaleString()} 件同時涵蓋兩者，實際 ${p.patents.toLocaleString()} 件（lift ${p.lift}）。件數低代表值得檢視，不代表已確定具新穎性。母體：語料庫＋已分類的知識庫專利，皆取自 GPSS。</span></p>`;
+        <span class="zh">依兩側規模（${p.side_a_patents.toLocaleString()} 件與 ${p.side_b_patents.toLocaleString()} 件）預期約 ${p.expected.toLocaleString()} 件同時涵蓋兩者，實際 ${p.patents.toLocaleString()} 件（lift ${p.lift}）。件數低代表值得檢視，不代表已確定具新穎性。母體：GPSS 專利語料庫。</span></p>`;
   } catch {
     if (token === pairUseToken) el.hidden = true;
   }
@@ -1475,7 +1481,7 @@ async function loadWhiteSpaceCandidates() {
           <td>${c.lift}</td>
         </tr>`).join("")}</tbody>
       </table>
-      <p class="ws-candidates__src">${escapeHtml(d.population)}. <span class="zh">母體：語料庫＋已分類的知識庫專利（皆取自 GPSS）。</span></p>`;
+      <p class="ws-candidates__src">${escapeHtml(d.population)}. <span class="zh">母體：${(patentCorpus?.length || 6030).toLocaleString()} 筆 GPSS 專利語料庫${/\+ [1-9]/.test(d.population) ? "＋已分類的知識庫專利" : ""}。</span></p>`;
     el.hidden = false;
     el.addEventListener("click", (e) => {
       const tr = e.target.closest("tr[data-i]");
@@ -1486,9 +1492,9 @@ async function loadWhiteSpaceCandidates() {
       el.querySelectorAll("tr[data-i]").forEach((x) => x.classList.toggle("active", x === tr));
       showGapCard({
         combo_a: c.label_a, combo_b: c.label_b, ipc_a: c.a, ipc_b: c.b, count: c.patents, corpus: c.corpus, kb: c.knowledge_base,
-        status: "gap", fieldWide: true, useKb: true, lift: c.lift,
-        evidence_en: `Only ${c.patents} patents are classified under both "${c.label_a}" (${c.a}) and "${c.label_b}" (${c.b}) — ${c.corpus} in the corpus and ${c.knowledge_base} in the knowledge base — although the two groups hold ${c.side_a_patents.toLocaleString()} and ${c.side_b_patents.toLocaleString()} patents.`,
-        evidence_zh: `同時歸類於「${c.label_a}」(${c.a}) 與「${c.label_b}」(${c.b}) 的專利只有 ${c.patents} 件（語料庫 ${c.corpus}、知識庫 ${c.knowledge_base}），但這兩個分類各有 ${c.side_a_patents.toLocaleString()} 與 ${c.side_b_patents.toLocaleString()} 件。`,
+        status: "gap", fieldWide: true, useKb: c.knowledge_base > 0, lift: c.lift,
+        evidence_en: `Only ${c.patents} patents are classified under both "${c.label_a}" (${c.a}) and "${c.label_b}" (${c.b})${c.knowledge_base ? ` — ${c.corpus} in the corpus and ${c.knowledge_base} in the knowledge base —` : ""} although the two groups hold ${c.side_a_patents.toLocaleString()} and ${c.side_b_patents.toLocaleString()} patents.`,
+        evidence_zh: `同時歸類於「${c.label_a}」(${c.a}) 與「${c.label_b}」(${c.b}) 的專利只有 ${c.patents} 件${c.knowledge_base ? `（語料庫 ${c.corpus}、知識庫 ${c.knowledge_base}）` : ""}，但這兩個分類各有 ${c.side_a_patents.toLocaleString()} 與 ${c.side_b_patents.toLocaleString()} 件。`,
       });
       document.getElementById("whiteSpaceGapCards").scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "nearest" });
     });
@@ -1830,7 +1836,7 @@ function evidenceItems(toolCalls) {
       }
     } else if (call.tool === "topic_landscape" && r.patents) {
       items.push({
-        en: `Topic landscape computed by the backend for “${r.query}”: ${r.patents.matched.toLocaleString()} of ${Number(r.patents.population.match(/N=(\d+)/)?.[1] || 2799).toLocaleString()} corpus patents, ${r.papers.matched.toLocaleString()} knowledge-base papers${r.patents.applicant_hhi != null ? `, applicant HHI ${r.patents.applicant_hhi}` : ""}.`,
+        en: `Topic landscape computed by the backend for “${r.query}”: ${r.patents.matched.toLocaleString()} of ${Number(r.patents.population.match(/N=(\d+)/)?.[1] || 6030).toLocaleString()} corpus patents, ${r.papers.matched.toLocaleString()} knowledge-base papers${r.patents.applicant_hhi != null ? `, applicant HHI ${r.patents.applicant_hhi}` : ""}.`,
         zh: `後端計算「${r.query}」主題全景：語料庫專利 ${r.patents.matched} 筆、知識庫論文 ${r.papers.matched} 筆${r.patents.applicant_hhi != null ? `，申請人 HHI ${r.patents.applicant_hhi}` : ""}。`,
       });
     } else if (call.tool === "search_prior_art") {

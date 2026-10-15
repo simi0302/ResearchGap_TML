@@ -7,11 +7,10 @@
 //
 //   seed    data/knowledge_seed.jsonl.gz   papers, built offline by scripts/crawl.js (AI-planned
 //                                         crawl, backend-verified), shipped with the deploy
-//           data/gpss_patents.jsonl.gz     patents, built offline by scripts/fetch_gpss.js from
-//                                         TIPO's GPSS search API (same source as the corpus,
-//                                         same jurisdictions), shipped with the deploy. The
-//                                         earlier citation-snowball set (patent_seed.jsonl.gz,
-//                                         scripts/crawl_patents.js) is kept but no longer loaded
+//           (patents fetched from TIPO's GPSS API, data/gpss_patents.jsonl.gz, used to be a
+//           second seed; since 2026-10-15 scripts/merge_corpus.js merges them into the corpus,
+//           so they are not loaded here — that would count them twice. The older citation-
+//           snowball set, patent_seed.jsonl.gz, is kept but not loaded either.)
 //   learned <KNOWLEDGE_DIR>/learned.jsonl  appended at runtime by live searches; on Azure App
 //                                         Service KNOWLEDGE_DIR points under /home, which
 //                                         survives restarts and redeploys
@@ -23,7 +22,7 @@
 // Nothing a model says is stored.
 //
 // Retrieval is Okapi BM25 over an inverted index (title + abstract), with an optional
-// publication-date cutoff applied before ranking (基準日鐵律). The 2,799-patent GPSS corpus is
+// publication-date cutoff applied before ranking (基準日鐵律). The GPSS patent corpus is
 // NOT part of this store: Crowding / Regional / white-space statistics stay on that fixed,
 // reproducible population.
 const fs = require("fs");
@@ -34,7 +33,7 @@ const features = require("./features");
 const DATA_DIR = path.join(__dirname, "data");
 const SEED_PATHS = process.env.KNOWLEDGE_SEED_PATH
   ? [process.env.KNOWLEDGE_SEED_PATH]
-  : [path.join(DATA_DIR, "knowledge_seed.jsonl.gz"), path.join(DATA_DIR, "gpss_patents.jsonl.gz")];
+  : [path.join(DATA_DIR, "knowledge_seed.jsonl.gz")];
 
 function defaultKnowledgeDir() {
   if (process.env.KNOWLEDGE_DIR) return process.env.KNOWLEDGE_DIR;
